@@ -1,15 +1,16 @@
+
 "use client";
 
 import { useState, type ChangeEvent, useCallback } from "react";
 import Image from "next/image";
-import { UploadCloud, Copy, Wand2, RefreshCw, Loader2 } from "lucide-react";
+import { UploadCloud, Copy, Wand2, RefreshCw, Loader2, Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { suggestImageCaptions, type SuggestImageCaptionsInput, type SuggestImageCaptionsOutput } from "@/ai/flows/suggest-image-captions";
-import { refineCaptionSuggestions, type RefineCaptionSuggestionsInput, type RefineCaptionSuggestionsOutput } from "@/ai/flows/refine-caption-suggestions";
+import { suggestMediaCaptions, type SuggestMediaCaptionsInput, type SuggestMediaCaptionsOutput } from "@/ai/flows/suggest-media-captions";
+import { refineMediaCaptions, type RefineMediaCaptionsInput, type RefineMediaCaptionsOutput } from "@/ai/flows/refine-media-captions";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const fileToDataUri = (file: File): Promise<string> => {
@@ -24,8 +25,9 @@ const fileToDataUri = (file: File): Promise<string> => {
 };
 
 export default function CaptionWiseClient() {
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaSrc, setMediaSrc] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
   const [suggestedCaptions, setSuggestedCaptions] = useState<string[]>([]);
   const [refinedCaptions, setRefinedCaptions] = useState<string[]>([]);
   const [feedback, setFeedback] = useState<string>("");
@@ -34,50 +36,55 @@ export default function CaptionWiseClient() {
 
   const { toast } = useToast();
 
-  const handleImageUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+  const handleMediaUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setSuggestedCaptions([]);
       setRefinedCaptions([]);
       setFeedback("");
-      setImageFile(file);
+      setMediaFile(file);
+
+      const currentMediaType = file.type.startsWith('video/') ? 'video' : 'image';
+      setMediaType(currentMediaType);
+
       const dataUri = await fileToDataUri(file);
-      setImageSrc(dataUri);
-      await handleSuggestCaptions(dataUri);
+      setMediaSrc(dataUri);
+      await handleSuggestCaptions(dataUri, currentMediaType);
     }
   };
 
-  const handleSuggestCaptions = async (dataUri: string) => {
+  const handleSuggestCaptions = async (dataUri: string, currentMediaType: "image" | "video") => {
     setIsSuggesting(true);
     try {
-      const input: SuggestImageCaptionsInput = { photoDataUri: dataUri };
-      const result: SuggestImageCaptionsOutput = await suggestImageCaptions(input);
+      const input: SuggestMediaCaptionsInput = { mediaDataUri: dataUri, mediaType: currentMediaType };
+      const result: SuggestMediaCaptionsOutput = await suggestMediaCaptions(input);
       setSuggestedCaptions(result.captions || []);
       if (!result.captions || result.captions.length === 0) {
-        toast({ title: "No captions suggested", description: "The AI could not suggest captions for this image." });
+        toast({ title: "No captions suggested", description: `The AI could not suggest captions for this ${currentMediaType}.` });
       }
     } catch (error) {
       console.error("Error suggesting captions:", error);
-      toast({ variant: "destructive", title: "Error", description: "Failed to suggest captions." });
+      toast({ variant: "destructive", title: "Error", description: `Failed to suggest captions for this ${currentMediaType}.` });
     } finally {
       setIsSuggesting(false);
     }
   };
 
   const handleRefineCaptions = async () => {
-    if (!imageFile || suggestedCaptions.length === 0 || !feedback) {
-      toast({ variant: "destructive", title: "Error", description: "Missing image, initial captions, or feedback for refinement." });
+    if (!mediaFile || suggestedCaptions.length === 0 || !feedback || !mediaType) {
+      toast({ variant: "destructive", title: "Error", description: "Missing media, initial captions, media type, or feedback for refinement." });
       return;
     }
     setIsRefining(true);
     try {
-      const imageDescription = suggestedCaptions[0]; // Use first suggestion as proxy for image description
-      const input: RefineCaptionSuggestionsInput = {
-        imageDescription,
+      const mediaDescription = suggestedCaptions[0]; // Use first suggestion as proxy for media description
+      const input: RefineMediaCaptionsInput = {
+        mediaDescription,
         initialCaptions: suggestedCaptions,
         userFeedback: feedback,
+        mediaType: mediaType,
       };
-      const result: RefineCaptionSuggestionsOutput = await refineCaptionSuggestions(input);
+      const result: RefineMediaCaptionsOutput = await refineMediaCaptions(input);
       setRefinedCaptions(result.refinedCaptions || []);
       if (!result.refinedCaptions || result.refinedCaptions.length === 0) {
         toast({ title: "No captions refined", description: "The AI could not refine captions based on your feedback." });
@@ -119,21 +126,28 @@ export default function CaptionWiseClient() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
               <UploadCloud className="h-6 w-6 text-primary" />
-              1. Upload Your Image
+              1. Upload Your Media
             </CardTitle>
-            <CardDescription>Select an image from your device to get caption suggestions.</CardDescription>
+            <CardDescription>Select an image or video from your device to get caption suggestions.</CardDescription>
           </CardHeader>
           <CardContent>
             <Input
-              id="imageUpload"
+              id="mediaUpload"
               type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
+              accept="image/*,video/*"
+              onChange={handleMediaUpload}
               className="text-base file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
             />
-            {imageSrc && (
-              <div className="mt-6 border rounded-lg overflow-hidden shadow-md">
-                <Image src={imageSrc} alt="Uploaded preview" width={600} height={400} className="w-full h-auto object-contain" data-ai-hint="uploaded image" />
+            {mediaSrc && (
+              <div className="mt-6 border rounded-lg overflow-hidden shadow-md bg-muted/20">
+                {mediaType === 'image' && (
+                  <Image src={mediaSrc} alt="Uploaded image preview" width={600} height={400} className="w-full h-auto object-contain" data-ai-hint="uploaded image" />
+                )}
+                {mediaType === 'video' && (
+                  <video src={mediaSrc} controls className="w-full h-auto max-h-[400px] object-contain rounded-lg" data-ai-hint="uploaded video">
+                    Your browser does not support the video tag.
+                  </video>
+                )}
               </div>
             )}
           </CardContent>
@@ -143,7 +157,7 @@ export default function CaptionWiseClient() {
           <Card className="w-full shadow-lg rounded-xl">
             <CardContent className="p-6 flex flex-col items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-              <p className="text-muted-foreground">Generating captions...</p>
+              <p className="text-muted-foreground">Generating captions for your {mediaType || 'media'}...</p>
             </CardContent>
           </Card>
         )}
@@ -152,10 +166,10 @@ export default function CaptionWiseClient() {
           <Card className="w-full shadow-lg rounded-xl">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
-                <Wand2 className="h-6 w-6 text-primary" />
+                {mediaType === 'video' ? <Film className="h-6 w-6 text-primary" /> : <Wand2 className="h-6 w-6 text-primary" />}
                 2. AI-Suggested Captions
               </CardTitle>
-              <CardDescription>Here are some captions suggested by our AI. Copy your favorite or refine them!</CardDescription>
+              <CardDescription>Here are some captions suggested for your {mediaType}. Copy your favorite or refine them!</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {suggestedCaptions.map((caption, index) => (
