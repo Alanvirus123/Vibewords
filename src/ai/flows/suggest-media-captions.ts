@@ -26,7 +26,7 @@ export type SuggestMediaCaptionsInput = z.infer<typeof SuggestMediaCaptionsInput
 const SuggestMediaCaptionsOutputSchema = z.object({
   captions: z
     .array(z.string())
-    .describe('An array of suggested captions for the media.'),
+    .describe('An array of 3 suggested captions for the media.'),
 });
 export type SuggestMediaCaptionsOutput = z.infer<typeof SuggestMediaCaptionsOutputSchema>;
 
@@ -40,11 +40,11 @@ const prompt = ai.definePrompt({
   name: 'suggestMediaCaptionsPrompt',
   input: {schema: SuggestMediaCaptionsInputSchema},
   output: {schema: SuggestMediaCaptionsOutputSchema},
-  prompt: `You are an expert social media manager. You will analyze the {{mediaType}} provided, and generate several captions that are relevant to the {{mediaType}}'s content. The captions should be engaging and appropriate for a general audience.
+  prompt: `You are an expert social media manager. You will analyze the {{mediaType}} provided, and generate three engaging captions that are relevant to the {{mediaType}}'s content. The captions should be appropriate for a general audience.
 
   {{mediaType}}: {{media url=mediaDataUri}}
 
-  Return an array of suggested captions.`,
+  Return an array of 3 suggested captions.`,
 });
 
 const suggestMediaCaptionsFlow = ai.defineFlow(

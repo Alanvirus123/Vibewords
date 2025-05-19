@@ -33,7 +33,7 @@ export type RefineMediaCaptionsInput = z.infer<
 const RefineMediaCaptionsOutputSchema = z.object({
   refinedCaptions: z
     .array(z.string())
-    .describe('The refined set of caption suggestions.'),
+    .describe('The refined set of 3 caption suggestions.'),
 });
 
 export type RefineMediaCaptionsOutput = z.infer<
@@ -54,7 +54,7 @@ const refineMediaCaptionsPrompt = ai.definePrompt({
   output: {schema: RefineMediaCaptionsOutputSchema},
   prompt: `You are an expert caption writer. You will be provided with a description of the {{#if mediaType}}{{mediaType}}{{else}}media{{/if}}, a list of initial caption suggestions, and user feedback on those captions.
 
-  Your goal is to refine the initial captions based on the user feedback to create a new set of improved caption suggestions.
+  Your goal is to refine the initial captions based on the user feedback to create a new set of three improved caption suggestions.
 
   {{#if mediaType}}Media Type: {{mediaType}}{{/if}}
   Media Description: {{{mediaDescription}}}
@@ -65,7 +65,7 @@ const refineMediaCaptionsPrompt = ai.definePrompt({
 
   User Feedback: {{{userFeedback}}}
 
-  Refined Captions:`,
+  Return an array of 3 refined captions.`,
 });
 
 // Define the Genkit flow for refining caption suggestions.
