@@ -110,20 +110,55 @@ export default function CaptionWiseClient() {
       return;
     }
     setIsRefiningCaptions(true);
+    setRefinedCaptions([]); // Clear previous refined captions
+
+    let refinedCaptionTextForSongRefinement = "";
+
     try {
-      const mediaDescription = suggestedCaptions.join(" "); 
-      const input: RefineMediaCaptionsInput = {
-        mediaDescription,
+      const captionInput: RefineMediaCaptionsInput = {
+        mediaDescription: suggestedCaptions.join(" "),
         initialCaptions: suggestedCaptions,
         userFeedback: captionFeedback,
         mediaType: mediaType,
       };
-      const result: RefineMediaCaptionsOutput = await refineMediaCaptions(input);
-      setRefinedCaptions(result.refinedCaptions || []);
-      if (!result.refinedCaptions || result.refinedCaptions.length === 0) {
-        toast({ title: "No captions refined", description: "The AI could not refine captions based on your feedback." });
+      const captionResult: RefineMediaCaptionsOutput = await refineMediaCaptions(captionInput);
+
+      if (captionResult.refinedCaptions && captionResult.refinedCaptions.length > 0) {
+        setRefinedCaptions(captionResult.refinedCaptions);
+        refinedCaptionTextForSongRefinement = captionResult.refinedCaptions.join(" ");
+        toast({ title: "Captions Refined!", description: "New captions generated. Attempting to refine songs as well..." });
+
+        // Automatically refine songs if initial songs exist
+        if (suggestedSongs && mediaType) {
+          setIsRefiningSongs(true);
+          setRefinedSongSuggestions(null); // Clear previous refined songs for a fresh take
+          try {
+            const songInput: RefineSongSuggestionsInput = {
+              mediaDescription: refinedCaptionTextForSongRefinement, // Use refined captions as description
+              initialSongSuggestions: suggestedSongs,
+              userFeedback: songFeedback, // Use current song feedback from textarea
+              mediaType: mediaType,
+            };
+            const songResult: RefineSongSuggestionsOutput = await refineSongSuggestions(songInput);
+            setRefinedSongSuggestions(songResult.refinedSongSuggestions || null);
+            const refinedSongsExist = songResult.refinedSongSuggestions && 
+                                      (songResult.refinedSongSuggestions.english.length > 0 || 
+                                       songResult.refinedSongSuggestions.hindi.length > 0 || 
+                                       songResult.refinedSongSuggestions.bengali.length > 0);
+            if (!refinedSongsExist) {
+              toast({ title: "No songs automatically refined", description: "The AI could not refine song suggestions based on the new captions and song feedback." });
+            } else {
+              toast({ title: "Song Suggestions Also Refined!", description: "New song suggestions generated using refined captions and your song feedback." });
+            }
+          } catch (songError) {
+            console.error("Error auto-refining song suggestions:", songError);
+            toast({ variant: "destructive", title: "Song Refinement Error", description: "Failed to automatically refine song suggestions." });
+          } finally {
+            setIsRefiningSongs(false);
+          }
+        }
       } else {
-        toast({ title: "Captions Refined!", description: "New captions generated based on your feedback." });
+        toast({ title: "No captions refined", description: "The AI could not refine captions based on your feedback." });
       }
     } catch (error) {
       console.error("Error refining captions:", error);
@@ -139,8 +174,9 @@ export default function CaptionWiseClient() {
       return;
     }
     setIsRefiningSongs(true);
+    setRefinedSongSuggestions(null); // Clear previous
     try {
-      const mediaDescription = suggestedCaptions.join(" ") || "The uploaded media."; // Fallback description
+      const mediaDescription = (refinedCaptions.length > 0 ? refinedCaptions : suggestedCaptions).join(" ") || "The uploaded media.";
       const input: RefineSongSuggestionsInput = {
         mediaDescription,
         initialSongSuggestions: suggestedSongs,
@@ -250,7 +286,7 @@ export default function CaptionWiseClient() {
                 {mediaType === 'video' ? <Film className="h-6 w-6 text-primary" /> : <Wand2 className="h-6 w-6 text-primary" />}
                 2. AI-Suggested Captions
               </CardTitle>
-              <CardDescription>Here are some captions suggested for your {mediaType}. Copy your favorite or refine them!</CardDescription>
+              <CardDescription>Here are some captions suggested for your {mediaType}. Copy your favorite or refine them (refining captions will also refine songs based on the new captions and your song feedback).</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {suggestedCaptions.map((caption, index) => (
@@ -266,15 +302,15 @@ export default function CaptionWiseClient() {
                 onChange={(e) => setCaptionFeedback(e.target.value)}
                 className="min-h-[80px]"
               />
-              <Button onClick={handleRefineCaptions} disabled={isRefiningCaptions || !captionFeedback} className="w-full sm:w-auto">
+              <Button onClick={handleRefineCaptions} disabled={isRefiningCaptions || !captionFeedback || isRefiningSongs} className="w-full sm:w-auto">
                 {isRefiningCaptions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                Refine Captions
+                Refine Captions {isRefiningSongs && "& Songs..."}
               </Button>
             </CardFooter>
           </Card>
         )}
         
-        {isRefiningCaptions && (
+        {isRefiningCaptions && !isRefiningSongs && ( // Show only if caption refining, not song refining part of chain
            <Card className="w-full shadow-lg rounded-xl">
             <CardContent className="p-6 flex flex-col items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
@@ -283,7 +319,7 @@ export default function CaptionWiseClient() {
           </Card>
         )}
         
-        {!isRefiningCaptions && refinedCaptions.length > 0 && (
+        {refinedCaptions.length > 0 && ( // Always show refined captions if they exist, even if song refinement is also happening
           <Card className="w-full shadow-lg rounded-xl">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
@@ -329,7 +365,7 @@ export default function CaptionWiseClient() {
                 onChange={(e) => setSongFeedback(e.target.value)}
                 className="min-h-[80px]"
               />
-              <Button onClick={handleRefineSongs} disabled={isRefiningSongs || !songFeedback} className="w-full sm:w-auto">
+              <Button onClick={handleRefineSongs} disabled={isRefiningSongs || !songFeedback || isRefiningCaptions} className="w-full sm:w-auto">
                 {isRefiningSongs ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                 Refine Songs
               </Button>
@@ -337,7 +373,7 @@ export default function CaptionWiseClient() {
           </Card>
         )}
 
-        {isRefiningSongs && (
+        {isRefiningSongs && ( // This will show if standalone song refining or chained song refining
            <Card className="w-full shadow-lg rounded-xl">
             <CardContent className="p-6 flex flex-col items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
@@ -346,7 +382,7 @@ export default function CaptionWiseClient() {
           </Card>
         )}
 
-        {!isRefiningSongs && hasRefinedSongs && (
+        {hasRefinedSongs && ( // Always show refined songs if they exist
           <Card className="w-full shadow-lg rounded-xl">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
@@ -402,3 +438,4 @@ const Label: React.FC<React.LabelHTMLAttributes<HTMLLabelElement>> = ({ children
     {children}
   </label>
 );
+
