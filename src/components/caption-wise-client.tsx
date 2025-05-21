@@ -3,7 +3,7 @@
 
 import { useState, type ChangeEvent, useCallback } from "react";
 import Image from "next/image";
-import { UploadCloud, Copy, Wand2, RefreshCw, Loader2, Film } from "lucide-react";
+import { UploadCloud, Copy, Wand2, RefreshCw, Loader2, Film, Music2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,11 +24,18 @@ const fileToDataUri = (file: File): Promise<string> => {
   });
 };
 
+interface SongSuggestions {
+  english: string[];
+  hindi: string[];
+  bengali: string[];
+}
+
 export default function CaptionWiseClient() {
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaSrc, setMediaSrc] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
   const [suggestedCaptions, setSuggestedCaptions] = useState<string[]>([]);
+  const [suggestedSongs, setSuggestedSongs] = useState<SongSuggestions | null>(null);
   const [refinedCaptions, setRefinedCaptions] = useState<string[]>([]);
   const [feedback, setFeedback] = useState<string>("");
   const [isSuggesting, setIsSuggesting] = useState<boolean>(false);
@@ -40,6 +47,7 @@ export default function CaptionWiseClient() {
     const file = event.target.files?.[0];
     if (file) {
       setSuggestedCaptions([]);
+      setSuggestedSongs(null);
       setRefinedCaptions([]);
       setFeedback("");
       setMediaFile(file);
@@ -59,12 +67,25 @@ export default function CaptionWiseClient() {
       const input: SuggestMediaCaptionsInput = { mediaDataUri: dataUri, mediaType: currentMediaType };
       const result: SuggestMediaCaptionsOutput = await suggestMediaCaptions(input);
       setSuggestedCaptions(result.captions || []);
-      if (!result.captions || result.captions.length === 0) {
-        toast({ title: "No captions suggested", description: `The AI could not suggest captions for this ${currentMediaType}.` });
+      setSuggestedSongs(result.songSuggestions || null);
+      
+      const hasCaptions = result.captions && result.captions.length > 0;
+      const hasSongs = result.songSuggestions && 
+                       (result.songSuggestions.english.length > 0 || 
+                        result.songSuggestions.hindi.length > 0 || 
+                        result.songSuggestions.bengali.length > 0);
+
+      if (!hasCaptions && !hasSongs) {
+        toast({ title: "No suggestions generated", description: `The AI could not suggest captions or songs for this ${currentMediaType}.` });
+      } else if (!hasCaptions) {
+        toast({ title: "No captions suggested", description: `The AI could not suggest captions for this ${currentMediaType}, but songs were suggested.` });
+      } else if (!hasSongs) {
+         toast({ title: "No songs suggested", description: `The AI could not suggest songs for this ${currentMediaType}, but captions were suggested.` });
       }
+
     } catch (error) {
-      console.error("Error suggesting captions:", error);
-      toast({ variant: "destructive", title: "Error", description: `Failed to suggest captions for this ${currentMediaType}.` });
+      console.error("Error suggesting captions/songs:", error);
+      toast({ variant: "destructive", title: "Error", description: `Failed to suggest captions or songs for this ${currentMediaType}.` });
     } finally {
       setIsSuggesting(false);
     }
@@ -77,7 +98,7 @@ export default function CaptionWiseClient() {
     }
     setIsRefining(true);
     try {
-      const mediaDescription = suggestedCaptions[0]; // Use first suggestion as proxy for media description
+      const mediaDescription = suggestedCaptions.join(" "); // Use all suggestions as proxy for media description for more context
       const input: RefineMediaCaptionsInput = {
         mediaDescription,
         initialCaptions: suggestedCaptions,
@@ -99,20 +120,34 @@ export default function CaptionWiseClient() {
     }
   };
 
-  const handleCopyCaption = (caption: string) => {
-    navigator.clipboard.writeText(caption)
-      .then(() => toast({ title: "Copied!", description: "Caption copied to clipboard." }))
-      .catch(() => toast({ variant: "destructive", title: "Error", description: "Failed to copy caption." }));
+  const handleCopyText = (text: string, type: string) => {
+    navigator.clipboard.writeText(text)
+      .then(() => toast({ title: "Copied!", description: `${type} copied to clipboard.` }))
+      .catch(() => toast({ variant: "destructive", title: "Error", description: `Failed to copy ${type}.` }));
   };
 
   const CaptionDisplayCard: React.FC<{ caption: string }> = ({ caption }) => (
     <div className="p-3 border rounded-md bg-card flex justify-between items-center gap-2 shadow-sm">
       <p className="text-sm text-card-foreground flex-grow">{caption}</p>
-      <Button variant="ghost" size="icon" onClick={() => handleCopyCaption(caption)} aria-label="Copy caption">
+      <Button variant="ghost" size="icon" onClick={() => handleCopyText(caption, "Caption")} aria-label="Copy caption">
         <Copy className="h-4 w-4" />
       </Button>
     </div>
   );
+
+  const SongSuggestionItem: React.FC<{ title: string; language: string }> = ({ title, language }) => (
+    <div className="p-3 border rounded-md bg-card flex justify-between items-center gap-2 shadow-sm">
+      <div className="flex-grow">
+        <p className="text-xs text-muted-foreground">{language}</p>
+        <p className="text-sm text-card-foreground">{title}</p>
+      </div>
+      <Button variant="ghost" size="icon" onClick={() => handleCopyText(title, "Song title")} aria-label={`Copy ${language} song title`}>
+        <Copy className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+
+  const hasSuggestedSongs = suggestedSongs && (suggestedSongs.english.length > 0 || suggestedSongs.hindi.length > 0 || suggestedSongs.bengali.length > 0);
 
   return (
     <div className="container mx-auto p-4 md:p-8 min-h-screen flex flex-col items-center antialiased font-sans">
@@ -128,7 +163,7 @@ export default function CaptionWiseClient() {
               <UploadCloud className="h-6 w-6 text-primary" />
               1. Upload Your Media
             </CardTitle>
-            <CardDescription>Select an image or video from your device to get caption suggestions.</CardDescription>
+            <CardDescription>Select an image or video from your device to get caption and song suggestions.</CardDescription>
           </CardHeader>
           <CardContent>
             <Input
@@ -157,7 +192,7 @@ export default function CaptionWiseClient() {
           <Card className="w-full shadow-lg rounded-xl">
             <CardContent className="p-6 flex flex-col items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-              <p className="text-muted-foreground">Generating captions for your {mediaType || 'media'}...</p>
+              <p className="text-muted-foreground">Generating suggestions for your {mediaType || 'media'}...</p>
             </CardContent>
           </Card>
         )}
@@ -177,7 +212,7 @@ export default function CaptionWiseClient() {
               ))}
             </CardContent>
             <CardFooter className="flex-col items-start gap-4 pt-6 border-t">
-              <Label htmlFor="refineFeedback" className="font-semibold text-md">Refine Suggestions:</Label>
+              <Label htmlFor="refineFeedback" className="font-semibold text-md">Refine Captions:</Label>
               <Textarea
                 id="refineFeedback"
                 placeholder="Your feedback (e.g., 'make it funnier', 'more professional', 'add emojis')"
@@ -192,6 +227,30 @@ export default function CaptionWiseClient() {
             </CardFooter>
           </Card>
         )}
+
+        {!isSuggesting && hasSuggestedSongs && (
+          <Card className="w-full shadow-lg rounded-xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
+                <Music2 className="h-6 w-6 text-primary" />
+                3. AI-Suggested Songs
+              </CardTitle>
+              <CardDescription>Here are some song titles suggested for your {mediaType}.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {suggestedSongs?.english?.map((title, index) => title && (
+                <SongSuggestionItem key={`song-en-${index}`} title={title} language="English" />
+              ))}
+              {suggestedSongs?.hindi?.map((title, index) => title && (
+                <SongSuggestionItem key={`song-hi-${index}`} title={title} language="Hindi" />
+              ))}
+              {suggestedSongs?.bengali?.map((title, index) => title && (
+                <SongSuggestionItem key={`song-bn-${index}`} title={title} language="Bengali" />
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
 
         {isRefining && (
            <Card className="w-full shadow-lg rounded-xl">
@@ -252,3 +311,4 @@ const Label: React.FC<React.LabelHTMLAttributes<HTMLLabelElement>> = ({ children
     {children}
   </label>
 );
+
