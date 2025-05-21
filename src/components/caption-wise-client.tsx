@@ -234,7 +234,7 @@ export default function CaptionWiseClient() {
   return (
     <div className="container mx-auto p-4 md:p-8 min-h-screen flex flex-col items-center antialiased font-sans">
       <header className="w-full flex justify-between items-center mb-8 md:mb-12">
-        <h1 className="text-3xl md:text-4xl font-bold text-[hsl(var(--app-title))]">CaptionWise</h1>
+        <h1 className="text-3xl md:text-4xl font-bold text-[hsl(var(--app-title))]">VibeWords</h1>
         <ThemeToggle />
       </header>
 
