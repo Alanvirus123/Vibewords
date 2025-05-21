@@ -3,7 +3,7 @@
 
 import { useState, type ChangeEvent, useCallback } from "react";
 import Image from "next/image";
-import { UploadCloud, Copy, Wand2, RefreshCw, Loader2, Film, Music2 } from "lucide-react";
+import { UploadCloud, Copy, Wand2, RefreshCw, Loader2, Film, Music2, SparklesIcon as SparklesLucideIcon } from "lucide-react"; // Using SparklesIcon from lucide if available, otherwise fallback
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { suggestMediaCaptions, type SuggestMediaCaptionsInput, type SuggestMediaCaptionsOutput } from "@/ai/flows/suggest-media-captions";
 import { refineMediaCaptions, type RefineMediaCaptionsInput, type RefineMediaCaptionsOutput } from "@/ai/flows/refine-media-captions";
+import { refineSongSuggestions, type RefineSongSuggestionsInput, type RefineSongSuggestionsOutput } from "@/ai/flows/refine-song-suggestions";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const fileToDataUri = (file: File): Promise<string> => {
@@ -34,22 +35,34 @@ export default function CaptionWiseClient() {
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaSrc, setMediaSrc] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
+  
   const [suggestedCaptions, setSuggestedCaptions] = useState<string[]>([]);
-  const [suggestedSongs, setSuggestedSongs] = useState<SongSuggestions | null>(null);
   const [refinedCaptions, setRefinedCaptions] = useState<string[]>([]);
-  const [feedback, setFeedback] = useState<string>("");
+  const [captionFeedback, setCaptionFeedback] = useState<string>("");
+
+  const [suggestedSongs, setSuggestedSongs] = useState<SongSuggestions | null>(null);
+  const [refinedSongSuggestions, setRefinedSongSuggestions] = useState<SongSuggestions | null>(null);
+  const [songFeedback, setSongFeedback] = useState<string>("");
+
   const [isSuggesting, setIsSuggesting] = useState<boolean>(false);
-  const [isRefining, setIsRefining] = useState<boolean>(false);
+  const [isRefiningCaptions, setIsRefiningCaptions] = useState<boolean>(false);
+  const [isRefiningSongs, setIsRefiningSongs] = useState<boolean>(false);
 
   const { toast } = useToast();
+
+  const resetSuggestions = () => {
+    setSuggestedCaptions([]);
+    setRefinedCaptions([]);
+    setCaptionFeedback("");
+    setSuggestedSongs(null);
+    setRefinedSongSuggestions(null);
+    setSongFeedback("");
+  };
 
   const handleMediaUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      setSuggestedCaptions([]);
-      setSuggestedSongs(null);
-      setRefinedCaptions([]);
-      setFeedback("");
+      resetSuggestions();
       setMediaFile(file);
 
       const currentMediaType = file.type.startsWith('video/') ? 'video' : 'image';
@@ -57,11 +70,11 @@ export default function CaptionWiseClient() {
 
       const dataUri = await fileToDataUri(file);
       setMediaSrc(dataUri);
-      await handleSuggestCaptions(dataUri, currentMediaType);
+      await handleSuggestCaptionsAndSongs(dataUri, currentMediaType);
     }
   };
 
-  const handleSuggestCaptions = async (dataUri: string, currentMediaType: "image" | "video") => {
+  const handleSuggestCaptionsAndSongs = async (dataUri: string, currentMediaType: "image" | "video") => {
     setIsSuggesting(true);
     try {
       const input: SuggestMediaCaptionsInput = { mediaDataUri: dataUri, mediaType: currentMediaType };
@@ -92,17 +105,17 @@ export default function CaptionWiseClient() {
   };
 
   const handleRefineCaptions = async () => {
-    if (!mediaFile || suggestedCaptions.length === 0 || !feedback || !mediaType) {
-      toast({ variant: "destructive", title: "Error", description: "Missing media, initial captions, media type, or feedback for refinement." });
+    if (!mediaFile || suggestedCaptions.length === 0 || !captionFeedback || !mediaType) {
+      toast({ variant: "destructive", title: "Error", description: "Missing media, initial captions, media type, or feedback for caption refinement." });
       return;
     }
-    setIsRefining(true);
+    setIsRefiningCaptions(true);
     try {
-      const mediaDescription = suggestedCaptions.join(" "); // Use all suggestions as proxy for media description for more context
+      const mediaDescription = suggestedCaptions.join(" "); 
       const input: RefineMediaCaptionsInput = {
         mediaDescription,
         initialCaptions: suggestedCaptions,
-        userFeedback: feedback,
+        userFeedback: captionFeedback,
         mediaType: mediaType,
       };
       const result: RefineMediaCaptionsOutput = await refineMediaCaptions(input);
@@ -116,9 +129,40 @@ export default function CaptionWiseClient() {
       console.error("Error refining captions:", error);
       toast({ variant: "destructive", title: "Error", description: "Failed to refine captions." });
     } finally {
-      setIsRefining(false);
+      setIsRefiningCaptions(false);
     }
   };
+
+  const handleRefineSongs = async () => {
+    if (!mediaFile || !suggestedSongs || !songFeedback || !mediaType) {
+      toast({ variant: "destructive", title: "Error", description: "Missing media, initial song suggestions, media type, or feedback for song refinement." });
+      return;
+    }
+    setIsRefiningSongs(true);
+    try {
+      const mediaDescription = suggestedCaptions.join(" ") || "The uploaded media."; // Fallback description
+      const input: RefineSongSuggestionsInput = {
+        mediaDescription,
+        initialSongSuggestions: suggestedSongs,
+        userFeedback: songFeedback,
+        mediaType: mediaType,
+      };
+      const result: RefineSongSuggestionsOutput = await refineSongSuggestions(input);
+      setRefinedSongSuggestions(result.refinedSongSuggestions || null);
+      const refinedExist = result.refinedSongSuggestions && (result.refinedSongSuggestions.english.length > 0 || result.refinedSongSuggestions.hindi.length > 0 || result.refinedSongSuggestions.bengali.length > 0)
+      if (!refinedExist) {
+        toast({ title: "No songs refined", description: "The AI could not refine song suggestions based on your feedback." });
+      } else {
+        toast({ title: "Song Suggestions Refined!", description: "New song suggestions generated based on your feedback." });
+      }
+    } catch (error) {
+      console.error("Error refining song suggestions:", error);
+      toast({ variant: "destructive", title: "Error", description: "Failed to refine song suggestions." });
+    } finally {
+      setIsRefiningSongs(false);
+    }
+  };
+
 
   const handleCopyText = (text: string, type: string) => {
     navigator.clipboard.writeText(text)
@@ -141,13 +185,15 @@ export default function CaptionWiseClient() {
         <p className="text-xs text-muted-foreground">{language}</p>
         <p className="text-sm text-card-foreground">{title}</p>
       </div>
-      <Button variant="ghost" size="icon" onClick={() => handleCopyText(title, "Song title")} aria-label={`Copy ${language} song title`}>
+      <Button variant="ghost" size="icon" onClick={() => handleCopyText(title, `${language} song title`)} aria-label={`Copy ${language} song title`}>
         <Copy className="h-4 w-4" />
       </Button>
     </div>
   );
 
   const hasSuggestedSongs = suggestedSongs && (suggestedSongs.english.length > 0 || suggestedSongs.hindi.length > 0 || suggestedSongs.bengali.length > 0);
+  const hasRefinedSongs = refinedSongSuggestions && (refinedSongSuggestions.english.length > 0 || refinedSongSuggestions.hindi.length > 0 || refinedSongSuggestions.bengali.length > 0);
+
 
   return (
     <div className="container mx-auto p-4 md:p-8 min-h-screen flex flex-col items-center antialiased font-sans">
@@ -212,19 +258,45 @@ export default function CaptionWiseClient() {
               ))}
             </CardContent>
             <CardFooter className="flex-col items-start gap-4 pt-6 border-t">
-              <Label htmlFor="refineFeedback" className="font-semibold text-md">Refine Captions:</Label>
+              <Label htmlFor="captionFeedback" className="font-semibold text-md">Refine Captions:</Label>
               <Textarea
-                id="refineFeedback"
-                placeholder="Your feedback (e.g., 'make it funnier', 'more professional', 'add emojis')"
-                value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
+                id="captionFeedback"
+                placeholder="Your feedback for captions (e.g., 'make it funnier', 'add hashtags')"
+                value={captionFeedback}
+                onChange={(e) => setCaptionFeedback(e.target.value)}
                 className="min-h-[80px]"
               />
-              <Button onClick={handleRefineCaptions} disabled={isRefining || !feedback} className="w-full sm:w-auto">
-                {isRefining ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              <Button onClick={handleRefineCaptions} disabled={isRefiningCaptions || !captionFeedback} className="w-full sm:w-auto">
+                {isRefiningCaptions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                 Refine Captions
               </Button>
             </CardFooter>
+          </Card>
+        )}
+        
+        {isRefiningCaptions && (
+           <Card className="w-full shadow-lg rounded-xl">
+            <CardContent className="p-6 flex flex-col items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+              <p className="text-muted-foreground">Refining captions...</p>
+            </CardContent>
+          </Card>
+        )}
+        
+        {!isRefiningCaptions && refinedCaptions.length > 0 && (
+          <Card className="w-full shadow-lg rounded-xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
+                <SparklesIcon className="h-6 w-6 text-primary" />
+                3. Refined Captions
+              </CardTitle>
+              <CardDescription>Here are the captions refined based on your feedback.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {refinedCaptions.map((caption, index) => (
+                <CaptionDisplayCard key={`refined-caption-${index}`} caption={caption} />
+              ))}
+            </CardContent>
           </Card>
         )}
 
@@ -233,9 +305,9 @@ export default function CaptionWiseClient() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
                 <Music2 className="h-6 w-6 text-primary" />
-                3. AI-Suggested Songs
+                {refinedCaptions.length > 0 ? '4' : '3'}. AI-Suggested Songs
               </CardTitle>
-              <CardDescription>Here are some song titles suggested for your {mediaType}.</CardDescription>
+              <CardDescription>Here are some song titles suggested for your {mediaType}. Copy or refine them!</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {suggestedSongs?.english?.map((title, index) => title && (
@@ -248,31 +320,50 @@ export default function CaptionWiseClient() {
                 <SongSuggestionItem key={`song-bn-${index}`} title={title} language="Bengali" />
               ))}
             </CardContent>
+            <CardFooter className="flex-col items-start gap-4 pt-6 border-t">
+              <Label htmlFor="songFeedback" className="font-semibold text-md">Refine Song Suggestions:</Label>
+              <Textarea
+                id="songFeedback"
+                placeholder="Your feedback for songs (e.g., 'more upbeat songs', 'instrumental only')"
+                value={songFeedback}
+                onChange={(e) => setSongFeedback(e.target.value)}
+                className="min-h-[80px]"
+              />
+              <Button onClick={handleRefineSongs} disabled={isRefiningSongs || !songFeedback} className="w-full sm:w-auto">
+                {isRefiningSongs ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                Refine Songs
+              </Button>
+            </CardFooter>
           </Card>
         )}
 
-
-        {isRefining && (
+        {isRefiningSongs && (
            <Card className="w-full shadow-lg rounded-xl">
             <CardContent className="p-6 flex flex-col items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-              <p className="text-muted-foreground">Refining captions...</p>
+              <p className="text-muted-foreground">Refining song suggestions...</p>
             </CardContent>
           </Card>
         )}
-        
-        {!isRefining && refinedCaptions.length > 0 && (
+
+        {!isRefiningSongs && hasRefinedSongs && (
           <Card className="w-full shadow-lg rounded-xl">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
-                <SparklesIcon className="h-6 w-6 text-primary" />
-                Refined Captions
+                 <SparklesIcon className="h-6 w-6 text-primary" />
+                {(refinedCaptions.length > 0 && hasSuggestedSongs) ? '5' : ((refinedCaptions.length > 0 || hasSuggestedSongs) ? '4' : '3')}. Refined Song Suggestions
               </CardTitle>
-              <CardDescription>Here are the captions refined based on your feedback.</CardDescription>
+              <CardDescription>Here are the song suggestions refined based on your feedback.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {refinedCaptions.map((caption, index) => (
-                <CaptionDisplayCard key={`refined-${index}`} caption={caption} />
+              {refinedSongSuggestions?.english?.map((title, index) => title && (
+                <SongSuggestionItem key={`refined-song-en-${index}`} title={title} language="English" />
+              ))}
+              {refinedSongSuggestions?.hindi?.map((title, index) => title && (
+                <SongSuggestionItem key={`refined-song-hi-${index}`} title={title} language="Hindi" />
+              ))}
+              {refinedSongSuggestions?.bengali?.map((title, index) => title && (
+                <SongSuggestionItem key={`refined-song-bn-${index}`} title={title} language="Bengali" />
               ))}
             </CardContent>
           </Card>
@@ -311,4 +402,3 @@ const Label: React.FC<React.LabelHTMLAttributes<HTMLLabelElement>> = ({ children
     {children}
   </label>
 );
-
