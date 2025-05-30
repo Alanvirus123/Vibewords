@@ -36,9 +36,9 @@ export type RefineMediaCaptionsInput = z.infer<
 // Define the output schema for the refineMediaCaptions function.
 const RefineMediaCaptionsOutputSchema = z.object({
   refinedCaptions: z.object({
-    english: z.array(z.string().min(1).max(1)).describe('An array containing one refined English caption.'),
-    bengali: z.array(z.string().min(1).max(1)).describe('An array containing one refined Bengali caption.'),
-    hindi: z.array(z.string().min(1).max(1)).describe('An array containing one refined Hindi caption.'),
+    english: z.array(z.string().min(1)).describe('An array containing one refined English caption.'),
+    bengali: z.array(z.string().min(1)).describe('An array containing one refined Bengali caption.'),
+    hindi: z.array(z.string().min(1)).describe('An array containing one refined Hindi caption.'),
   }).describe('Refined captions in English, Bengali, and Hindi. Each language should have one caption.'),
 });
 

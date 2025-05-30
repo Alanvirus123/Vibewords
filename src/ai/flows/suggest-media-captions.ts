@@ -26,9 +26,9 @@ export type SuggestMediaCaptionsInput = z.infer<typeof SuggestMediaCaptionsInput
 
 const SuggestMediaCaptionsOutputSchema = z.object({
   captions: z.object({
-    english: z.array(z.string().min(1).max(1)).describe('An array containing one suggested English caption.'),
-    bengali: z.array(z.string().min(1).max(1)).describe('An array containing one suggested Bengali caption.'),
-    hindi: z.array(z.string().min(1).max(1)).describe('An array containing one suggested Hindi caption.'),
+    english: z.array(z.string().min(1)).describe('An array containing one suggested English caption.'),
+    bengali: z.array(z.string().min(1)).describe('An array containing one suggested Bengali caption.'),
+    hindi: z.array(z.string().min(1)).describe('An array containing one suggested Hindi caption.'),
   }).describe('Suggested captions in English, Bengali, and Hindi. Each language should have one caption.'),
   songSuggestions: z.object({
     english: z.array(z.string()).describe('An array containing one English song title.'),
