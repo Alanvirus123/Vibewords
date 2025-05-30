@@ -3,7 +3,7 @@
 
 import { useState, type ChangeEvent, useCallback } from "react";
 import Image from "next/image";
-import { UploadCloud, Copy, Wand2, RefreshCw, Loader2, Film, Music2, SparklesIcon as SparklesLucideIcon } from "lucide-react"; // Using SparklesIcon from lucide if available, otherwise fallback
+import { UploadCloud, Copy, Wand2, RefreshCw, Loader2, Film, Music2, SparklesIcon as SparklesLucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,12 @@ const fileToDataUri = (file: File): Promise<string> => {
   });
 };
 
+interface MultiLanguageCaptions {
+  english: string[];
+  hindi: string[];
+  bengali: string[];
+}
+
 interface SongSuggestions {
   english: string[];
   hindi: string[];
@@ -36,8 +42,8 @@ export default function CaptionWiseClient() {
   const [mediaSrc, setMediaSrc] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
   
-  const [suggestedCaptions, setSuggestedCaptions] = useState<string[]>([]);
-  const [refinedCaptions, setRefinedCaptions] = useState<string[]>([]);
+  const [suggestedCaptions, setSuggestedCaptions] = useState<MultiLanguageCaptions | null>(null);
+  const [refinedCaptions, setRefinedCaptions] = useState<MultiLanguageCaptions | null>(null);
   const [captionFeedback, setCaptionFeedback] = useState<string>("");
 
   const [suggestedSongs, setSuggestedSongs] = useState<SongSuggestions | null>(null);
@@ -51,8 +57,8 @@ export default function CaptionWiseClient() {
   const { toast } = useToast();
 
   const resetSuggestions = () => {
-    setSuggestedCaptions([]);
-    setRefinedCaptions([]);
+    setSuggestedCaptions(null);
+    setRefinedCaptions(null);
     setCaptionFeedback("");
     setSuggestedSongs(null);
     setRefinedSongSuggestions(null);
@@ -79,14 +85,17 @@ export default function CaptionWiseClient() {
     try {
       const input: SuggestMediaCaptionsInput = { mediaDataUri: dataUri, mediaType: currentMediaType };
       const result: SuggestMediaCaptionsOutput = await suggestMediaCaptions(input);
-      setSuggestedCaptions(result.captions || []);
+      setSuggestedCaptions(result.captions || null);
       setSuggestedSongs(result.songSuggestions || null);
       
-      const hasCaptions = result.captions && result.captions.length > 0;
+      const hasCaptions = result.captions && 
+                          (result.captions.english?.length > 0 || 
+                           result.captions.hindi?.length > 0 || 
+                           result.captions.bengali?.length > 0);
       const hasSongs = result.songSuggestions && 
-                       (result.songSuggestions.english.length > 0 || 
-                        result.songSuggestions.hindi.length > 0 || 
-                        result.songSuggestions.bengali.length > 0);
+                       (result.songSuggestions.english?.length > 0 || 
+                        result.songSuggestions.hindi?.length > 0 || 
+                        result.songSuggestions.bengali?.length > 0);
 
       if (!hasCaptions && !hasSongs) {
         toast({ title: "No suggestions generated", description: `The AI could not suggest captions or songs for this ${currentMediaType}.` });
@@ -105,46 +114,45 @@ export default function CaptionWiseClient() {
   };
 
   const handleRefineCaptions = async () => {
-    if (!mediaFile || suggestedCaptions.length === 0 || !captionFeedback || !mediaType) {
+    if (!mediaFile || !suggestedCaptions || !captionFeedback || !mediaType) {
       toast({ variant: "destructive", title: "Error", description: "Missing media, initial captions, media type, or feedback for caption refinement." });
       return;
     }
     setIsRefiningCaptions(true);
-    setRefinedCaptions([]); // Clear previous refined captions
+    setRefinedCaptions(null); // Clear previous refined captions
 
     let refinedCaptionTextForSongRefinement = "";
 
     try {
       const captionInput: RefineMediaCaptionsInput = {
-        mediaDescription: suggestedCaptions.join(" "),
+        mediaDescription: suggestedCaptions?.english?.join(" ") || "The uploaded media.",
         initialCaptions: suggestedCaptions,
         userFeedback: captionFeedback,
         mediaType: mediaType,
       };
       const captionResult: RefineMediaCaptionsOutput = await refineMediaCaptions(captionInput);
 
-      if (captionResult.refinedCaptions && captionResult.refinedCaptions.length > 0) {
+      if (captionResult.refinedCaptions && (captionResult.refinedCaptions.english?.length > 0 || captionResult.refinedCaptions.hindi?.length > 0 || captionResult.refinedCaptions.bengali?.length > 0)) {
         setRefinedCaptions(captionResult.refinedCaptions);
-        refinedCaptionTextForSongRefinement = captionResult.refinedCaptions.join(" ");
+        refinedCaptionTextForSongRefinement = captionResult.refinedCaptions.english?.join(" ") || "";
         toast({ title: "Captions Refined!", description: "New captions generated. Attempting to refine songs as well..." });
 
-        // Automatically refine songs if initial songs exist
         if (suggestedSongs && mediaType) {
           setIsRefiningSongs(true);
-          setRefinedSongSuggestions(null); // Clear previous refined songs for a fresh take
+          setRefinedSongSuggestions(null); 
           try {
             const songInput: RefineSongSuggestionsInput = {
-              mediaDescription: refinedCaptionTextForSongRefinement, // Use refined captions as description
+              mediaDescription: refinedCaptionTextForSongRefinement || "The uploaded media with refined captions.",
               initialSongSuggestions: suggestedSongs,
-              userFeedback: songFeedback, // Use current song feedback from textarea
+              userFeedback: songFeedback, 
               mediaType: mediaType,
             };
             const songResult: RefineSongSuggestionsOutput = await refineSongSuggestions(songInput);
             setRefinedSongSuggestions(songResult.refinedSongSuggestions || null);
             const refinedSongsExist = songResult.refinedSongSuggestions && 
-                                      (songResult.refinedSongSuggestions.english.length > 0 || 
-                                       songResult.refinedSongSuggestions.hindi.length > 0 || 
-                                       songResult.refinedSongSuggestions.bengali.length > 0);
+                                      (songResult.refinedSongSuggestions.english?.length > 0 || 
+                                       songResult.refinedSongSuggestions.hindi?.length > 0 || 
+                                       songResult.refinedSongSuggestions.bengali?.length > 0);
             if (!refinedSongsExist) {
               toast({ title: "No songs automatically refined", description: "The AI could not refine song suggestions based on the new captions and song feedback." });
             } else {
@@ -174,9 +182,9 @@ export default function CaptionWiseClient() {
       return;
     }
     setIsRefiningSongs(true);
-    setRefinedSongSuggestions(null); // Clear previous
+    setRefinedSongSuggestions(null);
     try {
-      const mediaDescription = (refinedCaptions.length > 0 ? refinedCaptions : suggestedCaptions).join(" ") || "The uploaded media.";
+      const mediaDescription = refinedCaptions?.english?.join(" ") || suggestedCaptions?.english?.join(" ") || "The uploaded media.";
       const input: RefineSongSuggestionsInput = {
         mediaDescription,
         initialSongSuggestions: suggestedSongs,
@@ -185,7 +193,7 @@ export default function CaptionWiseClient() {
       };
       const result: RefineSongSuggestionsOutput = await refineSongSuggestions(input);
       setRefinedSongSuggestions(result.refinedSongSuggestions || null);
-      const refinedExist = result.refinedSongSuggestions && (result.refinedSongSuggestions.english.length > 0 || result.refinedSongSuggestions.hindi.length > 0 || result.refinedSongSuggestions.bengali.length > 0)
+      const refinedExist = result.refinedSongSuggestions && (result.refinedSongSuggestions.english?.length > 0 || result.refinedSongSuggestions.hindi?.length > 0 || result.refinedSongSuggestions.bengali?.length > 0)
       if (!refinedExist) {
         toast({ title: "No songs refined", description: "The AI could not refine song suggestions based on your feedback." });
       } else {
@@ -206,10 +214,13 @@ export default function CaptionWiseClient() {
       .catch(() => toast({ variant: "destructive", title: "Error", description: `Failed to copy ${type}.` }));
   };
 
-  const CaptionDisplayCard: React.FC<{ caption: string }> = ({ caption }) => (
+  const CaptionDisplayCard: React.FC<{ caption: string; language: string }> = ({ caption, language }) => (
     <div className="p-3 border rounded-md bg-card flex justify-between items-center gap-2 shadow-sm">
-      <p className="text-sm text-card-foreground flex-grow">{caption}</p>
-      <Button variant="ghost" size="icon" onClick={() => handleCopyText(caption, "Caption")} aria-label="Copy caption">
+      <div className="flex-grow">
+        <p className="text-xs text-muted-foreground font-semibold">{language}</p>
+        <p className="text-sm text-card-foreground">{caption}</p>
+      </div>
+      <Button variant="ghost" size="icon" onClick={() => handleCopyText(caption, `${language} Caption`)} aria-label={`Copy ${language} caption`}>
         <Copy className="h-4 w-4" />
       </Button>
     </div>
@@ -227,6 +238,8 @@ export default function CaptionWiseClient() {
     </div>
   );
 
+  const hasSuggestedCaptions = suggestedCaptions && (suggestedCaptions.english?.length > 0 || suggestedCaptions.hindi?.length > 0 || suggestedCaptions.bengali?.length > 0);
+  const hasRefinedCaptions = refinedCaptions && (refinedCaptions.english?.length > 0 || refinedCaptions.hindi?.length > 0 || refinedCaptions.bengali?.length > 0);
   const hasSuggestedSongs = suggestedSongs && (suggestedSongs.english.length > 0 || suggestedSongs.hindi.length > 0 || suggestedSongs.bengali.length > 0);
   const hasRefinedSongs = refinedSongSuggestions && (refinedSongSuggestions.english.length > 0 || refinedSongSuggestions.hindi.length > 0 || refinedSongSuggestions.bengali.length > 0);
 
@@ -279,7 +292,7 @@ export default function CaptionWiseClient() {
           </Card>
         )}
 
-        {!isSuggesting && suggestedCaptions.length > 0 && (
+        {!isSuggesting && hasSuggestedCaptions && (
           <Card className="w-full shadow-lg rounded-xl">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
@@ -289,8 +302,14 @@ export default function CaptionWiseClient() {
               <CardDescription>Here are some captions suggested for your {mediaType}. Copy your favorite or refine them (refining captions will also refine songs based on the new captions and your song feedback).</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {suggestedCaptions.map((caption, index) => (
-                <CaptionDisplayCard key={`suggested-${index}`} caption={caption} />
+              {suggestedCaptions?.english?.map((caption, index) => caption && (
+                <CaptionDisplayCard key={`suggested-en-${index}`} caption={caption} language="English" />
+              ))}
+              {suggestedCaptions?.hindi?.map((caption, index) => caption && (
+                <CaptionDisplayCard key={`suggested-hi-${index}`} caption={caption} language="Hindi" />
+              ))}
+              {suggestedCaptions?.bengali?.map((caption, index) => caption && (
+                <CaptionDisplayCard key={`suggested-bn-${index}`} caption={caption} language="Bengali" />
               ))}
             </CardContent>
             <CardFooter className="flex-col items-start gap-4 pt-6 border-t">
@@ -310,7 +329,7 @@ export default function CaptionWiseClient() {
           </Card>
         )}
         
-        {isRefiningCaptions && !isRefiningSongs && ( // Show only if caption refining, not song refining part of chain
+        {isRefiningCaptions && !isRefiningSongs && ( 
            <Card className="w-full shadow-lg rounded-xl">
             <CardContent className="p-6 flex flex-col items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
@@ -319,7 +338,7 @@ export default function CaptionWiseClient() {
           </Card>
         )}
         
-        {refinedCaptions.length > 0 && ( // Always show refined captions if they exist, even if song refinement is also happening
+        {hasRefinedCaptions && ( 
           <Card className="w-full shadow-lg rounded-xl">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
@@ -329,8 +348,14 @@ export default function CaptionWiseClient() {
               <CardDescription>Here are the captions refined based on your feedback.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {refinedCaptions.map((caption, index) => (
-                <CaptionDisplayCard key={`refined-caption-${index}`} caption={caption} />
+              {refinedCaptions?.english?.map((caption, index) => caption && (
+                <CaptionDisplayCard key={`refined-en-${index}`} caption={caption} language="English" />
+              ))}
+              {refinedCaptions?.hindi?.map((caption, index) => caption && (
+                <CaptionDisplayCard key={`refined-hi-${index}`} caption={caption} language="Hindi" />
+              ))}
+              {refinedCaptions?.bengali?.map((caption, index) => caption && (
+                <CaptionDisplayCard key={`refined-bn-${index}`} caption={caption} language="Bengali" />
               ))}
             </CardContent>
           </Card>
@@ -341,7 +366,7 @@ export default function CaptionWiseClient() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
                 <Music2 className="h-6 w-6 text-primary" />
-                {refinedCaptions.length > 0 ? '4' : '3'}. AI-Suggested Songs
+                {hasRefinedCaptions ? '4' : '3'}. AI-Suggested Songs
               </CardTitle>
               <CardDescription>Here are some song titles suggested for your {mediaType}. Copy or refine them!</CardDescription>
             </CardHeader>
@@ -373,7 +398,7 @@ export default function CaptionWiseClient() {
           </Card>
         )}
 
-        {isRefiningSongs && ( // This will show if standalone song refining or chained song refining
+        {isRefiningSongs && ( 
            <Card className="w-full shadow-lg rounded-xl">
             <CardContent className="p-6 flex flex-col items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
@@ -382,12 +407,12 @@ export default function CaptionWiseClient() {
           </Card>
         )}
 
-        {hasRefinedSongs && ( // Always show refined songs if they exist
+        {hasRefinedSongs && ( 
           <Card className="w-full shadow-lg rounded-xl">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
                  <SparklesIcon className="h-6 w-6 text-primary" />
-                {(refinedCaptions.length > 0 && hasSuggestedSongs) ? '5' : ((refinedCaptions.length > 0 || hasSuggestedSongs) ? '4' : '3')}. Refined Song Suggestions
+                {(hasRefinedCaptions && hasSuggestedSongs) ? '5' : ((hasRefinedCaptions || hasSuggestedSongs) ? '4' : '3')}. Refined Song Suggestions
               </CardTitle>
               <CardDescription>Here are the song suggestions refined based on your feedback.</CardDescription>
             </CardHeader>
@@ -432,10 +457,8 @@ const SparklesIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 );
 
 // Label component for use with Textarea
-// Using a simple label to avoid Form context complexity for this single use case
 const Label: React.FC<React.LabelHTMLAttributes<HTMLLabelElement>> = ({ children, ...props }) => (
   <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" {...props}>
     {children}
   </label>
 );
-
