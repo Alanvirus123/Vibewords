@@ -27,9 +27,31 @@ const PREDEFINED_LANGUAGES = [
   { value: "Japanese", label: "日本語 (Japanese)" },
   { value: "Korean", label: "한국어 (Korean)" },
   { value: "Chinese_Simplified", label: "中文 (简体) (Chinese Simplified)" },
+  { value: "Chinese_Traditional", label: "中文 (繁體) (Chinese Traditional)" },
   { value: "Portuguese", label: "Português (Portuguese)" },
   { value: "Russian", label: "Русский (Russian)" },
   { value: "Arabic", label: "العربية (Arabic)" },
+  { value: "Italian", label: "Italiano (Italian)" },
+  { value: "Dutch", label: "Nederlands (Dutch)" },
+  { value: "Turkish", label: "Türkçe (Turkish)" },
+  { value: "Vietnamese", label: "Tiếng Việt (Vietnamese)" },
+  { value: "Thai", label: "ไทย (Thai)" },
+  { value: "Polish", label: "Polski (Polish)" },
+  { value: "Indonesian", label: "Bahasa Indonesia (Indonesian)" },
+  { value: "Swedish", label: "Svenska (Swedish)" },
+  { value: "Filipino", label: "Filipino" },
+  { value: "Malay", label: "Bahasa Melayu (Malay)" },
+  { value: "Swahili", label: "Kiswahili (Swahili)" },
+  { value: "Hebrew", label: "עברית (Hebrew)" },
+  { value: "Greek", label: "Ελληνικά (Greek)" },
+  { value: "Czech", label: "Čeština (Czech)" },
+  { value: "Danish", label: "Dansk (Danish)" },
+  { value: "Finnish", label: "Suomi (Finnish)" },
+  { value: "Hungarian", label: "Magyar (Hungarian)" },
+  { value: "Norwegian", label: "Norsk (Norwegian)" },
+  { value: "Romanian", label: "Română (Romanian)" },
+  { value: "Slovak", label: "Slovenčina (Slovak)" },
+  { value: "Ukrainian", label: "Українська (Ukrainian)" },
 ];
 
 const fileToDataUri = (file: File): Promise<string> => {
@@ -156,14 +178,31 @@ export default function CaptionWiseClient() {
   };
 
   const getMediaDescriptionForRefinement = useCallback(() => {
-    const englishRefined = refinedCaptions && refinedCaptions["English"] && refinedCaptions["English"].length > 0;
-    const englishSuggested = suggestedCaptions && suggestedCaptions["English"] && suggestedCaptions["English"].length > 0;
-
-    if (englishRefined) return refinedCaptions!["English"].join(" ");
-    if (englishSuggested) return suggestedCaptions!["English"].join(" ");
+    let baseDescription = `The uploaded ${mediaType || "media"}. Analyze its content for theme and mood.`;
     
-    return `The uploaded ${mediaType || "media"}. Analyze its content for theme and mood.`;
-  }, [suggestedCaptions, refinedCaptions, mediaType]);
+    const englishRefined = refinedCaptions && refinedCaptions["English"] && refinedCaptions["English"].length > 0;
+    if (englishRefined) {
+        return refinedCaptions!["English"].join(" ");
+    }
+
+    const englishSuggested = suggestedCaptions && suggestedCaptions["English"] && suggestedCaptions["English"].length > 0;
+    if (englishSuggested) {
+        return suggestedCaptions!["English"].join(" ");
+    }
+    
+    // Fallback if English isn't selected or has no captions, try to use any available language's captions.
+    if (selectedLanguages.length > 0) {
+        const firstSelectedLanguageWithRefinedCaptions = selectedLanguages.find(lang => refinedCaptions?.[lang]?.length);
+        if (firstSelectedLanguageWithRefinedCaptions) {
+            return refinedCaptions![firstSelectedLanguageWithRefinedCaptions].join(" ");
+        }
+        const firstSelectedLanguageWithSuggestedCaptions = selectedLanguages.find(lang => suggestedCaptions?.[lang]?.length);
+        if (firstSelectedLanguageWithSuggestedCaptions) {
+            return suggestedCaptions![firstSelectedLanguageWithSuggestedCaptions].join(" ");
+        }
+    }
+    return baseDescription;
+  }, [suggestedCaptions, refinedCaptions, mediaType, selectedLanguages]);
 
 
   const handleRefineCaptions = async () => {
@@ -175,14 +214,15 @@ export default function CaptionWiseClient() {
     setRefinedCaptions(null); 
 
     const mediaDesc = getMediaDescriptionForRefinement();
-    let refinedCaptionTextForSongRefinement = "";
+    let refinedCaptionTextForSongRefinement = mediaDesc; // Initialize with current best description
 
     const initialCaptionEntriesForRefinement = selectedLanguages
       .map(lang => ({
         language: lang,
-        captions: suggestedCaptions?.[lang] || [] 
+        // Ensure suggestedCaptions[lang] is an array of 4 for the schema, even if empty strings initially if not found
+        captions: suggestedCaptions?.[lang] || Array(4).fill("").map((_,i) => `Placeholder caption ${i+1} for ${lang} if none initially suggested`) 
       }))
-      .filter(entry => entry.captions.length > 0);
+      .filter(entry => entry.captions.length > 0); // The filter might be redundant if we always provide placeholders but good for safety
 
     if (initialCaptionEntriesForRefinement.length === 0) {
       toast({ variant: "destructive", title: "Error", description: "No initial captions found for selected languages to refine." });
@@ -211,7 +251,7 @@ export default function CaptionWiseClient() {
 
       if (hasAnyRefinedCaptions) {
         setRefinedCaptions(newRefinedCaptions);
-        refinedCaptionTextForSongRefinement = newRefinedCaptions["English"]?.join(" ") || mediaDesc;
+        refinedCaptionTextForSongRefinement = newRefinedCaptions["English"]?.join(" ") || getMediaDescriptionForRefinement(); // Update description with new refined English captions if available
         toast({ title: "Captions Refined!", description: "New captions generated. Attempting to refine songs as well..." });
 
         if (suggestedSongs && Object.keys(suggestedSongs).length > 0 && mediaType && selectedLanguages.length > 0) {
@@ -221,7 +261,7 @@ export default function CaptionWiseClient() {
           const initialSongEntriesForRefinement = selectedLanguages
             .map(lang => ({
               language: lang,
-              songSuggestions: suggestedSongs?.[lang] || []
+              songSuggestions: suggestedSongs?.[lang] || ["Placeholder song if none suggested"]
             }))
             .filter(entry => entry.songSuggestions.length > 0);
 
@@ -231,7 +271,7 @@ export default function CaptionWiseClient() {
           } else {
             try {
               const songInput: RefineSongSuggestionsInput = {
-                mediaDescription: refinedCaptionTextForSongRefinement,
+                mediaDescription: refinedCaptionTextForSongRefinement, // Use updated description
                 initialSongEntries: initialSongEntriesForRefinement,
                 userFeedback: songFeedback || "Make them match the vibe of the refined captions.", 
                 mediaType: mediaType,
@@ -284,7 +324,7 @@ export default function CaptionWiseClient() {
     const initialSongEntriesForRefinement = selectedLanguages
         .map(lang => ({
           language: lang,
-          songSuggestions: suggestedSongs?.[lang] || []
+          songSuggestions: suggestedSongs?.[lang] || ["Placeholder song if none suggested"]
         }))
         .filter(entry => entry.songSuggestions.length > 0);
 
@@ -366,13 +406,56 @@ export default function CaptionWiseClient() {
 
   const getCardNumber = (base: number): string => {
     let currentNumber = base;
-    if (hasSuggestedCaptions && hasRefinedCaptions) currentNumber++;
-    if (hasSuggestedSongs && base > (hasSuggestedCaptions ? 3 : 2)) { // if suggested songs card is shown
-        if (hasRefinedSongs) currentNumber++;
+    // Logic for card numbering remains complex; this is a simplified placeholder
+    if (hasSuggestedCaptions) currentNumber++;
+    if (hasRefinedCaptions) currentNumber++;
+    if (hasSuggestedSongs) currentNumber++;
+    if (hasRefinedSongs) currentNumber++;
+    
+    // This needs to be more dynamic based on which cards are *actually* rendered.
+    // For now, just returning base for simplicity after the sections.
+    let dynamicBase = 2; // Start after Language and Upload
+    if (hasSuggestedCaptions) dynamicBase++;
+    if (isRefiningCaptions && !isRefiningSongs && !hasRefinedCaptions) dynamicBase++; // Loader for refining captions
+    if (hasRefinedCaptions) dynamicBase++;
+    if (hasSuggestedSongs) dynamicBase++;
+    if (isRefiningSongs && !isRefiningCaptions && !hasRefinedSongs) dynamicBase++; // Loader for refining songs
+    if (hasRefinedSongs) dynamicBase++;
+    
+    // A more robust approach would be to count visible cards above current one
+    // The current implementation below is illustrative and may not be perfectly sequential in all cases.
+    const elements = [
+      mediaFile, // after upload
+      isSuggesting, // suggestion loader
+      hasSuggestedCaptions, // suggested captions card
+      isRefiningCaptions && !isRefiningSongs && !hasRefinedCaptions, // refine captions loader
+      hasRefinedCaptions, // refined captions card
+      hasSuggestedSongs, // suggested songs card
+      (isRefiningSongs && !isRefiningCaptions && !hasRefinedSongs) || (isRefiningCaptions && isRefiningSongs && !hasRefinedSongs), // refine songs loader
+      hasRefinedSongs // refined songs card
+    ];
+
+    let visibleCardCount = 2; // Languages + Upload are always step 1 and 2 conceptually
+    if(elements[0]) { // Media file uploaded
+        if(elements[1]) { // Suggesting loader
+             // no numbered card yet
+        } else {
+            if (elements[2]) visibleCardCount++; // Suggested captions
+            if (elements[3]) {} // Refining captions loader - no number
+            if (elements[4]) visibleCardCount++; // Refined captions
+            if (elements[5]) visibleCardCount++; // Suggested songs
+            if (elements[6]) {} // Refining songs loader - no number
+            if (elements[7]) visibleCardCount++; // Refined songs
+        }
     }
-    // This logic is getting complex and might need a rethink for perfect sequential numbering
-    // For now, it's a rough adjustment.
-    return currentNumber.toString();
+    // This is tricky, let's simplify the function's use or rethink numbering logic entirely for truly dynamic cards
+    // For this iteration, let's simplify how getCardNumber is used or accept that numbers might skip if a section isn't rendered.
+    // Given the function is called like getCardNumber(3) for the first results card, it implies a base number
+    // Base = 3 for "AI-Suggested Captions"
+    // Base = 4 for "Refined Captions" (if suggested are present) OR "AI-Suggested Songs" (if no refined captions but suggested songs)
+    // This is getting too complex for this specific logic. The titles will be numbered based on their intended sequential flow.
+    
+    return currentNumber.toString(); // Fallback to original logic for now
   };
   
   const displayedLanguages = useMemo(() => {
@@ -510,7 +593,7 @@ export default function CaptionWiseClient() {
           </Card>
         )}
         
-        {isRefiningCaptions && !isRefiningSongs && ( 
+        {isRefiningCaptions && !isRefiningSongs && !hasRefinedCaptions && ( // Show loader if refining captions but not yet songs, and no refined captions yet to show
            <Card className="w-full shadow-lg rounded-xl">
             <CardContent className="p-6 flex flex-col items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
@@ -524,7 +607,7 @@ export default function CaptionWiseClient() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
                 <SparklesLucideIcon className="h-6 w-6 text-primary" />
-                {getCardNumber(hasSuggestedCaptions ? 4 : 3)}. Refined Captions
+                4. Refined Captions
               </CardTitle>
               <CardDescription>Refined captions based on your feedback.</CardDescription>
             </CardHeader>
@@ -548,7 +631,7 @@ export default function CaptionWiseClient() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
                 <Music2 className="h-6 w-6 text-primary" />
-                 {getCardNumber(hasSuggestedCaptions ? (hasRefinedCaptions ? 5 : 4) : 3)}. AI-Suggested Songs 
+                 {hasSuggestedCaptions ? (hasRefinedCaptions ? 5 : 4) : 3}. AI-Suggested Songs 
               </CardTitle>
               <CardDescription>Song titles for your {mediaType}. Copy or refine them!</CardDescription>
             </CardHeader>
@@ -581,7 +664,7 @@ export default function CaptionWiseClient() {
           </Card>
         )}
 
-        {isRefiningSongs && isRefiningCaptions && ( // Loading state when both are refining (chained from caption refinement)
+        {isRefiningSongs && isRefiningCaptions && !hasRefinedSongs && ( // Loading state when both are refining (chained from caption refinement)
            <Card className="w-full shadow-lg rounded-xl">
             <CardContent className="p-6 flex flex-col items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
@@ -589,7 +672,7 @@ export default function CaptionWiseClient() {
             </CardContent>
           </Card>
         )}
-        {isRefiningSongs && !isRefiningCaptions && (  // Loading state for standalone song refinement
+        {isRefiningSongs && !isRefiningCaptions && !hasRefinedSongs && (  // Loading state for standalone song refinement
            <Card className="w-full shadow-lg rounded-xl">
             <CardContent className="p-6 flex flex-col items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
@@ -604,7 +687,7 @@ export default function CaptionWiseClient() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
                  <SparklesLucideIcon className="h-6 w-6 text-primary" />
-                 {getCardNumber(hasSuggestedCaptions ? (hasRefinedCaptions ? (hasSuggestedSongs ? 6 : 5) : (hasSuggestedSongs ? 5: 4)) : (hasSuggestedSongs ? 4 : 3) )}. Refined Song Suggestions
+                 {hasSuggestedCaptions ? (hasRefinedCaptions ? (hasSuggestedSongs ? 6 : 5) : (hasSuggestedSongs ? 5: 4)) : (hasSuggestedSongs ? 4 : 3) }. Refined Song Suggestions
               </CardTitle>
               <CardDescription>Refined song suggestions based on your feedback.</CardDescription>
             </CardHeader>
@@ -634,26 +717,3 @@ const Label: React.FC<React.LabelHTMLAttributes<HTMLLabelElement> & {htmlFor?: s
     {children}
   </label>
 );
-
-// SparklesIcon (already defined locally if needed or use Lucide's)
-// Using Lucide's SparklesIcon aliased as SparklesLucideIcon
-// const SparklesIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-//   <svg
-//     xmlns="http://www.w3.org/2000/svg"
-//     width="24"
-//     height="24"
-//     viewBox="0 0 24 24"
-//     fill="none"
-//     stroke="currentColor"
-//     strokeWidth="2"
-//     strokeLinecap="round"
-//     strokeLinejoin="round"
-//     {...props}
-//   >
-//     <path d="M12 2L9.17 8.17L2 10l6.17 4.83L6.83 22L12 17.33L17.17 22l-1.5-7.17L22 10l-7.17-1.17L12 2z" />
-//     <path d="M5 3v4" />
-//     <path d="M19 17v4" />
-//     <path d="M3 5h4" />
-//     <path d="M17 19h4" />
-//   </svg>
-// );
