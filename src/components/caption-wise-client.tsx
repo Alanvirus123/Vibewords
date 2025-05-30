@@ -3,7 +3,7 @@
 
 import { useState, type ChangeEvent, useCallback, useMemo } from "react";
 import Image from "next/image";
-import { UploadCloud, Copy, Wand2, RefreshCw, Loader2, Film, Music2, SparklesIcon as SparklesLucideIcon, LanguagesIcon, ChevronDown, Edit3 } from "lucide-react";
+import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, SparklesIcon as SparklesLucideIcon, LanguagesIcon, ChevronDown, Edit3, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -96,6 +96,7 @@ export default function CaptionWiseClient() {
   
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["English"]);
   const [isLanguagePopoverOpen, setIsLanguagePopoverOpen] = useState(false);
+  const [languageSearchTerm, setLanguageSearchTerm] = useState("");
 
   const [suggestedCaptions, setSuggestedCaptions] = useState<MediaSuggestions | null>(null);
   const [refinedCaptions, setRefinedCaptions] = useState<MediaSuggestions | null>(null);
@@ -159,6 +160,10 @@ export default function CaptionWiseClient() {
       return;
     }
     setIsSuggesting(true);
+    setSuggestedCaptions(null);
+    setRefinedCaptions(null);
+    setSuggestedSongs(null);
+    setRefinedSongSuggestions(null);
     try {
       const input: SuggestMediaCaptionsInput = { mediaDataUri: dataUri, mediaType: currentMediaType, targetLanguages: selectedLanguages };
       const result: SuggestMediaCaptionsOutput = await suggestMediaCaptions(input);
@@ -453,6 +458,16 @@ export default function CaptionWiseClient() {
     return labels.join(', ');
   }, [selectedLanguages]);
 
+  const filteredLanguages = useMemo(() => {
+    if (!languageSearchTerm) {
+      return PREDEFINED_LANGUAGES;
+    }
+    return PREDEFINED_LANGUAGES.filter(lang => 
+      lang.label.toLowerCase().includes(languageSearchTerm.toLowerCase()) ||
+      lang.value.toLowerCase().includes(languageSearchTerm.toLowerCase())
+    );
+  }, [languageSearchTerm]);
+
 
   return (
     <div className="container mx-auto p-4 md:p-8 min-h-screen flex flex-col items-center antialiased font-sans">
@@ -479,18 +494,33 @@ export default function CaptionWiseClient() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                <ScrollArea className="h-72">
-                  <div className="p-4 space-y-2">
-                  {PREDEFINED_LANGUAGES.map(lang => (
-                    <div key={lang.value} className="flex items-center space-x-2">
+                <div className="p-2">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Search languages..."
+                      className="w-full pl-8 pr-2 py-1 h-9 rounded-md border"
+                      value={languageSearchTerm}
+                      onChange={(e) => setLanguageSearchTerm(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <ScrollArea className="h-60"> {/* Adjusted height to accommodate search bar */}
+                  <div className="p-2 space-y-1"> {/* Reduced padding and spacing for denser list */}
+                  {filteredLanguages.map(lang => (
+                    <div key={lang.value} className="flex items-center space-x-2 p-1 hover:bg-accent rounded-md"> {/* Added hover effect and padding */}
                       <Checkbox
                         id={`lang-${lang.value}`}
                         checked={selectedLanguages.includes(lang.value)}
                         onCheckedChange={() => handleLanguageChange(lang.value)}
                       />
-                      <Label htmlFor={`lang-${lang.value}`} className="font-normal cursor-pointer flex-1">{lang.label}</Label>
+                      <Label htmlFor={`lang-${lang.value}`} className="font-normal cursor-pointer flex-1 text-sm">{lang.label}</Label> {/* Made label text smaller */}
                     </div>
                   ))}
+                  {filteredLanguages.length === 0 && (
+                    <p className="p-2 text-sm text-muted-foreground text-center">No languages found.</p>
+                  )}
                   </div>
                 </ScrollArea>
               </PopoverContent>
@@ -546,7 +576,7 @@ export default function CaptionWiseClient() {
           <Card className="w-full shadow-lg rounded-xl">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
-                {mediaType === 'video' ? <Film className="h-6 w-6 text-primary" /> : <Edit3 className="h-6 w-6 text-primary" />} {/* Changed Wand2 to Edit3 */}
+                {mediaType === 'video' ? <Film className="h-6 w-6 text-primary" /> : <Edit3 className="h-6 w-6 text-primary" />}
                 3. AI-Suggested Captions
               </CardTitle>
               <CardDescription>Here are captions for your {mediaType}. Copy or refine them (refining captions also refines songs).</CardDescription>
