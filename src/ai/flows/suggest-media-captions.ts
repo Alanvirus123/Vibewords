@@ -34,8 +34,8 @@ const LanguageSuggestionEntrySchema = z.object({
     .length(4)
     .describe("An array of four suggested captions in this language."),
   songSuggestions: z.array(z.string().min(1))
-    .length(1)
-    .describe("An array containing one suggested song title in this language.")
+    .length(2) // Updated from 1 to 2
+    .describe("An array containing two suggested song titles in this language.")
 });
 
 const SuggestMediaCaptionsOutputSchema = z.object({
@@ -59,7 +59,7 @@ const prompt = ai.definePrompt({
 
   For each of these target languages, you must:
   1. Generate exactly four engaging captions. The captions should be relevant to the {{mediaType}}'s content and appropriate for a general audience.
-  2. Suggest exactly one song title that would fit the mood or theme of the {{mediaType}}.
+  2. Suggest exactly two song titles that would fit the mood or theme of the {{mediaType}}.
 
   {{mediaType}}: {{media url=mediaDataUri}}
 
@@ -67,19 +67,19 @@ const prompt = ai.definePrompt({
   Each object in the 'languageEntries' array must contain:
   - A 'language' field: The name of the language (e.g., "English", "Spanish").
   - A 'captions' field: An array of exactly four caption strings in that language.
-  - A 'songSuggestions' field: An array containing exactly one song title string in that language.
+  - A 'songSuggestions' field: An array containing exactly two song title strings in that language.
 
   Example for 'languageEntries' if targetLanguages were ["English", "Spanish"]:
   "languageEntries": [
     {
       "language": "English",
       "captions": ["English Caption 1", "English Caption 2", "English Caption 3", "English Caption 4"],
-      "songSuggestions": ["Example English Song Title"]
+      "songSuggestions": ["Example English Song Title 1", "Example English Song Title 2"]
     },
     {
       "language": "Spanish",
       "captions": ["Leyenda en Español 1", "Leyenda en Español 2", "Leyenda en Español 3", "Leyenda en Español 4"],
-      "songSuggestions": ["Título de Canción en Español de Ejemplo"]
+      "songSuggestions": ["Título de Canción en Español de Ejemplo 1", "Título de Canción en Español de Ejemplo 2"]
     }
   ]`,
 });

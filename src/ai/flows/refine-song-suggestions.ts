@@ -19,8 +19,8 @@ import {z} from 'genkit';
 const InitialSongEntrySchema = z.object({
   language: z.string().describe("The language of this initial song suggestion."),
   songSuggestions: z.array(z.string().min(1))
-    .length(1)
-    .describe("The initial one song suggestion for this language to refine.")
+    .length(2) // Updated from 1 to 2
+    .describe("The initial two song suggestions for this language to refine.")
 });
 
 const RefineSongSuggestionsInputSchema = z.object({
@@ -31,7 +31,7 @@ const RefineSongSuggestionsInputSchema = z.object({
     ),
   initialSongEntries: z.array(InitialSongEntrySchema)
     .min(1)
-    .describe('An array of objects, where each object contains the language and the initial one song suggestion for that language to refine.'),
+    .describe('An array of objects, where each object contains the language and the initial two song suggestions for that language to refine.'),
   userFeedback: z.string().describe('The user feedback on the initial song suggestions (applies to all selected languages).'),
   mediaType: z.enum(['image', 'video']).optional().describe('The type of the media provided (image or video).'),
   targetLanguages: z.array(z.string()).min(1).describe('An array of language names for which to refine song suggestions. This list should correspond to the languages present in initialSongEntries.'),
@@ -45,8 +45,8 @@ export type RefineSongSuggestionsInput = z.infer<
 const RefinedLanguageSongEntrySchema = z.object({
   language: z.string().describe("The name of the language for this refined song suggestion."),
   refinedSongSuggestions: z.array(z.string().min(1))
-    .length(1)
-    .describe("An array containing one refined song title in this language.")
+    .length(2) // Updated from 1 to 2
+    .describe("An array containing two refined song titles in this language.")
 });
 
 const RefineSongSuggestionsOutputSchema = z.object({
@@ -70,9 +70,9 @@ const refineSongSuggestionsPrompt = ai.definePrompt({
   name: 'refineSongSuggestionsPrompt',
   input: {schema: RefineSongSuggestionsInputSchema},
   output: {schema: RefineSongSuggestionsOutputSchema},
-  prompt: `You are an expert music curator. You will be provided with a media description, an array of initial song entries (each for a specific language), user feedback, and a list of target languages.
+  prompt: `You are an expert music curator. You will be provided with a media description, an array of initial song entries (each for a specific language, containing two song titles), user feedback, and a list of target languages.
 
-  Your goal is to refine the initial song suggestions for all specified target languages based on the user feedback. For each target language, create a new set of one improved song suggestion.
+  Your goal is to refine the initial song suggestions for all specified target languages based on the user feedback. For each target language, create a new set of two improved song suggestions.
 
   Target Languages for Refinement: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
 
@@ -92,17 +92,17 @@ const refineSongSuggestionsPrompt = ai.definePrompt({
   Return the refined song suggestions as an array in the 'refinedLanguageSongEntries' field. Each element in this array should be an object corresponding to one of the target languages.
   Each object in the 'refinedLanguageSongEntries' array must contain:
   - A 'language' field: The name of the language (e.g., "English", "Spanish").
-  - A 'refinedSongSuggestions' field: An array containing exactly one refined song title string in that language.
+  - A 'refinedSongSuggestions' field: An array containing exactly two refined song title strings in that language.
 
   For example, if targetLanguages were ["English", "Spanish"]:
   "refinedLanguageSongEntries": [
     {
       "language": "English",
-      "refinedSongSuggestions": ["Refined English Song Title"]
+      "refinedSongSuggestions": ["Refined English Song Title 1", "Refined English Song Title 2"]
     },
     {
       "language": "Spanish",
-      "refinedSongSuggestions": ["Título de Canción Refinado en Español"]
+      "refinedSongSuggestions": ["Título de Canción Refinado en Español 1", "Título de Canción Refinado en Español 2"]
     }
   ]`,
 });
