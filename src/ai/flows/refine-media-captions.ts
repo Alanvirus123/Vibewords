@@ -4,7 +4,7 @@
 
 /**
  * @fileOverview A flow to refine media (image/video) caption suggestions using Genkit.
- * This flow now handles captions in multiple languages: English, Bengali, and Hindi, producing four refined captions per language.
+ * This flow now handles captions in multiple user-specified languages, producing four refined captions per language.
  *
  * This file exports:
  * - `refineMediaCaptions`: An async function that refines caption suggestions based on user input.
@@ -19,14 +19,14 @@ import {z} from 'genkit';
 const RefineMediaCaptionsInputSchema = z.object({
   mediaDescription: z
     .string()
-    .describe('A description of the media (image or video) for which captions are being refined, typically derived from the initial English caption(s).'),
-  initialCaptions: z.object({
-    english: z.array(z.string()).describe('Initial English caption(s) to refine (typically an array of four).'),
-    bengali: z.array(z.string()).describe('Initial Bengali caption(s) to refine (typically an array of four).'),
-    hindi: z.array(z.string()).describe('Initial Hindi caption(s) to refine (typically an array of four).'),
-  }).describe('The initial set of caption suggestions by language to refine.'),
-  userFeedback: z.string().describe('The user feedback on the initial captions (applies to all languages).'),
+    .describe(
+      "A general description of the media (image or video). If available, this might be derived from initial English captions. The AI should primarily use the multi-language 'initialCaptions' for detailed context during refinement."
+    ),
+  initialCaptions: z.record(z.string(), z.array(z.string()).length(4))
+    .describe('An object where each key is a language name and the value is an array of the initial four captions for that language to refine.'),
+  userFeedback: z.string().describe('The user feedback on the initial captions (applies to all selected languages).'),
   mediaType: z.enum(['image', 'video']).optional().describe('The type of the media provided (image or video).'),
+  targetLanguages: z.array(z.string()).min(1).describe('An array of language names for which to refine captions.'),
 });
 
 export type RefineMediaCaptionsInput = z.infer<
@@ -35,11 +35,8 @@ export type RefineMediaCaptionsInput = z.infer<
 
 // Define the output schema for the refineMediaCaptions function.
 const RefineMediaCaptionsOutputSchema = z.object({
-  refinedCaptions: z.object({
-    english: z.array(z.string().min(1)).describe('An array containing four refined English captions.'),
-    bengali: z.array(z.string().min(1)).describe('An array containing four refined Bengali captions.'),
-    hindi: z.array(z.string().min(1)).describe('An array containing four refined Hindi captions.'),
-  }).describe('Refined captions in English, Bengali, and Hindi. Each language should have four captions.'),
+  refinedCaptions: z.record(z.string(), z.array(z.string().min(1)).length(4))
+    .describe('An object where each key is a language name (from targetLanguages) and the value is an array of four refined captions for that language.'),
 });
 
 export type RefineMediaCaptionsOutput = z.infer<
@@ -58,26 +55,30 @@ const refineMediaCaptionsPrompt = ai.definePrompt({
   name: 'refineMediaCaptionsPrompt',
   input: {schema: RefineMediaCaptionsInputSchema},
   output: {schema: RefineMediaCaptionsOutputSchema},
-  prompt: `You are an expert caption writer. You will be provided with a media description, a list of initial caption suggestions (in English, Bengali, and Hindi - typically four for each), and user feedback on those captions.
+  prompt: `You are an expert caption writer. You will be provided with a media description, initial caption suggestions for multiple languages, user feedback, and a list of target languages.
 
-  Your goal is to refine the initial captions for all languages based on the user feedback to create a new set of four improved caption suggestions for each language.
+  Your goal is to refine the initial captions for all specified target languages based on the user feedback. For each target language, create a new set of four improved caption suggestions.
+
+  Target Languages for Refinement: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
 
   {{#if mediaType}}Media Type: {{mediaType}}{{/if}}
-  Media Description: {{{mediaDescription}}}
+  Media Description (general context): {{{mediaDescription}}}
 
-  Initial Captions:
-  English: {{#if initialCaptions.english}}{{#each initialCaptions.english}}- {{{this}}}\n{{else}}N/A{{/each}}{{else}}N/A{{/if}}
-  Bengali: {{#if initialCaptions.bengali}}{{#each initialCaptions.bengali}}- {{{this}}}\n{{else}}N/A{{/each}}{{else}}N/A{{/if}}
-  Hindi: {{#if initialCaptions.hindi}}{{#each initialCaptions.hindi}}- {{{this}}}\n{{else}}N/A{{/each}}{{else}}N/A{{/if}}
+  Initial Captions (use these as primary context for refinement per language):
+  {{#each initialCaptions}}
+  Language: {{@key}}
+    {{#each this}}- {{{this}}}\n{{/each}}
+  {{else}}
+  No initial captions provided.
+  {{/each}}
 
-  User Feedback: {{{userFeedback}}}
+  User Feedback (applies to all languages): {{{userFeedback}}}
 
-  Return the refined captions in the 'refinedCaptions' field as an object with three keys: 'english', 'bengali', and 'hindi'. Each key should have an array containing exactly four refined caption strings.
-  For example:
+  Return the refined captions in the 'refinedCaptions' field. This field should be an object where each key is one of the target language names (e.g., "English", "Spanish"), and the value for each key is an array containing exactly four refined caption strings in that language.
+  Example for 'refinedCaptions' if targetLanguages were ["English", "Spanish"]:
   "refinedCaptions": {
-    "english": ["Refined English Caption 1", "Refined English Caption 2", "Refined English Caption 3", "Refined English Caption 4"],
-    "bengali": ["পরিশোধিত বাংলা ক্যাপশন ১", "পরিশোধিত বাংলা ক্যাপশন ২", "পরিশোধিত বাংলা ক্যাপশন ৩", "পরিশোধিত বাংলা ক্যাপশন ৪"],
-    "hindi": ["परिष्कृत हिंदी कैप्शन १", "परिष्कृत हिंदी कैप्शन २", "परिष्कृत हिंदी कैप्शन ३", "परिष्कृत हिंदी कैप्शन ४"]
+    "English": ["Refined English Caption 1", "Refined English Caption 2", "Refined English Caption 3", "Refined English Caption 4"],
+    "Spanish": ["Leyenda en Español Refinada 1", "Leyenda en Español Refinada 2", "Leyenda en Español Refinada 3", "Leyenda en Español Refinada 4"]
   }`,
 });
 
@@ -93,4 +94,3 @@ const refineMediaCaptionsFlow = ai.defineFlow(
     return output!;
   }
 );
-

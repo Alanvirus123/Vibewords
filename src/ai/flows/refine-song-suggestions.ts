@@ -3,6 +3,7 @@
 
 /**
  * @fileOverview A flow to refine song suggestions using Genkit.
+ * Handles song suggestions in multiple user-specified languages.
  *
  * This file exports:
  * - `refineSongSuggestions`: An async function that refines song suggestions based on user input.
@@ -17,14 +18,14 @@ import {z} from 'genkit';
 const RefineSongSuggestionsInputSchema = z.object({
   mediaDescription: z
     .string()
-    .describe('A description of the media (image or video) for which song suggestions are being refined.'),
-  initialSongSuggestions: z.object({
-    english: z.array(z.string()).describe('Initial English song suggestion(s).'),
-    hindi: z.array(z.string()).describe('Initial Hindi song suggestion(s).'),
-    bengali: z.array(z.string()).describe('Initial Bengali song suggestion(s).'),
-  }).describe('The initial set of song suggestions to refine.'),
-  userFeedback: z.string().describe('The user feedback on the initial song suggestions.'),
+    .describe(
+      "A general description of the media (image or video). If available, this might be derived from English captions or refined captions. The AI should primarily use the multi-language 'initialSongSuggestions' for detailed context during refinement."
+    ),
+  initialSongSuggestions: z.record(z.string(), z.array(z.string()).length(1))
+    .describe('An object where each key is a language name and the value is an array of the initial one song suggestion for that language to refine.'),
+  userFeedback: z.string().describe('The user feedback on the initial song suggestions (applies to all selected languages).'),
   mediaType: z.enum(['image', 'video']).optional().describe('The type of the media provided (image or video).'),
+  targetLanguages: z.array(z.string()).min(1).describe('An array of language names for which to refine song suggestions.'),
 });
 
 export type RefineSongSuggestionsInput = z.infer<
@@ -33,11 +34,8 @@ export type RefineSongSuggestionsInput = z.infer<
 
 // Define the output schema for the refineSongSuggestions function.
 const RefineSongSuggestionsOutputSchema = z.object({
-  refinedSongSuggestions: z.object({
-     english: z.array(z.string()).describe('An array containing one refined English song title.'),
-     hindi: z.array(z.string()).describe('An array containing one refined Hindi song title.'),
-     bengali: z.array(z.string()).describe('An array containing one refined Bengali song title.'),
-  }).describe('Refined song titles in English, Hindi, and Bengali. Each language should have one song title.'),
+  refinedSongSuggestions: z.record(z.string(), z.array(z.string()).length(1))
+    .describe('An object where each key is a language name (from targetLanguages) and the value is an array of one refined song title for that language.'),
 });
 
 export type RefineSongSuggestionsOutput = z.infer<
@@ -56,26 +54,30 @@ const refineSongSuggestionsPrompt = ai.definePrompt({
   name: 'refineSongSuggestionsPrompt',
   input: {schema: RefineSongSuggestionsInputSchema},
   output: {schema: RefineSongSuggestionsOutputSchema},
-  prompt: `You are an expert music curator. You will be provided with a media description, a list of initial song suggestions (English, Hindi, Bengali), and user feedback on those songs.
+  prompt: `You are an expert music curator. You will be provided with a media description, initial song suggestions for multiple languages, user feedback, and a list of target languages.
 
-  Your goal is to refine the initial song suggestions based on the user feedback to create a new set of improved song suggestions, one for each language.
+  Your goal is to refine the initial song suggestions for all specified target languages based on the user feedback. For each target language, create a new set of one improved song suggestion.
+
+  Target Languages for Refinement: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
 
   {{#if mediaType}}Media Type: {{mediaType}}{{/if}}
-  Media Description: {{{mediaDescription}}}
+  Media Description (general context): {{{mediaDescription}}}
 
-  Initial Song Suggestions:
-  English: {{#each initialSongSuggestions.english}}{{{this}}}{{else}}N/A{{/each}}
-  Hindi: {{#each initialSongSuggestions.hindi}}{{{this}}}{{else}}N/A{{/each}}
-  Bengali: {{#each initialSongSuggestions.bengali}}{{{this}}}{{else}}N/A{{/each}}
+  Initial Song Suggestions (use these as primary context for refinement per language):
+  {{#each initialSongSuggestions}}
+  Language: {{@key}}
+    {{#each this}}- {{{this}}}\n{{/each}}
+  {{else}}
+  No initial song suggestions provided.
+  {{/each}}
 
-  User Feedback on Songs: {{{userFeedback}}}
+  User Feedback on Songs (applies to all languages): {{{userFeedback}}}
 
-  Return the refined song suggestions in the 'refinedSongSuggestions' field as an object with three keys: 'english', 'hindi', and 'bengali'. Each key should have an array containing exactly one refined song title string.
-  For example:
+  Return the refined song suggestions in the 'refinedSongSuggestions' field. This field should be an object where each key is one of the target language names (e.g., "English", "Spanish"), and the value for each key is an array containing exactly one refined song title string in that language.
+  For example, if targetLanguages were ["English", "Spanish"]:
   "refinedSongSuggestions": {
-    "english": ["Refined English Song Title"],
-    "hindi": ["परिष्कृत हिंदी गीत शीर्षक"],
-    "bengali": ["পরিশোধিত বাংলা গানের শিরোনাম"]
+    "English": ["Refined English Song Title"],
+    "Spanish": ["Título de Canción Refinado en Español"]
   }`,
 });
 

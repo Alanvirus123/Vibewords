@@ -3,6 +3,7 @@
 
 /**
  * @fileOverview Media (image/video) caption and song suggestion AI agent.
+ * Allows users to specify target languages for generation.
  *
  * - suggestMediaCaptions - A function that handles the media caption and song suggestion process.
  * - SuggestMediaCaptionsInput - The input type for the suggestMediaCaptions function.
@@ -21,20 +22,15 @@ const SuggestMediaCaptionsInputSchema = z.object({
       "Media (image or video) to generate captions for, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
   mediaType: z.enum(['image', 'video']).describe('The type of the media provided (image or video).'),
+  targetLanguages: z.array(z.string()).min(1).describe('An array of language names (e.g., "English", "Spanish") for which to generate captions and song suggestions.'),
 });
 export type SuggestMediaCaptionsInput = z.infer<typeof SuggestMediaCaptionsInputSchema>;
 
 const SuggestMediaCaptionsOutputSchema = z.object({
-  captions: z.object({
-    english: z.array(z.string().min(1)).describe('An array containing four suggested English captions.'),
-    bengali: z.array(z.string().min(1)).describe('An array containing four suggested Bengali captions.'),
-    hindi: z.array(z.string().min(1)).describe('An array containing four suggested Hindi captions.'),
-  }).describe('Suggested captions in English, Bengali, and Hindi. Each language should have four captions.'),
-  songSuggestions: z.object({
-    english: z.array(z.string()).describe('An array containing one English song title.'),
-    hindi: z.array(z.string()).describe('An array containing one Hindi song title.'),
-    bengali: z.array(z.string()).describe('An array containing one Bengali song title.'),
-  }).describe('Suggested song titles in English, Hindi, and Bengali. Each language should have one song title.'),
+  captions: z.record(z.string(), z.array(z.string().min(1)).length(4))
+    .describe('An object where each key is a language name (from targetLanguages) and the value is an array of four suggested captions for that language.'),
+  songSuggestions: z.record(z.string(), z.array(z.string()).length(1))
+    .describe('An object where each key is a language name (from targetLanguages) and the value is an array of one suggested song title for that language.'),
 });
 export type SuggestMediaCaptionsOutput = z.infer<typeof SuggestMediaCaptionsOutputSchema>;
 
@@ -49,25 +45,25 @@ const prompt = ai.definePrompt({
   input: {schema: SuggestMediaCaptionsInputSchema},
   output: {schema: SuggestMediaCaptionsOutputSchema},
   prompt: `You are an expert social media manager. You will analyze the {{mediaType}} provided.
-  Generate four engaging captions for each of the following languages: English, Bengali, and Hindi. The captions should be relevant to the {{mediaType}}'s content and appropriate for a general audience.
-  Also, suggest one song title for each of these languages that would fit the mood or theme of the {{mediaType}}.
+  Your task is to generate content for the following languages: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
+
+  For each of these languages, generate exactly four engaging captions. The captions should be relevant to the {{mediaType}}'s content and appropriate for a general audience.
+  Also, for each of these languages, suggest exactly one song title that would fit the mood or theme of the {{mediaType}}.
 
   {{mediaType}}: {{media url=mediaDataUri}}
 
-  Return the suggested captions in the 'captions' field as an object with three keys: 'english', 'bengali', and 'hindi'. Each key should have an array containing exactly four caption strings.
-  For example:
+  Return the suggested captions in the 'captions' field. This field should be an object where each key is one of the target language names you were given (e.g., "English", "Spanish"), and the value for each key is an array containing exactly four caption strings in that language.
+  Example for 'captions' if targetLanguages were ["English", "Spanish"]:
   "captions": {
-    "english": ["Example English Caption 1", "Example English Caption 2", "Example English Caption 3", "Example English Caption 4"],
-    "bengali": ["উদাহরণ বাংলা ক্যাপশন ১", "উদাহরণ বাংলা ক্যাপশন ২", "উদাহরণ বাংলা ক্যাপশন ৩", "উদাহরণ বাংলা ক্যাপশন ৪"],
-    "hindi": ["उदाहरण हिंदी कैप्शन १", "उदाहरण हिंदी कैप्शन २", "उदाहरण हिंदी कैप्शन ३", "उदाहरण हिंदी कैप्शन ४"]
+    "English": ["English Caption 1", "English Caption 2", "English Caption 3", "English Caption 4"],
+    "Spanish": ["Spanish Caption 1", "Spanish Caption 2", "Spanish Caption 3", "Spanish Caption 4"]
   }
 
-  Return the song suggestions in the 'songSuggestions' field as an object with three keys: 'english', 'hindi', and 'bengali'. Each key should have an array containing exactly one song title string.
-  For example:
+  Return the song suggestions in the 'songSuggestions' field. This field should be an object where each key is one of the target language names, and the value for each key is an array containing exactly one song title string in that language.
+  Example for 'songSuggestions' if targetLanguages were ["English", "Spanish"]:
   "songSuggestions": {
-    "english": ["Example English Song Title"],
-    "hindi": ["उदाहरण हिंदी गीत शीर्षक"],
-    "bengali": ["উদাহরণ বাংলা গানের শিরোনাম"]
+    "English": ["Example English Song Title"],
+    "Spanish": ["Título de Canción en Español de Ejemplo"]
   }`,
 });
 
@@ -82,4 +78,3 @@ const suggestMediaCaptionsFlow = ai.defineFlow(
     return output!;
   }
 );
-
