@@ -12,9 +12,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { suggestMediaCaptions, type SuggestMediaCaptionsInput, type SuggestMediaCaptionsOutput } from "@/ai/flows/suggest-media-captions";
-import { refineMediaCaptions, type RefineMediaCaptionsInput, type RefineMediaCaptionsOutput } from "@/ai/flows/refine-media-captions";
-import { refineSongSuggestions, type RefineSongSuggestionsInput, type RefineSongSuggestionsOutput } from "@/ai/flows/refine-song-suggestions";
+import { suggestMediaCaptions, type SuggestMediaCaptionsInput, type SuggestMediaCaptionsOutput, type LanguageSuggestionEntry } from "@/ai/flows/suggest-media-captions";
+import { refineMediaCaptions, type RefineMediaCaptionsInput, type RefineMediaCaptionsOutput, type RefinedLanguageCaptionEntry } from "@/ai/flows/refine-media-captions";
+import { refineSongSuggestions, type RefineSongSuggestionsInput, type RefineSongSuggestionsOutput, type RefinedLanguageSongEntry } from "@/ai/flows/refine-song-suggestions";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const PREDEFINED_LANGUAGES = [
@@ -173,7 +173,7 @@ export default function CaptionWiseClient() {
       let hasAnyCaptions = false;
       let hasAnySongs = false;
 
-      result.languageEntries?.forEach(entry => {
+      result.languageEntries?.forEach((entry: LanguageSuggestionEntry) => {
         if (entry.captions && entry.captions.length > 0) {
           newSuggestedCaptions[entry.language] = entry.captions;
           hasAnyCaptions = true;
@@ -206,22 +206,20 @@ export default function CaptionWiseClient() {
   const getMediaDescriptionForRefinement = useCallback(() => {
     let baseDescription = `The uploaded ${mediaType || "media"}. Analyze its content for theme and mood.`;
     
-    const englishRefined = refinedCaptions && refinedCaptions["English"] && refinedCaptions["English"].length > 0;
-    if (englishRefined) {
-        return refinedCaptions!["English"].join(" ");
+    if (refinedCaptions && refinedCaptions["English"] && refinedCaptions["English"].length > 0) {
+        return refinedCaptions["English"].join(" ");
     }
 
-    const englishSuggested = suggestedCaptions && suggestedCaptions["English"] && suggestedCaptions["English"].length > 0;
-    if (englishSuggested) {
-        return suggestedCaptions!["English"].join(" ");
+    if (suggestedCaptions && suggestedCaptions["English"] && suggestedCaptions["English"].length > 0) {
+        return suggestedCaptions["English"].join(" ");
     }
     
     if (selectedLanguages.length > 0) {
-        const firstSelectedLanguageWithRefinedCaptions = selectedLanguages.find(lang => refinedCaptions?.[lang]?.length);
+        const firstSelectedLanguageWithRefinedCaptions = selectedLanguages.find(lang => refinedCaptions?.[lang]?.length && lang !== "English");
         if (firstSelectedLanguageWithRefinedCaptions) {
             return refinedCaptions![firstSelectedLanguageWithRefinedCaptions].join(" ");
         }
-        const firstSelectedLanguageWithSuggestedCaptions = selectedLanguages.find(lang => suggestedCaptions?.[lang]?.length);
+        const firstSelectedLanguageWithSuggestedCaptions = selectedLanguages.find(lang => suggestedCaptions?.[lang]?.length && lang !== "English");
         if (firstSelectedLanguageWithSuggestedCaptions) {
             return suggestedCaptions![firstSelectedLanguageWithSuggestedCaptions].join(" ");
         }
@@ -239,8 +237,7 @@ export default function CaptionWiseClient() {
     setRefinedCaptions(null); 
 
     const mediaDesc = getMediaDescriptionForRefinement();
-    let refinedCaptionTextForSongRefinement = mediaDesc; 
-
+    
     const initialCaptionEntriesForRefinement = selectedLanguages
       .map(lang => {
         const captionsForLang = suggestedCaptions?.[lang];
@@ -273,7 +270,7 @@ export default function CaptionWiseClient() {
 
       const newRefinedCaptions: MediaSuggestions = {};
       let hasAnyRefinedCaptions = false;
-      captionResult.refinedLanguageEntries?.forEach(entry => {
+      captionResult.refinedLanguageEntries?.forEach((entry: RefinedLanguageCaptionEntry) => {
         if (entry.refinedCaptions && entry.refinedCaptions.length > 0) {
           newRefinedCaptions[entry.language] = entry.refinedCaptions;
           hasAnyRefinedCaptions = true;
@@ -282,13 +279,17 @@ export default function CaptionWiseClient() {
 
       if (hasAnyRefinedCaptions) {
         setRefinedCaptions(newRefinedCaptions);
-        refinedCaptionTextForSongRefinement = newRefinedCaptions["English"]?.join(" ") || getMediaDescriptionForRefinement(); 
         toast({ title: "Captions Refined!", description: "New captions generated. Attempting to refine songs as well..." });
 
+        // Automatic song refinement based on new captions
         if (suggestedSongs && Object.keys(suggestedSongs).length > 0 && mediaType && selectedLanguages.length > 0) {
-          setIsRefiningSongs(true);
+          setIsRefiningSongs(true); // Indicate song refinement is also starting
           setRefinedSongSuggestions(null); 
           
+          const refinedCaptionTextForSongRefinement = (newRefinedCaptions["English"] && newRefinedCaptions["English"].length > 0) 
+              ? newRefinedCaptions["English"].join(" ")
+              : getMediaDescriptionForRefinement(); // Fallback if English refined captions aren't there
+
           const initialSongEntriesForRefinement = selectedLanguages
             .map(lang => {
               const songsForLang = suggestedSongs?.[lang];
@@ -305,7 +306,7 @@ export default function CaptionWiseClient() {
 
           if (initialSongEntriesForRefinement.length === 0) {
              toast({ title: "Song Refinement Skipped", description: "No initial song suggestions found for selected languages to refine." });
-             setIsRefiningSongs(false);
+             setIsRefiningSongs(false); // Song refinement part is done (skipped)
           } else {
             try {
               const songInput: RefineSongSuggestionsInput = {
@@ -319,7 +320,7 @@ export default function CaptionWiseClient() {
               
               const newRefinedSongs: MediaSuggestions = {};
               let hasAnyRefinedSongs = false;
-              songResult.refinedLanguageSongEntries?.forEach(entry => {
+              songResult.refinedLanguageSongEntries?.forEach((entry: RefinedLanguageSongEntry) => {
                 if (entry.refinedSongSuggestions && entry.refinedSongSuggestions.length > 0) {
                   newRefinedSongs[entry.language] = entry.refinedSongSuggestions;
                   hasAnyRefinedSongs = true;
@@ -336,7 +337,7 @@ export default function CaptionWiseClient() {
               console.error("Error auto-refining song suggestions:", songError);
               toast({ variant: "destructive", title: "Song Refinement Error", description: "Failed to automatically refine song suggestions. Check console." });
             } finally {
-              setIsRefiningSongs(false);
+              setIsRefiningSongs(false); // Song refinement part is done
             }
           }
         }
@@ -347,7 +348,10 @@ export default function CaptionWiseClient() {
       console.error("Error refining captions:", error);
       toast({ variant: "destructive", title: "Error", description: "Failed to refine captions. Check console." });
     } finally {
-      setIsRefiningCaptions(false);
+      setIsRefiningCaptions(false); // Caption refinement part is done
+      if (!isRefiningSongs) { // Ensure songs loading state is also reset if it wasn't started/already finished
+         // setIsRefiningSongs(false); // This might be redundant if already set in song's finally block
+      }
     }
   };
 
@@ -392,7 +396,7 @@ export default function CaptionWiseClient() {
       
       const newRefinedSongs: MediaSuggestions = {};
       let hasAnyRefinedSongs = false;
-      result.refinedLanguageSongEntries?.forEach(entry => {
+      result.refinedLanguageSongEntries?.forEach((entry: RefinedLanguageSongEntry) => {
         if (entry.refinedSongSuggestions && entry.refinedSongSuggestions.length > 0) {
           newRefinedSongs[entry.language] = entry.refinedSongSuggestions;
           hasAnyRefinedSongs = true;
@@ -493,7 +497,12 @@ export default function CaptionWiseClient() {
                   <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+              <PopoverContent 
+                className="w-[--radix-popover-trigger-width] p-0"
+                side="bottom"
+                align="start"
+                sideOffset={8}
+              >
                 <div className="p-2">
                   <div className="relative">
                     <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -506,16 +515,16 @@ export default function CaptionWiseClient() {
                     />
                   </div>
                 </div>
-                <ScrollArea className="h-60"> {/* Adjusted height to accommodate search bar */}
-                  <div className="p-2 space-y-1"> {/* Reduced padding and spacing for denser list */}
+                <ScrollArea className="h-60"> 
+                  <div className="p-2 space-y-1"> 
                   {filteredLanguages.map(lang => (
-                    <div key={lang.value} className="flex items-center space-x-2 p-1 hover:bg-accent rounded-md"> {/* Added hover effect and padding */}
+                    <div key={lang.value} className="flex items-center space-x-2 p-1 hover:bg-accent rounded-md"> 
                       <Checkbox
                         id={`lang-${lang.value}`}
                         checked={selectedLanguages.includes(lang.value)}
                         onCheckedChange={() => handleLanguageChange(lang.value)}
                       />
-                      <Label htmlFor={`lang-${lang.value}`} className="font-normal cursor-pointer flex-1 text-sm">{lang.label}</Label> {/* Made label text smaller */}
+                      <Label htmlFor={`lang-${lang.value}`} className="font-normal cursor-pointer flex-1 text-sm">{lang.label}</Label> 
                     </div>
                   ))}
                   {filteredLanguages.length === 0 && (
@@ -603,7 +612,7 @@ export default function CaptionWiseClient() {
                 className="min-h-[80px]"
               />
               <Button onClick={handleRefineCaptions} disabled={isRefiningCaptions || !captionFeedback || isRefiningSongs} className="w-full sm:w-auto">
-                {isRefiningCaptions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                {isRefiningCaptions && !isRefiningSongs ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                 Refine Captions {isRefiningSongs && !isRefiningCaptions && "& Songs..."}
               </Button>
             </CardFooter>
