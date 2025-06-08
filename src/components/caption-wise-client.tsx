@@ -3,7 +3,7 @@
 
 import React, { useState, type ChangeEvent, useCallback, useMemo, Suspense } from "react";
 import Image from "next/image";
-import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, SparklesIcon as SparklesLucideIcon, LanguagesIcon, ChevronDown, Edit3, Search } from "lucide-react";
+import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, SparklesIcon as SparklesLucideIcon, LanguagesIcon, ChevronDown, Edit3, Search, ImagePlus, Images } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,6 @@ import { refineMediaCaptions, type RefineMediaCaptionsInput, type RefineMediaCap
 import { refineSongSuggestions, type RefineSongSuggestionsInput, type RefineSongSuggestionsOutput, type RefinedLanguageSongEntry } from "@/ai/flows/refine-song-suggestions";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-// Lazy-loaded components
 const SuggestedCaptionsDisplay = React.lazy(() => import('@/components/suggested-captions-display'));
 const RefinedCaptionsDisplay = React.lazy(() => import('@/components/refined-captions-display'));
 const SuggestedSongsDisplay = React.lazy(() => import('@/components/suggested-songs-display'));
@@ -94,6 +93,7 @@ const fileToDataUri = (file: File): Promise<string> => {
 
 export type MediaSuggestions = Record<string, string[]>;
 export type LanguageOption = { value: string; label: string };
+type AppMediaType = 'image' | 'video' | 'image_collection';
 
 
 const LoadingFallback = () => (
@@ -107,9 +107,9 @@ const LoadingFallback = () => (
 
 
 export default function CaptionWiseClient() {
-  const [mediaFile, setMediaFile] = useState<File | null>(null);
-  const [mediaSrc, setMediaSrc] = useState<string | null>(null);
-  const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
+  const [mediaFiles, setMediaFiles] = useState<File[] | null>(null);
+  const [mediaSrcs, setMediaSrcs] = useState<string[] | null>(null);
+  const [mediaType, setMediaType] = useState<AppMediaType | null>(null);
   
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["English"]);
   const [isLanguagePopoverOpen, setIsLanguagePopoverOpen] = useState(false);
@@ -129,13 +129,16 @@ export default function CaptionWiseClient() {
 
   const { toast } = useToast();
 
-  const resetSuggestions = () => {
+  const resetSuggestionsAndMedia = () => {
     setSuggestedCaptions(null);
     setRefinedCaptions(null);
     setCaptionFeedback("");
     setSuggestedSongs(null);
     setRefinedSongSuggestions(null);
     setSongFeedback("");
+    setMediaFiles(null);
+    setMediaSrcs(null);
+    setMediaType(null);
   };
 
   const handleLanguageChange = (languageValue: string) => {
@@ -152,37 +155,67 @@ export default function CaptionWiseClient() {
   };
 
   const handleMediaUpload = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (selectedLanguages.length === 0) {
-        toast({ variant: "destructive", title: "Language Missing", description: "Please select at least one language before uploading media." });
-        event.target.value = ''; 
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    if (selectedLanguages.length === 0) {
+      toast({ variant: "destructive", title: "Language Missing", description: "Please select at least one language before uploading media." });
+      event.target.value = ''; 
+      return;
+    }
+
+    resetSuggestionsAndMedia();
+    
+    const uploadedFiles = Array.from(files);
+    let filesToProcess = uploadedFiles;
+
+    if (uploadedFiles.length > 8) {
+      toast({ variant: "destructive", title: "Too Many Files", description: "You can upload a maximum of 8 images. Processing the first 8." });
+      filesToProcess = uploadedFiles.slice(0, 8);
+    }
+    
+    let currentMediaType: AppMediaType;
+
+    if (filesToProcess.length > 1) {
+      const allImages = filesToProcess.every(file => file.type.startsWith('image/'));
+      if (!allImages) {
+        toast({ variant: "destructive", title: "Invalid File Mix", description: "If uploading multiple files, all must be images." });
+        event.target.value = '';
         return;
       }
-      resetSuggestions();
-      setMediaFile(file);
+      currentMediaType = 'image_collection';
+    } else if (filesToProcess.length === 1) {
+      currentMediaType = filesToProcess[0].type.startsWith('video/') ? 'video' : 'image';
+    } else {
+      return; // Should not happen if files.length > 0
+    }
+    
+    setMediaFiles(filesToProcess);
+    setMediaType(currentMediaType);
 
-      const currentMediaType = file.type.startsWith('video/') ? 'video' : 'image';
-      setMediaType(currentMediaType);
-
-      const dataUri = await fileToDataUri(file);
-      setMediaSrc(dataUri);
-      await handleSuggestCaptionsAndSongs(dataUri, currentMediaType);
+    try {
+      const dataUris = await Promise.all(filesToProcess.map(file => fileToDataUri(file)));
+      setMediaSrcs(dataUris);
+      await handleSuggestCaptionsAndSongs(dataUris, currentMediaType);
+    } catch (error) {
+      console.error("Error processing files:", error);
+      toast({ variant: "destructive", title: "File Processing Error", description: "Could not process the uploaded files." });
+      resetSuggestionsAndMedia();
     }
   };
 
-  const handleSuggestCaptionsAndSongs = async (dataUri: string, currentMediaType: "image" | "video") => {
+  const handleSuggestCaptionsAndSongs = async (dataUris: string[], currentMediaType: AppMediaType) => {
     if (selectedLanguages.length === 0) {
       toast({ variant: "destructive", title: "Language Missing", description: "Please select languages for suggestions." });
       return;
     }
     setIsSuggesting(true);
+    // Keep previous refined suggestions and feedback if user is just re-uploading to get new initial suggestions
     setSuggestedCaptions(null);
-    setRefinedCaptions(null);
     setSuggestedSongs(null);
-    setRefinedSongSuggestions(null);
+
     try {
-      const input: SuggestMediaCaptionsInput = { mediaDataUri: dataUri, mediaType: currentMediaType, targetLanguages: selectedLanguages };
+      const input: SuggestMediaCaptionsInput = { mediaDataUris: dataUris, mediaType: currentMediaType, targetLanguages: selectedLanguages };
       const result: SuggestMediaCaptionsOutput = await suggestMediaCaptions(input);
       
       const newSuggestedCaptions: MediaSuggestions = {};
@@ -204,49 +237,41 @@ export default function CaptionWiseClient() {
       setSuggestedCaptions(hasAnyCaptions ? newSuggestedCaptions : null);
       setSuggestedSongs(hasAnySongs ? newSuggestedSongs : null);
       
+      const mediaTypeName = currentMediaType === 'image_collection' ? 'images' : currentMediaType;
       if (!hasAnyCaptions && !hasAnySongs) {
-        toast({ title: "No suggestions generated", description: `The AI could not suggest captions or songs for this ${currentMediaType} in the selected languages.` });
+        toast({ title: "No suggestions generated", description: `The AI could not suggest captions or songs for the uploaded ${mediaTypeName} in the selected languages.` });
       } else if (!hasAnyCaptions) {
-        toast({ title: "No captions suggested", description: `The AI could not suggest captions for this ${currentMediaType}, but songs were suggested.` });
+        toast({ title: "No captions suggested", description: `The AI could not suggest captions for the ${mediaTypeName}, but songs were suggested.` });
       } else if (!hasAnySongs) {
-         toast({ title: "No songs suggested", description: `The AI could not suggest songs for this ${currentMediaType}, but captions were suggested.` });
+         toast({ title: "No songs suggested", description: `The AI could not suggest songs for the ${mediaTypeName}, but captions were suggested.` });
       }
 
     } catch (error) {
       console.error("Error suggesting captions/songs:", error);
-      toast({ variant: "destructive", title: "Error", description: `Failed to suggest captions or songs for this ${currentMediaType}. Check console for details.` });
+      const mediaTypeName = currentMediaType === 'image_collection' ? 'images' : currentMediaType;
+      toast({ variant: "destructive", title: "Error", description: `Failed to suggest captions or songs for the ${mediaTypeName}. Check console for details.` });
     } finally {
       setIsSuggesting(false);
     }
   };
 
-  const getMediaDescriptionForRefinement = useCallback(() => {
-    let baseDescription = `The uploaded ${mediaType || "media"}. Analyze its content for theme and mood.`;
-    
-    const sourceCaptions = refinedCaptions || suggestedCaptions;
-
-    if (sourceCaptions) {
-      if (sourceCaptions["English"] && sourceCaptions["English"].length > 0) {
-        return sourceCaptions["English"].join(" ");
-      }
-      const firstSelectedLanguageWithCaptions = selectedLanguages.find(lang => sourceCaptions?.[lang]?.length && lang !== "English");
-      if (firstSelectedLanguageWithCaptions) {
-          return sourceCaptions![firstSelectedLanguageWithCaptions].join(" ");
-      }
-    }
-    return baseDescription;
-  }, [suggestedCaptions, refinedCaptions, mediaType, selectedLanguages]);
+  const getMediaDescriptionForRefinementFlow = useCallback((): string => {
+    if (mediaType === 'image_collection') return "A collection of user-uploaded images.";
+    if (mediaType === 'image') return "A user-uploaded image.";
+    if (mediaType === 'video') return "A user-uploaded video.";
+    return "User-uploaded media.";
+  }, [mediaType]);
 
 
   const handleRefineCaptions = async () => {
-    if (!mediaFile || !suggestedCaptions || Object.keys(suggestedCaptions).length === 0 || !captionFeedback || !mediaType || selectedLanguages.length === 0) {
+    if (!mediaSrcs || mediaSrcs.length === 0 || !suggestedCaptions || Object.keys(suggestedCaptions).length === 0 || !captionFeedback || !mediaType || selectedLanguages.length === 0) {
       toast({ variant: "destructive", title: "Error", description: "Missing media, initial captions, media type, feedback, or selected languages for caption refinement." });
       return;
     }
     setIsRefiningCaptions(true);
     setRefinedCaptions(null); 
 
-    const mediaDesc = getMediaDescriptionForRefinement();
+    const mediaDesc = getMediaDescriptionForRefinementFlow();
     
     const initialCaptionEntriesForRefinement = selectedLanguages
       .map(lang => {
@@ -270,10 +295,11 @@ export default function CaptionWiseClient() {
 
     try {
       const captionInput: RefineMediaCaptionsInput = {
+        mediaDataUris: mediaSrcs,
+        mediaType: mediaType,
         mediaDescription: mediaDesc,
         initialCaptionEntries: initialCaptionEntriesForRefinement,
         userFeedback: captionFeedback,
-        mediaType: mediaType,
         targetLanguages: selectedLanguages,
       };
       const captionResult: RefineMediaCaptionsOutput = await refineMediaCaptions(captionInput);
@@ -291,13 +317,11 @@ export default function CaptionWiseClient() {
         setRefinedCaptions(newRefinedCaptions);
         toast({ title: "Captions Refined!", description: "New captions generated. Attempting to refine songs as well..." });
 
-        if (suggestedSongs && Object.keys(suggestedSongs).length > 0 && mediaType && selectedLanguages.length > 0) {
+        if (suggestedSongs && Object.keys(suggestedSongs).length > 0 && mediaType && selectedLanguages.length > 0 && mediaSrcs && mediaSrcs.length > 0) {
           setIsRefiningSongs(true); 
           setRefinedSongSuggestions(null); 
           
-          const refinedCaptionTextForSongRefinement = (newRefinedCaptions["English"] && newRefinedCaptions["English"].length > 0) 
-              ? newRefinedCaptions["English"].join(" ")
-              : getMediaDescriptionForRefinement(); 
+          const songRefinementMediaDesc = getMediaDescriptionForRefinementFlow();
 
           const initialSongEntriesForSongRefinement = selectedLanguages
             .map(lang => {
@@ -319,10 +343,11 @@ export default function CaptionWiseClient() {
           } else {
             try {
               const songInput: RefineSongSuggestionsInput = {
-                mediaDescription: refinedCaptionTextForSongRefinement, 
+                mediaDataUris: mediaSrcs,
+                mediaType: mediaType,
+                mediaDescription: songRefinementMediaDesc, 
                 initialSongEntries: initialSongEntriesForSongRefinement,
                 userFeedback: songFeedback || "Make them match the vibe of the refined captions.", 
-                mediaType: mediaType,
                 targetLanguages: selectedLanguages,
               };
               const songResult: RefineSongSuggestionsOutput = await refineSongSuggestions(songInput);
@@ -362,7 +387,7 @@ export default function CaptionWiseClient() {
   };
 
   const handleRefineSongs = async () => {
-    if (!mediaFile || !suggestedSongs || Object.keys(suggestedSongs).length === 0 || !songFeedback || !mediaType || selectedLanguages.length === 0) {
+    if (!mediaSrcs || mediaSrcs.length === 0 || !suggestedSongs || Object.keys(suggestedSongs).length === 0 || !songFeedback || !mediaType || selectedLanguages.length === 0) {
       toast({ variant: "destructive", title: "Error", description: "Missing media, initial song suggestions, media type, feedback, or selected languages for song refinement." });
       return;
     }
@@ -390,12 +415,13 @@ export default function CaptionWiseClient() {
     }
     
     try {
-      const mediaDesc = getMediaDescriptionForRefinement();
+      const mediaDesc = getMediaDescriptionForRefinementFlow();
       const input: RefineSongSuggestionsInput = {
+        mediaDataUris: mediaSrcs,
+        mediaType: mediaType,
         mediaDescription: mediaDesc,
         initialSongEntries: initialSongEntriesForRefinement,
         userFeedback: songFeedback,
-        mediaType: mediaType,
         targetLanguages: selectedLanguages,
       };
       const result: RefineSongSuggestionsOutput = await refineSongSuggestions(input);
@@ -552,26 +578,45 @@ export default function CaptionWiseClient() {
               <UploadCloud className="h-6 w-6 text-primary" />
               2. Upload Your Media
             </CardTitle>
-            <CardDescription>Select an image or video. Suggestions will be generated for the languages chosen above.</CardDescription>
+            <CardDescription>Select 1-8 images, or a single video. Suggestions will be generated for the languages chosen above.</CardDescription>
           </CardHeader>
           <CardContent>
             <Input
               id="mediaUpload"
               type="file"
               accept="image/*,video/*"
+              multiple // Allow multiple file selection
               onChange={handleMediaUpload}
               disabled={selectedLanguages.length === 0}
               className="text-base file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
             />
-            {mediaSrc && (
+            {mediaSrcs && mediaSrcs.length > 0 && (
               <div className="mt-6 border rounded-lg overflow-hidden shadow-md bg-muted/20">
-                {mediaType === 'image' && (
-                  <Image src={mediaSrc} alt="Uploaded image preview" width={600} height={400} className="w-full h-auto object-contain" data-ai-hint="uploaded image" />
-                )}
-                {mediaType === 'video' && (
-                  <video src={mediaSrc} controls className="w-full h-auto max-h-[400px] object-contain rounded-lg" data-ai-hint="uploaded video">
-                    Your browser does not support the video tag.
-                  </video>
+                {mediaSrcs.length > 1 && mediaType === 'image_collection' ? (
+                  <div className="flex space-x-2 overflow-x-auto p-2">
+                    {mediaSrcs.map((src, index) => (
+                      <Image 
+                        key={index} 
+                        src={src} 
+                        alt={`Uploaded image ${index + 1}`} 
+                        width={150} 
+                        height={100} 
+                        className="object-contain rounded-md h-24 w-auto" 
+                        data-ai-hint="uploaded image" 
+                      />
+                    ))}
+                  </div>
+                ) : mediaSrcs.length === 1 && mediaSrcs[0] && (
+                  <>
+                    {mediaType === 'image' && (
+                      <Image src={mediaSrcs[0]} alt="Uploaded image preview" width={600} height={400} className="w-full h-auto object-contain" data-ai-hint="uploaded image" />
+                    )}
+                    {mediaType === 'video' && (
+                      <video src={mediaSrcs[0]} controls className="w-full h-auto max-h-[400px] object-contain rounded-lg" data-ai-hint="uploaded video">
+                        Your browser does not support the video tag.
+                      </video>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -582,7 +627,7 @@ export default function CaptionWiseClient() {
           <Card className="w-full shadow-lg rounded-xl">
             <CardContent className="p-6 flex flex-col items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-              <p className="text-muted-foreground">Generating suggestions for your {mediaType || 'media'}...</p>
+              <p className="text-muted-foreground">Generating suggestions for your {mediaType === 'image_collection' ? 'images' : mediaType || 'media'}...</p>
             </CardContent>
           </Card>
         )}
@@ -682,3 +727,118 @@ const Label: React.FC<React.LabelHTMLAttributes<HTMLLabelElement> & {htmlFor?: s
   </label>
 );
 
+```></content>
+  </change>
+  <change>
+    <file>/src/ai/flows/suggest-media-captions.ts</file>
+    <content><![CDATA[
+'use server';
+
+/**
+ * @fileOverview Media (image/video/image_collection) caption and song suggestion AI agent.
+ * Allows users to specify target languages for generation.
+ * Outputs suggestions as an array of language-specific entries.
+ * Handles single images, single videos, or a collection of up to 8 images.
+ *
+ * This file exports:
+ * - `suggestMediaCaptions`: A function that handles the media caption and song suggestion process.
+ * - `SuggestMediaCaptionsInput`: The input type for the `suggestMediaCaptions` function.
+ * - `SuggestMediaCaptionsOutput`: The output type for the `suggestMediaCaptions` function.
+ */
+
+import {ai} from '@/ai/genkit';
+import {z} from 'genkit';
+
+const SuggestMediaCaptionsInputSchema = z.object({
+  mediaDataUris: z
+    .array(z.string().min(1))
+    .min(1)
+    .max(8)
+    .describe(
+      "An array of media items (1 to 8 images if mediaType is 'image_collection', or 1 image/video otherwise), each as a data URI. Data URI must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+    ),
+  mediaType: z.enum(['image', 'video', 'image_collection']).describe('The type of the media provided (image, video, or image_collection for multiple images).'),
+  targetLanguages: z.array(z.string()).min(1).describe('An array of language names (e.g., "English", "Spanish") for which to generate captions and song suggestions.'),
+});
+export type SuggestMediaCaptionsInput = z.infer<typeof SuggestMediaCaptionsInputSchema>;
+
+const LanguageSuggestionEntrySchema = z.object({
+  language: z.string().describe("The name of the language for these suggestions (e.g., 'English', 'Spanish'). This field is MANDATORY."),
+  captions: z.array(z.string().min(1))
+    .length(4)
+    .describe("An array of EXACTLY four suggested captions in this language. This field is MANDATORY."),
+  songSuggestions: z.array(z.string().min(1))
+    .length(2)
+    .describe("An array containing EXACTLY two suggested song titles in this language. This field is MANDATORY.")
+});
+
+const SuggestMediaCaptionsOutputSchema = z.object({
+  languageEntries: z.array(LanguageSuggestionEntrySchema)
+    .describe("An array of suggestion entries, one for each target language specified in the input. Each entry MUST conform to the LanguageSuggestionEntrySchema."),
+});
+export type SuggestMediaCaptionsOutput = z.infer<typeof SuggestMediaCaptionsOutputSchema>;
+
+export async function suggestMediaCaptions(
+  input: SuggestMediaCaptionsInput
+): Promise<SuggestMediaCaptionsOutput> {
+  return suggestMediaCaptionsFlow(input);
+}
+
+const prompt = ai.definePrompt({
+  name: 'suggestMediaCaptionsPrompt',
+  input: {schema: SuggestMediaCaptionsInputSchema},
+  output: {schema: SuggestMediaCaptionsOutputSchema},
+  prompt: `You are an expert social media manager. You will analyze the provided media.
+  Your task is to generate content for ALL of the following languages: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
+
+  For EACH of these target languages, you MUST generate:
+  1. EXACTLY four engaging captions. The captions should be relevant to the media's content and appropriate for a general audience. If multiple images are provided (mediaType 'image_collection'), the captions should be relevant to the entire set of images.
+  2. EXACTLY two song titles that would fit the mood or theme of the media. If multiple images are provided, the song suggestions should reflect the overall vibe of the collection.
+
+  Provided Media:
+  {{#if (eq mediaType "image_collection")}}
+    A collection of {{mediaDataUris.length}} images:
+    {{#each mediaDataUris}}
+      Image {{@index}}: {{media url=this}}
+    {{/each}}
+  {{else if (eq mediaType "image")}}
+    Image: {{media url=mediaDataUris.[0]}}
+  {{else if (eq mediaType "video")}}
+    Video: {{media url=mediaDataUris.[0]}}
+  {{/if}}
+
+  Return your output as an array in the 'languageEntries' field. Each element in this array MUST be an object corresponding to one of the target languages.
+  Each object in the 'languageEntries' array MUST contain ALL of the following fields:
+  - 'language': A string with the name of the language (e.g., "English", "Spanish"). This MUST be one of the target languages.
+  - 'captions': An array of EXACTLY four caption strings in that language.
+  - 'songSuggestions': An array containing EXACTLY two song title strings in that language.
+
+  Ensure that every language listed in 'targetLanguages' has a corresponding entry in the 'languageEntries' array, and each entry is complete with all required fields.
+
+  Example for 'languageEntries' if targetLanguages were ["English", "Spanish"]:
+  "languageEntries": [
+    {
+      "language": "English",
+      "captions": ["English Caption 1", "English Caption 2", "English Caption 3", "English Caption 4"],
+      "songSuggestions": ["Example English Song Title 1", "Example English Song Title 2"]
+    },
+    {
+      "language": "Spanish",
+      "captions": ["Leyenda en Español 1", "Leyenda en Español 2", "Leyenda en Español 3", "Leyenda en Español 4"],
+      "songSuggestions": ["Título de Canción en Español de Ejemplo 1", "Título de Canción en Español de Ejemplo 2"]
+    }
+  ]`,
+});
+
+const suggestMediaCaptionsFlow = ai.defineFlow(
+  {
+    name: 'suggestMediaCaptionsFlow',
+    inputSchema: SuggestMediaCaptionsInputSchema,
+    outputSchema: SuggestMediaCaptionsOutputSchema,
+  },
+  async input => {
+    const {output} = await prompt(input);
+    return output!;
+  }
+);
+```

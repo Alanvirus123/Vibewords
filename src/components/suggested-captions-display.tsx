@@ -6,11 +6,11 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, RefreshCw, Film, Edit3 } from "lucide-react";
+import { Loader2, RefreshCw, Edit3, Images, Film } from "lucide-react"; // Added Images icon
 import type { MediaSuggestions, LanguageOption } from './caption-wise-client';
 
 interface SuggestedCaptionsDisplayProps {
-  mediaType: "image" | "video" | null;
+  mediaType: "image" | "video" | "image_collection" | null;
   suggestedCaptions: MediaSuggestions | null;
   captionFeedback: string;
   setCaptionFeedback: (value: string) => void;
@@ -34,14 +34,26 @@ const SuggestedCaptionsDisplay: React.FC<SuggestedCaptionsDisplayProps> = ({
   PREDEFINED_LANGUAGES,
   CaptionDisplayCardRenderer,
 }) => {
+  const getMediaTypeIcon = () => {
+    if (mediaType === 'image_collection') return <Images className="h-6 w-6 text-primary" />;
+    if (mediaType === 'video') return <Film className="h-6 w-6 text-primary" />;
+    return <Edit3 className="h-6 w-6 text-primary" />; // Default for single image
+  };
+  
+  const getMediaTypeName = () => {
+    if (mediaType === 'image_collection') return 'your images';
+    if (mediaType === 'video') return 'your video';
+    return 'your image';
+  }
+
   return (
     <Card className="w-full shadow-lg rounded-xl">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
-          {mediaType === 'video' ? <Film className="h-6 w-6 text-primary" /> : <Edit3 className="h-6 w-6 text-primary" />}
+          {getMediaTypeIcon()}
           3. AI-Suggested Captions
         </CardTitle>
-        <CardDescription>Here are captions for your {mediaType}. Copy or refine them (refining captions also refines songs).</CardDescription>
+        <CardDescription>Here are captions for {getMediaTypeName()}. Copy or refine them (refining captions also refines songs).</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {suggestedCaptions && selectedLanguages.map(language => (
@@ -74,3 +86,4 @@ const SuggestedCaptionsDisplay: React.FC<SuggestedCaptionsDisplayProps> = ({
 };
 
 export default SuggestedCaptionsDisplay;
+```

@@ -10,7 +10,7 @@ import { Loader2, RefreshCw, Music2 } from "lucide-react";
 import type { MediaSuggestions, LanguageOption } from './caption-wise-client';
 
 interface SuggestedSongsDisplayProps {
-  mediaType: "image" | "video" | null;
+  mediaType: "image" | "video" | "image_collection" | null;
   suggestedSongs: MediaSuggestions | null;
   songFeedback: string;
   setSongFeedback: (value: string) => void;
@@ -34,6 +34,12 @@ const SuggestedSongsDisplay: React.FC<SuggestedSongsDisplayProps> = ({
   PREDEFINED_LANGUAGES,
   SongSuggestionItemRenderer,
 }) => {
+  const getMediaTypeName = () => {
+    if (mediaType === 'image_collection') return 'your images';
+    if (mediaType === 'video') return 'your video';
+    return 'your image';
+  }
+
   return (
     <Card className="w-full shadow-lg rounded-xl">
       <CardHeader>
@@ -41,7 +47,7 @@ const SuggestedSongsDisplay: React.FC<SuggestedSongsDisplayProps> = ({
           <Music2 className="h-6 w-6 text-primary" />
           5. AI-Suggested Songs 
         </CardTitle>
-        <CardDescription>Song titles for your {mediaType}. Copy or refine them!</CardDescription>
+        <CardDescription>Song titles for {getMediaTypeName()}. Copy or refine them!</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {suggestedSongs && selectedLanguages.map(language => (
@@ -74,3 +80,4 @@ const SuggestedSongsDisplay: React.FC<SuggestedSongsDisplayProps> = ({
 };
 
 export default SuggestedSongsDisplay;
+```

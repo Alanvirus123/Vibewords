@@ -1,10 +1,11 @@
 
-// 'use server';
+'use server';
 
 /**
- * @fileOverview Media (image/video) caption and song suggestion AI agent.
+ * @fileOverview Media (image/video/image_collection) caption and song suggestion AI agent.
  * Allows users to specify target languages for generation.
  * Outputs suggestions as an array of language-specific entries.
+ * Handles single images, single videos, or a collection of up to 8 images.
  *
  * This file exports:
  * - `suggestMediaCaptions`: A function that handles the media caption and song suggestion process.
@@ -12,18 +13,18 @@
  * - `SuggestMediaCaptionsOutput`: The output type for the `suggestMediaCaptions` function.
  */
 
-'use server';
-
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const SuggestMediaCaptionsInputSchema = z.object({
-  mediaDataUri: z
-    .string()
+  mediaDataUris: z
+    .array(z.string().min(1))
+    .min(1)
+    .max(8)
     .describe(
-      "Media (image or video) to generate captions for, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "An array of media items (1 to 8 images if mediaType is 'image_collection', or 1 image/video otherwise), each as a data URI. Data URI must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
-  mediaType: z.enum(['image', 'video']).describe('The type of the media provided (image or video).'),
+  mediaType: z.enum(['image', 'video', 'image_collection']).describe('The type of the media provided (image, video, or image_collection for multiple images).'),
   targetLanguages: z.array(z.string()).min(1).describe('An array of language names (e.g., "English", "Spanish") for which to generate captions and song suggestions.'),
 });
 export type SuggestMediaCaptionsInput = z.infer<typeof SuggestMediaCaptionsInputSchema>;
@@ -54,14 +55,24 @@ const prompt = ai.definePrompt({
   name: 'suggestMediaCaptionsPrompt',
   input: {schema: SuggestMediaCaptionsInputSchema},
   output: {schema: SuggestMediaCaptionsOutputSchema},
-  prompt: `You are an expert social media manager. You will analyze the {{mediaType}} provided.
+  prompt: `You are an expert social media manager. You will analyze the provided media.
   Your task is to generate content for ALL of the following languages: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
 
   For EACH of these target languages, you MUST generate:
-  1. EXACTLY four engaging captions. The captions should be relevant to the {{mediaType}}'s content and appropriate for a general audience.
-  2. EXACTLY two song titles that would fit the mood or theme of the {{mediaType}}.
+  1. EXACTLY four engaging captions. The captions should be relevant to the media's content and appropriate for a general audience. If multiple images are provided (mediaType 'image_collection'), the captions should be relevant to the entire set of images.
+  2. EXACTLY two song titles that would fit the mood or theme of the media. If multiple images are provided, the song suggestions should reflect the overall vibe of the collection.
 
-  {{mediaType}}: {{media url=mediaDataUri}}
+  Provided Media:
+  {{#if (eq mediaType "image_collection")}}
+    A collection of {{mediaDataUris.length}} images:
+    {{#each mediaDataUris}}
+      Image {{@index}}: {{media url=this}}
+    {{/each}}
+  {{else if (eq mediaType "image")}}
+    Image: {{media url=mediaDataUris.[0]}}
+  {{else if (eq mediaType "video")}}
+    Video: {{media url=mediaDataUris.[0]}}
+  {{/if}}
 
   Return your output as an array in the 'languageEntries' field. Each element in this array MUST be an object corresponding to one of the target languages.
   Each object in the 'languageEntries' array MUST contain ALL of the following fields:
@@ -97,4 +108,3 @@ const suggestMediaCaptionsFlow = ai.defineFlow(
     return output!;
   }
 );
-
