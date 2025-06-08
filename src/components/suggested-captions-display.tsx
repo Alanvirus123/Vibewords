@@ -86,4 +86,3 @@ const SuggestedCaptionsDisplay: React.FC<SuggestedCaptionsDisplayProps> = ({
 };
 
 export default SuggestedCaptionsDisplay;
-```

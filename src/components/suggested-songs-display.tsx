@@ -80,4 +80,3 @@ const SuggestedSongsDisplay: React.FC<SuggestedSongsDisplayProps> = ({
 };
 
 export default SuggestedSongsDisplay;
-```
