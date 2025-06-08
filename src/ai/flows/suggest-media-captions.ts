@@ -29,6 +29,12 @@ const SuggestMediaCaptionsInputSchema = z.object({
 });
 export type SuggestMediaCaptionsInput = z.infer<typeof SuggestMediaCaptionsInputSchema>;
 
+const SuggestMediaCaptionsPromptInputSchema = SuggestMediaCaptionsInputSchema.extend({
+  isImage: z.boolean(),
+  isVideo: z.boolean(),
+  isImageCollection: z.boolean(),
+});
+
 const LanguageSuggestionEntrySchema = z.object({
   language: z.string().describe("The name of the language for these suggestions (e.g., 'English', 'Spanish'). This field is MANDATORY."),
   captions: z.array(z.string().min(1))
@@ -53,7 +59,7 @@ export async function suggestMediaCaptions(
 
 const prompt = ai.definePrompt({
   name: 'suggestMediaCaptionsPrompt',
-  input: {schema: SuggestMediaCaptionsInputSchema},
+  input: {schema: SuggestMediaCaptionsPromptInputSchema},
   output: {schema: SuggestMediaCaptionsOutputSchema},
   prompt: `You are an expert social media manager. You will analyze the provided media.
   Your task is to generate content for ALL of the following languages: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
@@ -63,14 +69,14 @@ const prompt = ai.definePrompt({
   2. EXACTLY two song titles that would fit the mood or theme of the media. If multiple images are provided, the song suggestions should reflect the overall vibe of the collection.
 
   Provided Media:
-  {{#if (eq mediaType "image_collection")}}
+  {{#if isImageCollection}}
     A collection of {{mediaDataUris.length}} images:
     {{#each mediaDataUris}}
       Image {{@index}}: {{media url=this}}
     {{/each}}
-  {{else if (eq mediaType "image")}}
+  {{else if isImage}}
     Image: {{media url=mediaDataUris.[0]}}
-  {{else if (eq mediaType "video")}}
+  {{else if isVideo}}
     Video: {{media url=mediaDataUris.[0]}}
   {{/if}}
 
@@ -103,8 +109,14 @@ const suggestMediaCaptionsFlow = ai.defineFlow(
     inputSchema: SuggestMediaCaptionsInputSchema,
     outputSchema: SuggestMediaCaptionsOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
+  async (flowInput: SuggestMediaCaptionsInput) => {
+    const promptInput = {
+      ...flowInput,
+      isImage: flowInput.mediaType === 'image',
+      isVideo: flowInput.mediaType === 'video',
+      isImageCollection: flowInput.mediaType === 'image_collection',
+    };
+    const {output} = await prompt(promptInput);
     return output!;
   }
 );

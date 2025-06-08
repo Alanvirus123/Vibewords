@@ -48,6 +48,12 @@ export type RefineMediaCaptionsInput = z.infer<
   typeof RefineMediaCaptionsInputSchema
 >;
 
+const RefineMediaCaptionsPromptInputSchema = RefineMediaCaptionsInputSchema.extend({
+  isImage: z.boolean(),
+  isVideo: z.boolean(),
+  isImageCollection: z.boolean(),
+});
+
 const RefinedLanguageCaptionEntrySchema = z.object({
   language: z.string().describe("The name of the language for these refined captions."),
   refinedCaptions: z.array(z.string().min(1))
@@ -72,7 +78,7 @@ export async function refineMediaCaptions(
 
 const refineMediaCaptionsPrompt = ai.definePrompt({
   name: 'refineMediaCaptionsPrompt',
-  input: {schema: RefineMediaCaptionsInputSchema},
+  input: {schema: RefineMediaCaptionsPromptInputSchema},
   output: {schema: RefineMediaCaptionsOutputSchema},
   prompt: `You are an expert caption writer. You will be provided with media (one or more images, or a video), a general media description, an array of initial caption entries (each for a specific language), user feedback, and a list of target languages.
 
@@ -81,14 +87,14 @@ const refineMediaCaptionsPrompt = ai.definePrompt({
   Target Languages for Refinement: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
 
   Provided Media:
-  {{#if (eq mediaType "image_collection")}}
+  {{#if isImageCollection}}
     A collection of {{mediaDataUris.length}} images:
     {{#each mediaDataUris}}
       Image {{@index}}: {{media url=this}}
     {{/each}}
-  {{else if (eq mediaType "image")}}
+  {{else if isImage}}
     Image: {{media url=mediaDataUris.[0]}}
-  {{else if (eq mediaType "video")}}
+  {{else if isVideo}}
     Video: {{media url=mediaDataUris.[0]}}
   {{/if}}
 
@@ -129,8 +135,14 @@ const refineMediaCaptionsFlow = ai.defineFlow(
     inputSchema: RefineMediaCaptionsInputSchema,
     outputSchema: RefineMediaCaptionsOutputSchema,
   },
-  async input => {
-    const {output} = await refineMediaCaptionsPrompt(input);
+  async (flowInput: RefineMediaCaptionsInput) => {
+    const promptInput = {
+      ...flowInput,
+      isImage: flowInput.mediaType === 'image',
+      isVideo: flowInput.mediaType === 'video',
+      isImageCollection: flowInput.mediaType === 'image_collection',
+    };
+    const {output} = await refineMediaCaptionsPrompt(promptInput);
     return output!;
   }
 );

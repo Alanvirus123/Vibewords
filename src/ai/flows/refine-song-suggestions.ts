@@ -48,6 +48,12 @@ export type RefineSongSuggestionsInput = z.infer<
   typeof RefineSongSuggestionsInputSchema
 >;
 
+const RefineSongSuggestionsPromptInputSchema = RefineSongSuggestionsInputSchema.extend({
+  isImage: z.boolean(),
+  isVideo: z.boolean(),
+  isImageCollection: z.boolean(),
+});
+
 const RefinedLanguageSongEntrySchema = z.object({
   language: z.string().describe("The name of the language for this refined song suggestion."),
   refinedSongSuggestions: z.array(z.string().min(1))
@@ -72,7 +78,7 @@ export async function refineSongSuggestions(
 
 const refineSongSuggestionsPrompt = ai.definePrompt({
   name: 'refineSongSuggestionsPrompt',
-  input: {schema: RefineSongSuggestionsInputSchema},
+  input: {schema: RefineSongSuggestionsPromptInputSchema},
   output: {schema: RefineSongSuggestionsOutputSchema},
   prompt: `You are an expert music curator. You will be provided with media (one or more images, or a video), a general media description, an array of initial song entries (each for a specific language, containing two song titles), userFeedback, and a list of target languages.
 
@@ -81,14 +87,14 @@ const refineSongSuggestionsPrompt = ai.definePrompt({
   Target Languages for Refinement: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
 
   Provided Media:
-  {{#if (eq mediaType "image_collection")}}
+  {{#if isImageCollection}}
     A collection of {{mediaDataUris.length}} images:
     {{#each mediaDataUris}}
       Image {{@index}}: {{media url=this}}
     {{/each}}
-  {{else if (eq mediaType "image")}}
+  {{else if isImage}}
     Image: {{media url=mediaDataUris.[0]}}
-  {{else if (eq mediaType "video")}}
+  {{else if isVideo}}
     Video: {{media url=mediaDataUris.[0]}}
   {{/if}}
   
@@ -129,8 +135,14 @@ const refineSongSuggestionsFlow = ai.defineFlow(
     inputSchema: RefineSongSuggestionsInputSchema,
     outputSchema: RefineSongSuggestionsOutputSchema,
   },
-  async input => {
-    const {output} = await refineSongSuggestionsPrompt(input);
+  async (flowInput: RefineSongSuggestionsInput) => {
+    const promptInput = {
+      ...flowInput,
+      isImage: flowInput.mediaType === 'image',
+      isVideo: flowInput.mediaType === 'video',
+      isImageCollection: flowInput.mediaType === 'image_collection',
+    };
+    const {output} = await refineSongSuggestionsPrompt(promptInput);
     return output!;
   }
 );
