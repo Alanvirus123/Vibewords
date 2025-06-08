@@ -1,8 +1,8 @@
+
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
-import { ThemeProvider } from '@/components/theme-provider';
-import { Toaster } from "@/components/ui/toaster";
+import ClientLayoutWrapper from './client-layout-wrapper';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -24,18 +24,19 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const themeProviderProps = {
+    attribute: "class",
+    defaultTheme: "system",
+    enableSystem: true,
+    disableTransitionOnChange: true,
+  };
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`} suppressHydrationWarning>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
+        <ClientLayoutWrapper themeProviderProps={themeProviderProps}>
           {children}
-          <Toaster />
-        </ThemeProvider>
+        </ClientLayoutWrapper>
       </body>
     </html>
   );
