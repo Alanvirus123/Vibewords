@@ -11,13 +11,13 @@ import type { MediaSuggestions, LanguageOption } from './caption-wise-client';
 
 interface SuggestedSongsDisplayProps {
   mediaType: "image" | "video" | "image_collection" | null;
-  suggestedSongs: MediaSuggestions | null;
+  suggestedSongs: MediaSuggestions | null; // Contains songs for ALL initially selected languages
   songFeedback: string;
   setSongFeedback: (value: string) => void;
   handleRefineSongs: () => Promise<void>;
   isRefiningCaptions: boolean;
   isRefiningSongs: boolean;
-  selectedLanguages: string[];
+  selectedLanguages: string[]; // These are the SONG-specific languages for display/refinement
   PREDEFINED_LANGUAGES: LanguageOption[];
   SongSuggestionItemRenderer: React.FC<{ title: string; language: string }>;
 }
@@ -30,7 +30,7 @@ const SuggestedSongsDisplay: React.FC<SuggestedSongsDisplayProps> = ({
   handleRefineSongs,
   isRefiningCaptions,
   isRefiningSongs,
-  selectedLanguages,
+  selectedLanguages, // This prop now represents selected SONG languages
   PREDEFINED_LANGUAGES,
   SongSuggestionItemRenderer,
 }) => {
@@ -47,9 +47,10 @@ const SuggestedSongsDisplay: React.FC<SuggestedSongsDisplayProps> = ({
           <Music2 className="h-6 w-6 text-primary" />
           5. AI-Suggested Songs 
         </CardTitle>
-        <CardDescription>Song titles for {getMediaTypeName()}. Copy or refine them!</CardDescription>
+        <CardDescription>Song titles for {getMediaTypeName()} in your selected song languages. Copy or refine them!</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Iterate over selected SONG languages to display relevant songs */}
         {suggestedSongs && selectedLanguages.map(language => (
           suggestedSongs[language] && suggestedSongs[language].length > 0 && (
             <div key={`suggested-song-${language}-section`} className="space-y-2">
@@ -62,7 +63,7 @@ const SuggestedSongsDisplay: React.FC<SuggestedSongsDisplayProps> = ({
         ))}
       </CardContent>
       <CardFooter className="flex-col items-start gap-4 pt-6 border-t">
-        <Label htmlFor="songFeedback" className="font-semibold text-md">Refine Song Suggestions (for all selected languages):</Label>
+        <Label htmlFor="songFeedback" className="font-semibold text-md">Refine Song Suggestions (for selected song languages):</Label>
         <Textarea
           id="songFeedback"
           placeholder="Your feedback for songs (e.g., 'more upbeat songs', 'instrumental only')"

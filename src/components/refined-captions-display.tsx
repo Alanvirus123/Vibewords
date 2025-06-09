@@ -8,14 +8,14 @@ import type { MediaSuggestions, LanguageOption } from './caption-wise-client';
 
 interface RefinedCaptionsDisplayProps {
   refinedCaptions: MediaSuggestions | null;
-  selectedLanguages: string[];
+  selectedLanguages: string[]; // These are the languages for CAPTIONS
   PREDEFINED_LANGUAGES: LanguageOption[];
   CaptionDisplayCardRenderer: React.FC<{ caption: string; language: string }>;
 }
 
 const RefinedCaptionsDisplay: React.FC<RefinedCaptionsDisplayProps> = ({
   refinedCaptions,
-  selectedLanguages,
+  selectedLanguages, // Used for iterating and displaying relevant caption languages
   PREDEFINED_LANGUAGES,
   CaptionDisplayCardRenderer,
 }) => {
@@ -24,7 +24,7 @@ const RefinedCaptionsDisplay: React.FC<RefinedCaptionsDisplayProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
           <SparklesLucideIcon className="h-6 w-6 text-primary" />
-          4. Refined Captions
+          6. Refined Captions
         </CardTitle>
         <CardDescription>Refined captions based on your feedback.</CardDescription>
       </CardHeader>

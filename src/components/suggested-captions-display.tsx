@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, RefreshCw, Edit3, Images, Film } from "lucide-react"; // Added Images icon
+import { Loader2, RefreshCw, Edit3, Images, Film } from "lucide-react"; 
 import type { MediaSuggestions, LanguageOption } from './caption-wise-client';
 
 interface SuggestedCaptionsDisplayProps {
@@ -17,7 +17,7 @@ interface SuggestedCaptionsDisplayProps {
   handleRefineCaptions: () => Promise<void>;
   isRefiningCaptions: boolean;
   isRefiningSongs: boolean;
-  selectedLanguages: string[];
+  selectedLanguages: string[]; // These are the languages for CAPTIONS
   PREDEFINED_LANGUAGES: LanguageOption[];
   CaptionDisplayCardRenderer: React.FC<{ caption: string; language: string }>;
 }
@@ -30,14 +30,14 @@ const SuggestedCaptionsDisplay: React.FC<SuggestedCaptionsDisplayProps> = ({
   handleRefineCaptions,
   isRefiningCaptions,
   isRefiningSongs,
-  selectedLanguages,
+  selectedLanguages, // Used for iterating and displaying relevant caption languages
   PREDEFINED_LANGUAGES,
   CaptionDisplayCardRenderer,
 }) => {
   const getMediaTypeIcon = () => {
     if (mediaType === 'image_collection') return <Images className="h-6 w-6 text-primary" />;
     if (mediaType === 'video') return <Film className="h-6 w-6 text-primary" />;
-    return <Edit3 className="h-6 w-6 text-primary" />; // Default for single image
+    return <Edit3 className="h-6 w-6 text-primary" />; 
   };
   
   const getMediaTypeName = () => {
@@ -51,7 +51,7 @@ const SuggestedCaptionsDisplay: React.FC<SuggestedCaptionsDisplayProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
           {getMediaTypeIcon()}
-          3. AI-Suggested Captions
+          4. AI-Suggested Captions
         </CardTitle>
         <CardDescription>Here are captions for {getMediaTypeName()}. Copy or refine them (refining captions also refines songs).</CardDescription>
       </CardHeader>
@@ -68,7 +68,7 @@ const SuggestedCaptionsDisplay: React.FC<SuggestedCaptionsDisplayProps> = ({
         ))}
       </CardContent>
       <CardFooter className="flex-col items-start gap-4 pt-6 border-t">
-        <Label htmlFor="captionFeedback" className="font-semibold text-md">Refine Captions (for all selected languages):</Label>
+        <Label htmlFor="captionFeedback" className="font-semibold text-md">Refine Captions (for all selected caption languages):</Label>
         <Textarea
           id="captionFeedback"
           placeholder="Your feedback for captions (e.g., 'make it funnier', 'add hashtags')"

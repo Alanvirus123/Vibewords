@@ -7,15 +7,15 @@ import { SparklesIcon as SparklesLucideIcon } from "lucide-react";
 import type { MediaSuggestions, LanguageOption } from './caption-wise-client';
 
 interface RefinedSongsDisplayProps {
-  refinedSongSuggestions: MediaSuggestions | null;
-  selectedLanguages: string[];
+  refinedSongSuggestions: MediaSuggestions | null; // Contains refined songs for selected SONG languages
+  selectedLanguages: string[]; // These are the SONG-specific languages
   PREDEFINED_LANGUAGES: LanguageOption[];
   SongSuggestionItemRenderer: React.FC<{ title: string; language: string }>;
 }
 
 const RefinedSongsDisplay: React.FC<RefinedSongsDisplayProps> = ({
   refinedSongSuggestions,
-  selectedLanguages,
+  selectedLanguages, // This prop now represents selected SONG languages
   PREDEFINED_LANGUAGES,
   SongSuggestionItemRenderer,
 }) => {
@@ -23,12 +23,13 @@ const RefinedSongsDisplay: React.FC<RefinedSongsDisplayProps> = ({
     <Card className="w-full shadow-lg rounded-xl">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
-          <SparklesLucideIcon className="h-6 w-6 text-primary" />
-          6. Refined Song Suggestions
+          <SparklesIcon className="h-6 w-6 text-primary" />
+          7. Refined Song Suggestions
         </CardTitle>
-        <CardDescription>Refined song suggestions based on your feedback.</CardDescription>
+        <CardDescription>Refined song suggestions based on your feedback, for your selected song languages.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Iterate over selected SONG languages to display relevant refined songs */}
         {refinedSongSuggestions && selectedLanguages.map(language => (
           refinedSongSuggestions[language] && refinedSongSuggestions[language].length > 0 && (
             <div key={`refined-song-${language}-section`} className="space-y-2">

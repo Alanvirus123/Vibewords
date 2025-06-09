@@ -116,6 +116,10 @@ export default function CaptionWiseClient() {
   const [isLanguagePopoverOpen, setIsLanguagePopoverOpen] = useState(false);
   const [languageSearchTerm, setLanguageSearchTerm] = useState("");
 
+  const [selectedSongLanguages, setSelectedSongLanguages] = useState<string[]>(["English"]);
+  const [isSongLanguagePopoverOpen, setIsSongLanguagePopoverOpen] = useState(false);
+  const [songLanguageSearchTerm, setSongLanguageSearchTerm] = useState("");
+
   const [suggestedCaptions, setSuggestedCaptions] = useState<MediaSuggestions | null>(null);
   const [refinedCaptions, setRefinedCaptions] = useState<MediaSuggestions | null>(null);
   const [captionFeedback, setCaptionFeedback] = useState<string>("");
@@ -148,22 +152,42 @@ export default function CaptionWiseClient() {
         ? prev.filter(lang => lang !== languageValue)
         : [...prev, languageValue];
       if (newSelection.length === 0) { 
-        toast({ variant: "destructive", title: "Selection Error", description: "At least one language must be selected." });
+        toast({ variant: "destructive", title: "Selection Error", description: "At least one language must be selected for captions." });
         return prev; 
       }
       return newSelection;
     });
   };
 
+  const handleSongLanguageChange = (languageValue: string) => {
+    setSelectedSongLanguages(prev => {
+      const newSelection = prev.includes(languageValue)
+        ? prev.filter(lang => lang !== languageValue)
+        : [...prev, languageValue];
+      if (newSelection.length === 0) { 
+        toast({ variant: "destructive", title: "Selection Error", description: "At least one language must be selected for songs." });
+        return prev; 
+      }
+      return newSelection;
+    });
+  };
+
+
   const handleMediaUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
     if (selectedLanguages.length === 0) {
-      toast({ variant: "destructive", title: "Language Missing", description: "Please select at least one language before uploading media." });
+      toast({ variant: "destructive", title: "Language Missing", description: "Please select at least one language for captions before uploading media." });
       event.target.value = ''; 
       return;
     }
+    if (selectedSongLanguages.length === 0) {
+      toast({ variant: "destructive", title: "Song Language Missing", description: "Please select at least one language for songs before uploading media." });
+      event.target.value = '';
+      return;
+    }
+
 
     resetSuggestionsAndMedia();
     
@@ -197,7 +221,9 @@ export default function CaptionWiseClient() {
     try {
       const dataUris = await Promise.all(filesToProcess.map(file => fileToDataUri(file)));
       setMediaSrcs(dataUris);
-      await handleSuggestCaptionsAndSongs(dataUris, currentMediaType);
+      // Pass selectedLanguages for initial suggestions of both captions and songs.
+      // Song language selection will be used for displaying/refining songs later.
+      await handleSuggestCaptionsAndSongs(dataUris, currentMediaType, selectedLanguages);
     } catch (error) {
       console.error("Error processing files:", error);
       toast({ variant: "destructive", title: "File Processing Error", description: "Could not process the uploaded files." });
@@ -205,8 +231,8 @@ export default function CaptionWiseClient() {
     }
   };
 
-  const handleSuggestCaptionsAndSongs = async (dataUris: string[], currentMediaType: AppMediaType) => {
-    if (selectedLanguages.length === 0) {
+  const handleSuggestCaptionsAndSongs = async (dataUris: string[], currentMediaType: AppMediaType, targetLanguagesForSuggestions: string[]) => {
+    if (targetLanguagesForSuggestions.length === 0) {
       toast({ variant: "destructive", title: "Language Missing", description: "Please select languages for suggestions." });
       return;
     }
@@ -215,11 +241,12 @@ export default function CaptionWiseClient() {
     setSuggestedSongs(null);
 
     try {
-      const input: SuggestMediaCaptionsInput = { mediaDataUris: dataUris, mediaType: currentMediaType, targetLanguages: selectedLanguages };
+      // The suggestMediaCaptions flow will generate captions and songs for these targetLanguagesForSuggestions
+      const input: SuggestMediaCaptionsInput = { mediaDataUris: dataUris, mediaType: currentMediaType, targetLanguages: targetLanguagesForSuggestions };
       const result: SuggestMediaCaptionsOutput = await suggestMediaCaptions(input);
       
       const newSuggestedCaptions: MediaSuggestions = {};
-      const newSuggestedSongs: MediaSuggestions = {};
+      const newSuggestedSongs: MediaSuggestions = {}; // This will store songs for all initially selectedLanguages
       let hasAnyCaptions = false;
       let hasAnySongs = false;
 
@@ -228,6 +255,7 @@ export default function CaptionWiseClient() {
           newSuggestedCaptions[entry.language] = entry.captions;
           hasAnyCaptions = true;
         }
+        // Store all song suggestions; filtering for display/refinement will happen later based on selectedSongLanguages
         if (entry.language && entry.songSuggestions && entry.songSuggestions.length > 0) {
           newSuggestedSongs[entry.language] = entry.songSuggestions;
           hasAnySongs = true;
@@ -235,7 +263,7 @@ export default function CaptionWiseClient() {
       });
 
       setSuggestedCaptions(hasAnyCaptions ? newSuggestedCaptions : null);
-      setSuggestedSongs(hasAnySongs ? newSuggestedSongs : null);
+      setSuggestedSongs(hasAnySongs ? newSuggestedSongs : null); 
       
       const mediaTypeName = currentMediaType === 'image_collection' ? 'images' : currentMediaType;
       if (!hasAnyCaptions && !hasAnySongs) {
@@ -263,22 +291,23 @@ export default function CaptionWiseClient() {
   }, [mediaType]);
 
   const prepareCaptionsForRefinement = (sourceCaptions: string[] | undefined): string[] => {
-    if (!sourceCaptions || sourceCaptions.length === 0) return [];
+    if (!sourceCaptions || sourceCaptions.length === 0) return ["Please refine this caption.", "Please refine this caption.", "Please refine this caption.", "Please refine this caption."]; // Provide 4 placeholders if none
     const captions = [...sourceCaptions.slice(0, 4)];
-    while (captions.length < 4 && captions.length > 0) {
+    while (captions.length < 4) { // Pad if less than 4
       captions.push(captions[captions.length - 1] || "Please refine this caption.");
     }
-    return captions.length === 4 ? captions : []; // Return empty if not exactly 4 after padding (should not happen if source had items)
+    return captions;
   };
 
   const prepareSongsForRefinement = (sourceSongs: string[] | undefined): string[] => {
-    if (!sourceSongs || sourceSongs.length === 0) return [];
+    if (!sourceSongs || sourceSongs.length === 0) return ["Please suggest a song.", "Please suggest another song."]; // Provide 2 placeholders if none
     const songs = [...sourceSongs.slice(0, 2)];
-    while (songs.length < 2 && songs.length > 0) {
+    while (songs.length < 2) { // Pad if less than 2
       songs.push(songs[songs.length - 1] || "Please suggest a song.");
     }
-    return songs.length === 2 ? songs : []; // Return empty if not exactly 2 after padding
+    return songs;
   };
+
 
   const handleRefineCaptions = async () => {
     if (!mediaSrcs || mediaSrcs.length === 0 || !suggestedCaptions || Object.keys(suggestedCaptions).length === 0 || !captionFeedback || !mediaType || selectedLanguages.length === 0) {
@@ -290,16 +319,18 @@ export default function CaptionWiseClient() {
 
     const mediaDesc = getMediaDescriptionForRefinementFlow();
     
+    // Use selectedLanguages for caption refinement
     const initialCaptionEntriesForRefinement = selectedLanguages
       .map(lang => {
         const sourceCaptions = (refinedCaptions && refinedCaptions[lang] && refinedCaptions[lang].length > 0) 
                              ? refinedCaptions[lang] 
                              : suggestedCaptions?.[lang];
         const preparedCaptions = prepareCaptionsForRefinement(sourceCaptions);
+        // The schema expects exactly 4 captions.
         if (preparedCaptions.length === 4) {
           return { language: lang, captions: preparedCaptions };
         }
-        return null; 
+        return null;
       })
       .filter(entry => entry !== null) as { language: string; captions: string[] }[];
 
@@ -317,7 +348,7 @@ export default function CaptionWiseClient() {
         mediaDescription: mediaDesc,
         initialCaptionEntries: initialCaptionEntriesForRefinement,
         userFeedback: captionFeedback,
-        targetLanguages: selectedLanguages,
+        targetLanguages: selectedLanguages, // Target selected caption languages
       };
       const captionResult: RefineMediaCaptionsOutput = await refineMediaCaptions(captionInput);
 
@@ -334,18 +365,21 @@ export default function CaptionWiseClient() {
         setRefinedCaptions(newRefinedCaptions);
         toast({ title: "Captions Refined!", description: "New captions generated. Attempting to refine songs as well..." });
 
-        if (suggestedSongs && Object.keys(suggestedSongs).length > 0 && mediaType && selectedLanguages.length > 0 && mediaSrcs && mediaSrcs.length > 0) {
+        // Auto-refine songs using selectedSongLanguages
+        if (suggestedSongs && Object.keys(suggestedSongs).length > 0 && mediaType && selectedSongLanguages.length > 0 && mediaSrcs && mediaSrcs.length > 0) {
           setIsRefiningSongs(true); 
           setRefinedSongSuggestions(null); 
           
           const songRefinementMediaDesc = getMediaDescriptionForRefinementFlow();
 
-          const initialSongEntriesForSongRefinement = selectedLanguages
+          // Use selectedSongLanguages for auto song refinement
+          const initialSongEntriesForSongRefinement = selectedSongLanguages
             .map(lang => {
               const sourceSongs = (refinedSongSuggestions && refinedSongSuggestions[lang] && refinedSongSuggestions[lang].length > 0) 
                                 ? refinedSongSuggestions[lang] 
-                                : suggestedSongs?.[lang];
+                                : suggestedSongs?.[lang]; // Initial songs might not be filtered by song language yet
               const preparedSongs = prepareSongsForRefinement(sourceSongs);
+              // Schema expects exactly 2 songs
               if (preparedSongs.length === 2) {
                 return { language: lang, songSuggestions: preparedSongs };
               }
@@ -355,7 +389,7 @@ export default function CaptionWiseClient() {
 
 
           if (initialSongEntriesForSongRefinement.length === 0) {
-             toast({ title: "Song Refinement Skipped", description: "No valid initial song suggestions found for selected languages to refine (must be 2 per language)." });
+             toast({ title: "Song Refinement Skipped", description: "No valid initial song suggestions found for selected song languages to refine (must be 2 per language)." });
              setIsRefiningSongs(false);
           } else {
             try {
@@ -365,7 +399,7 @@ export default function CaptionWiseClient() {
                 mediaDescription: songRefinementMediaDesc, 
                 initialSongEntries: initialSongEntriesForSongRefinement,
                 userFeedback: songFeedback || "Make them match the vibe of the refined captions.", 
-                targetLanguages: selectedLanguages,
+                targetLanguages: selectedSongLanguages, // Target selected song languages
               };
               const songResult: RefineSongSuggestionsOutput = await refineSongSuggestions(songInput);
               
@@ -404,20 +438,21 @@ export default function CaptionWiseClient() {
   };
 
   const handleRefineSongs = async () => {
-    if (!mediaSrcs || mediaSrcs.length === 0 || !suggestedSongs || Object.keys(suggestedSongs).length === 0 || !songFeedback || !mediaType || selectedLanguages.length === 0) {
-      toast({ variant: "destructive", title: "Error", description: "Missing media, initial song suggestions, media type, feedback, or selected languages for song refinement." });
+    if (!mediaSrcs || mediaSrcs.length === 0 || !suggestedSongs || Object.keys(suggestedSongs).length === 0 || !songFeedback || !mediaType || selectedSongLanguages.length === 0) {
+      toast({ variant: "destructive", title: "Error", description: "Missing media, initial song suggestions, media type, feedback, or selected song languages for song refinement." });
       return;
     }
     setIsRefiningSongs(true);
     setRefinedSongSuggestions(null);
 
-    const initialSongEntriesForRefinement = selectedLanguages
+    // Use selectedSongLanguages for song refinement
+    const initialSongEntriesForRefinement = selectedSongLanguages
         .map(lang => {
           const sourceSongs = (refinedSongSuggestions && refinedSongSuggestions[lang] && refinedSongSuggestions[lang].length > 0) 
                             ? refinedSongSuggestions[lang] 
-                            : suggestedSongs?.[lang];
+                            : suggestedSongs?.[lang]; // Initial songs might not be filtered by song language yet
           const preparedSongs = prepareSongsForRefinement(sourceSongs);
-          if (preparedSongs.length === 2) {
+          if (preparedSongs.length === 2) { // Schema expects 2 songs
             return { language: lang, songSuggestions: preparedSongs };
           }
           return null;
@@ -426,7 +461,7 @@ export default function CaptionWiseClient() {
 
 
     if (initialSongEntriesForRefinement.length === 0) {
-      toast({ variant: "destructive", title: "Error", description: "No valid initial song suggestions found for selected languages to refine (must be 2 per language)." });
+      toast({ variant: "destructive", title: "Error", description: "No valid initial song suggestions found for selected song languages to refine (must be 2 per language)." });
       setIsRefiningSongs(false);
       return;
     }
@@ -439,7 +474,7 @@ export default function CaptionWiseClient() {
         mediaDescription: mediaDesc,
         initialSongEntries: initialSongEntriesForRefinement,
         userFeedback: songFeedback,
-        targetLanguages: selectedLanguages,
+        targetLanguages: selectedSongLanguages, // Target selected song languages
       };
       const result: RefineSongSuggestionsOutput = await refineSongSuggestions(input);
       
@@ -499,8 +534,8 @@ export default function CaptionWiseClient() {
 
   const hasSuggestedCaptions = useMemo(() => suggestedCaptions && Object.keys(suggestedCaptions).length > 0 && Object.values(suggestedCaptions).some(arr => arr.length > 0), [suggestedCaptions]);
   const hasRefinedCaptions = useMemo(() => refinedCaptions && Object.keys(refinedCaptions).length > 0 && Object.values(refinedCaptions).some(arr => arr.length > 0), [refinedCaptions]);
-  const hasSuggestedSongs = useMemo(() => suggestedSongs && Object.keys(suggestedSongs).length > 0 && Object.values(suggestedSongs).some(arr => arr.length > 0), [suggestedSongs]);
-  const hasRefinedSongs = useMemo(() => refinedSongSuggestions && Object.keys(refinedSongSuggestions).length > 0 && Object.values(refinedSongSuggestions).some(arr => arr.length > 0), [refinedSongSuggestions]);
+  const hasSuggestedSongs = useMemo(() => suggestedSongs && Object.keys(suggestedSongs).length > 0 && selectedSongLanguages.some(lang => suggestedSongs[lang] && suggestedSongs[lang].length > 0), [suggestedSongs, selectedSongLanguages]);
+  const hasRefinedSongs = useMemo(() => refinedSongSuggestions && Object.keys(refinedSongSuggestions).length > 0 && selectedSongLanguages.some(lang => refinedSongSuggestions[lang] && refinedSongSuggestions[lang].length > 0), [refinedSongSuggestions, selectedSongLanguages]);
 
   
   const displayedLanguages = useMemo(() => {
@@ -511,6 +546,15 @@ export default function CaptionWiseClient() {
     return labels.join(', ') || "Select languages...";
   }, [selectedLanguages]);
 
+  const displayedSongLanguages = useMemo(() => {
+    const labels = selectedSongLanguages.map(val => PREDEFINED_LANGUAGES.find(l => l.value === val)?.label || val);
+    if (labels.length > 2) {
+      return `${labels.slice(0, 2).join(', ')} + ${labels.length - 2} more`;
+    }
+    return labels.join(', ') || "Select song languages...";
+  }, [selectedSongLanguages]);
+
+
   const filteredLanguages = useMemo(() => {
     if (!languageSearchTerm) {
       return PREDEFINED_LANGUAGES;
@@ -520,6 +564,16 @@ export default function CaptionWiseClient() {
       lang.value.toLowerCase().includes(languageSearchTerm.toLowerCase())
     );
   }, [languageSearchTerm]);
+
+  const filteredSongLanguages = useMemo(() => {
+    if (!songLanguageSearchTerm) {
+      return PREDEFINED_LANGUAGES;
+    }
+    return PREDEFINED_LANGUAGES.filter(lang => 
+      lang.label.toLowerCase().includes(songLanguageSearchTerm.toLowerCase()) ||
+      lang.value.toLowerCase().includes(songLanguageSearchTerm.toLowerCase())
+    );
+  }, [songLanguageSearchTerm]);
 
 
   return (
@@ -534,9 +588,9 @@ export default function CaptionWiseClient() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
               <LanguagesIcon className="h-6 w-6 text-primary" />
-              1. Select Languages
+              1. Select Languages (for Captions & Initial Suggestions)
             </CardTitle>
-            <CardDescription>Choose the languages for your captions and song suggestions. English is selected by default.</CardDescription>
+            <CardDescription>Choose languages for captions. Initial song suggestions will also be in these languages. English is default.</CardDescription>
           </CardHeader>
           <CardContent>
             <Popover open={isLanguagePopoverOpen} onOpenChange={setIsLanguagePopoverOpen}>
@@ -584,7 +638,7 @@ export default function CaptionWiseClient() {
               </PopoverContent>
             </Popover>
              <p className="mt-2 text-xs text-muted-foreground">
-                Selected: {selectedLanguages.map(val => PREDEFINED_LANGUAGES.find(l => l.value === val)?.label || val).join(', ') || 'None'}
+                Selected for captions: {selectedLanguages.map(val => PREDEFINED_LANGUAGES.find(l => l.value === val)?.label || val).join(', ') || 'None'}
             </p>
           </CardContent>
         </Card>
@@ -592,10 +646,70 @@ export default function CaptionWiseClient() {
         <Card className="w-full shadow-lg rounded-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
-              <UploadCloud className="h-6 w-6 text-primary" />
-              2. Upload Your Media
+              <Music2 className="h-6 w-6 text-primary" />
+              2. Select Song Languages (for Display & Refinement)
             </CardTitle>
-            <CardDescription>Select 1-8 images, or a single video. Suggestions will be generated for the languages chosen above.</CardDescription>
+            <CardDescription>Choose languages for song suggestions display and refinement. English is default.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Popover open={isSongLanguagePopoverOpen} onOpenChange={setIsSongLanguagePopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-between">
+                  {displayedSongLanguages}
+                  <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent 
+                className="w-[--radix-popover-trigger-width] p-0"
+                side="bottom"
+                align="start"
+                sideOffset={8}
+              >
+                <div className="p-2">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Search song languages..."
+                      className="w-full pl-8 pr-2 py-1 h-9 rounded-md border"
+                      value={songLanguageSearchTerm}
+                      onChange={(e) => setSongLanguageSearchTerm(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <ScrollArea className="h-60"> 
+                  <div className="p-2 space-y-1"> 
+                  {filteredSongLanguages.map(lang => (
+                    <div key={`song-lang-${lang.value}`} className="flex items-center space-x-2 p-1 hover:bg-accent rounded-md"> 
+                      <Checkbox
+                        id={`song-lang-${lang.value}`}
+                        checked={selectedSongLanguages.includes(lang.value)}
+                        onCheckedChange={() => handleSongLanguageChange(lang.value)}
+                      />
+                      <Label htmlFor={`song-lang-${lang.value}`} className="font-normal cursor-pointer flex-1 text-sm">{lang.label}</Label> 
+                    </div>
+                  ))}
+                  {filteredSongLanguages.length === 0 && (
+                    <p className="p-2 text-sm text-muted-foreground text-center">No song languages found.</p>
+                  )}
+                  </div>
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
+             <p className="mt-2 text-xs text-muted-foreground">
+                Selected for songs: {selectedSongLanguages.map(val => PREDEFINED_LANGUAGES.find(l => l.value === val)?.label || val).join(', ') || 'None'}
+            </p>
+          </CardContent>
+        </Card>
+
+
+        <Card className="w-full shadow-lg rounded-xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
+              <UploadCloud className="h-6 w-6 text-primary" />
+              3. Upload Your Media
+            </CardTitle>
+            <CardDescription>Select 1-8 images, or a single video. Suggestions will be generated for the languages chosen in Step 1.</CardDescription>
           </CardHeader>
           <CardContent>
             <Input
@@ -604,7 +718,7 @@ export default function CaptionWiseClient() {
               accept="image/*,video/*"
               multiple 
               onChange={handleMediaUpload}
-              disabled={selectedLanguages.length === 0}
+              disabled={selectedLanguages.length === 0 || selectedSongLanguages.length === 0}
               className="text-base file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
             />
             {mediaSrcs && mediaSrcs.length > 0 && (
@@ -659,7 +773,7 @@ export default function CaptionWiseClient() {
                 handleRefineCaptions={handleRefineCaptions}
                 isRefiningCaptions={isRefiningCaptions}
                 isRefiningSongs={isRefiningSongs}
-                selectedLanguages={selectedLanguages}
+                selectedLanguages={selectedLanguages} 
                 PREDEFINED_LANGUAGES={PREDEFINED_LANGUAGES}
                 CaptionDisplayCardRenderer={CaptionDisplayCardRenderer}
             />
@@ -679,7 +793,7 @@ export default function CaptionWiseClient() {
           <Suspense fallback={<LoadingFallback />}>
             <RefinedCaptionsDisplay
                 refinedCaptions={refinedCaptions}
-                selectedLanguages={selectedLanguages}
+                selectedLanguages={selectedLanguages} 
                 PREDEFINED_LANGUAGES={PREDEFINED_LANGUAGES}
                 CaptionDisplayCardRenderer={CaptionDisplayCardRenderer}
             />
@@ -696,7 +810,7 @@ export default function CaptionWiseClient() {
                 handleRefineSongs={handleRefineSongs}
                 isRefiningCaptions={isRefiningCaptions}
                 isRefiningSongs={isRefiningSongs}
-                selectedLanguages={selectedLanguages}
+                selectedLanguages={selectedSongLanguages} 
                 PREDEFINED_LANGUAGES={PREDEFINED_LANGUAGES}
                 SongSuggestionItemRenderer={SongSuggestionItemRenderer}
             />
@@ -725,7 +839,7 @@ export default function CaptionWiseClient() {
           <Suspense fallback={<LoadingFallback />}>
             <RefinedSongsDisplay
                 refinedSongSuggestions={refinedSongSuggestions}
-                selectedLanguages={selectedLanguages}
+                selectedLanguages={selectedSongLanguages} 
                 PREDEFINED_LANGUAGES={PREDEFINED_LANGUAGES}
                 SongSuggestionItemRenderer={SongSuggestionItemRenderer}
             />
@@ -735,5 +849,3 @@ export default function CaptionWiseClient() {
     </div>
   );
 }
-
-    
