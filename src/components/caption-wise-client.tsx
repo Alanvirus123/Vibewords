@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
@@ -187,7 +188,7 @@ export default function CaptionWiseClient() {
     } else if (filesToProcess.length === 1) {
       currentMediaType = filesToProcess[0].type.startsWith('video/') ? 'video' : 'image';
     } else {
-      return; // Should not happen if files.length > 0
+      return; 
     }
     
     setMediaFiles(filesToProcess);
@@ -210,7 +211,6 @@ export default function CaptionWiseClient() {
       return;
     }
     setIsSuggesting(true);
-    // Keep previous refined suggestions and feedback if user is just re-uploading to get new initial suggestions
     setSuggestedCaptions(null);
     setSuggestedSongs(null);
 
@@ -262,6 +262,23 @@ export default function CaptionWiseClient() {
     return "User-uploaded media.";
   }, [mediaType]);
 
+  const prepareCaptionsForRefinement = (sourceCaptions: string[] | undefined): string[] => {
+    if (!sourceCaptions || sourceCaptions.length === 0) return [];
+    const captions = [...sourceCaptions.slice(0, 4)];
+    while (captions.length < 4 && captions.length > 0) {
+      captions.push(captions[captions.length - 1] || "Please refine this caption.");
+    }
+    return captions.length === 4 ? captions : []; // Return empty if not exactly 4 after padding (should not happen if source had items)
+  };
+
+  const prepareSongsForRefinement = (sourceSongs: string[] | undefined): string[] => {
+    if (!sourceSongs || sourceSongs.length === 0) return [];
+    const songs = [...sourceSongs.slice(0, 2)];
+    while (songs.length < 2 && songs.length > 0) {
+      songs.push(songs[songs.length - 1] || "Please suggest a song.");
+    }
+    return songs.length === 2 ? songs : []; // Return empty if not exactly 2 after padding
+  };
 
   const handleRefineCaptions = async () => {
     if (!mediaSrcs || mediaSrcs.length === 0 || !suggestedCaptions || Object.keys(suggestedCaptions).length === 0 || !captionFeedback || !mediaType || selectedLanguages.length === 0) {
@@ -275,12 +292,12 @@ export default function CaptionWiseClient() {
     
     const initialCaptionEntriesForRefinement = selectedLanguages
       .map(lang => {
-        const captionsForLang = (refinedCaptions && refinedCaptions[lang] && refinedCaptions[lang].length > 0) ? refinedCaptions[lang] : suggestedCaptions?.[lang];
-        if (captionsForLang && captionsForLang.length > 0) {
-          return {
-            language: lang,
-            captions: captionsForLang
-          };
+        const sourceCaptions = (refinedCaptions && refinedCaptions[lang] && refinedCaptions[lang].length > 0) 
+                             ? refinedCaptions[lang] 
+                             : suggestedCaptions?.[lang];
+        const preparedCaptions = prepareCaptionsForRefinement(sourceCaptions);
+        if (preparedCaptions.length === 4) {
+          return { language: lang, captions: preparedCaptions };
         }
         return null; 
       })
@@ -288,7 +305,7 @@ export default function CaptionWiseClient() {
 
 
     if (initialCaptionEntriesForRefinement.length === 0) {
-      toast({ variant: "destructive", title: "Error", description: "No initial captions found for selected languages to refine." });
+      toast({ variant: "destructive", title: "Error", description: "No valid initial captions found for selected languages to refine (must be 4 per language)." });
       setIsRefiningCaptions(false);
       return;
     }
@@ -325,12 +342,12 @@ export default function CaptionWiseClient() {
 
           const initialSongEntriesForSongRefinement = selectedLanguages
             .map(lang => {
-              const songsForLang = (refinedSongSuggestions && refinedSongSuggestions[lang] && refinedSongSuggestions[lang].length > 0) ? refinedSongSuggestions[lang] : suggestedSongs?.[lang];
-              if (songsForLang && songsForLang.length > 0) {
-                return {
-                  language: lang,
-                  songSuggestions: songsForLang
-                };
+              const sourceSongs = (refinedSongSuggestions && refinedSongSuggestions[lang] && refinedSongSuggestions[lang].length > 0) 
+                                ? refinedSongSuggestions[lang] 
+                                : suggestedSongs?.[lang];
+              const preparedSongs = prepareSongsForRefinement(sourceSongs);
+              if (preparedSongs.length === 2) {
+                return { language: lang, songSuggestions: preparedSongs };
               }
               return null;
             })
@@ -338,7 +355,7 @@ export default function CaptionWiseClient() {
 
 
           if (initialSongEntriesForSongRefinement.length === 0) {
-             toast({ title: "Song Refinement Skipped", description: "No initial song suggestions found for selected languages to refine." });
+             toast({ title: "Song Refinement Skipped", description: "No valid initial song suggestions found for selected languages to refine (must be 2 per language)." });
              setIsRefiningSongs(false);
           } else {
             try {
@@ -396,12 +413,12 @@ export default function CaptionWiseClient() {
 
     const initialSongEntriesForRefinement = selectedLanguages
         .map(lang => {
-          const songsForLang = (refinedSongSuggestions && refinedSongSuggestions[lang] && refinedSongSuggestions[lang].length > 0) ? refinedSongSuggestions[lang] : suggestedSongs?.[lang];
-          if (songsForLang && songsForLang.length > 0) {
-            return {
-              language: lang,
-              songSuggestions: songsForLang
-            };
+          const sourceSongs = (refinedSongSuggestions && refinedSongSuggestions[lang] && refinedSongSuggestions[lang].length > 0) 
+                            ? refinedSongSuggestions[lang] 
+                            : suggestedSongs?.[lang];
+          const preparedSongs = prepareSongsForRefinement(sourceSongs);
+          if (preparedSongs.length === 2) {
+            return { language: lang, songSuggestions: preparedSongs };
           }
           return null;
         })
@@ -409,7 +426,7 @@ export default function CaptionWiseClient() {
 
 
     if (initialSongEntriesForRefinement.length === 0) {
-      toast({ variant: "destructive", title: "Error", description: "No initial song suggestions found for selected languages to refine." });
+      toast({ variant: "destructive", title: "Error", description: "No valid initial song suggestions found for selected languages to refine (must be 2 per language)." });
       setIsRefiningSongs(false);
       return;
     }
@@ -585,7 +602,7 @@ export default function CaptionWiseClient() {
               id="mediaUpload"
               type="file"
               accept="image/*,video/*"
-              multiple // Allow multiple file selection
+              multiple 
               onChange={handleMediaUpload}
               disabled={selectedLanguages.length === 0}
               className="text-base file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
@@ -690,7 +707,7 @@ export default function CaptionWiseClient() {
            <Card className="w-full shadow-lg rounded-xl">
             <CardContent className="p-6 flex flex-col items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-              <p className="text-muted-foreground">Refining captions & then songs...</p>
+              <p className="text-muted-foreground">Refining captions &amp; then songs...</p>
             </CardContent>
           </Card>
         )}
@@ -719,10 +736,4 @@ export default function CaptionWiseClient() {
   );
 }
 
-
-// Label component 
-const Label: React.FC<React.LabelHTMLAttributes<HTMLLabelElement> & {htmlFor?: string}> = ({ children, ...props }) => (
-  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" {...props}>
-    {children}
-  </label>
-);
+    
