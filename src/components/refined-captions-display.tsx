@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { SparklesIcon as SparklesLucideIcon } from "lucide-react";
+import { Sparkles as SparklesLucideIcon } from "lucide-react";
 import type { MediaSuggestions, LanguageOption } from './caption-wise-client';
 
 interface RefinedCaptionsDisplayProps {

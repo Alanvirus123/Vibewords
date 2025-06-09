@@ -3,7 +3,7 @@
 
 import React, { useState, type ChangeEvent, useCallback, useMemo, Suspense } from "react";
 import Image from "next/image";
-import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, SparklesIcon as SparklesLucideIcon, LanguagesIcon, ChevronDown, Edit3, Search, ImagePlus, Images } from "lucide-react";
+import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, ChevronDown, Edit3, Search, ImagePlus, Images } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -291,21 +291,25 @@ export default function CaptionWiseClient() {
   }, [mediaType]);
 
   const prepareCaptionsForRefinement = (sourceCaptions: string[] | undefined): string[] => {
-    if (!sourceCaptions || sourceCaptions.length === 0) return ["Please refine this caption.", "Please refine this caption.", "Please refine this caption.", "Please refine this caption."]; // Provide 4 placeholders if none
-    const captions = [...sourceCaptions.slice(0, 4)];
-    while (captions.length < 4) { // Pad if less than 4
-      captions.push(captions[captions.length - 1] || "Please refine this caption.");
+    const placeholders = ["Please refine this caption.", "Consider this alternative.", "Add more detail here.", "How about this style?"];
+    if (!sourceCaptions || sourceCaptions.length === 0) return placeholders;
+    
+    const captions = [...sourceCaptions];
+    while (captions.length < 4) {
+      captions.push(placeholders[captions.length % placeholders.length]);
     }
-    return captions;
+    return captions.slice(0, 4);
   };
 
   const prepareSongsForRefinement = (sourceSongs: string[] | undefined): string[] => {
-    if (!sourceSongs || sourceSongs.length === 0) return ["Please suggest a song.", "Please suggest another song."]; // Provide 2 placeholders if none
-    const songs = [...sourceSongs.slice(0, 2)];
-    while (songs.length < 2) { // Pad if less than 2
-      songs.push(songs[songs.length - 1] || "Please suggest a song.");
+    const placeholders = ["Please suggest a song.", "Please suggest another song."];
+    if (!sourceSongs || sourceSongs.length === 0) return placeholders;
+
+    const songs = [...sourceSongs];
+    while (songs.length < 2) {
+      songs.push(placeholders[songs.length % placeholders.length]);
     }
-    return songs;
+    return songs.slice(0, 2);
   };
 
 

@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { SparklesIcon as SparklesLucideIcon } from "lucide-react";
+import { Sparkles as SparklesLucideIcon } from "lucide-react";
 import type { MediaSuggestions, LanguageOption } from './caption-wise-client';
 
 interface RefinedSongsDisplayProps {
@@ -23,7 +23,7 @@ const RefinedSongsDisplay: React.FC<RefinedSongsDisplayProps> = ({
     <Card className="w-full shadow-lg rounded-xl">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
-          <SparklesIcon className="h-6 w-6 text-primary" />
+          <SparklesLucideIcon className="h-6 w-6 text-primary" />
           7. Refined Song Suggestions
         </CardTitle>
         <CardDescription>Refined song suggestions based on your feedback, for your selected song languages.</CardDescription>
