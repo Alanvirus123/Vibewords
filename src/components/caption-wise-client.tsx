@@ -176,7 +176,6 @@ export default function CaptionWiseClient() {
   const handleMediaUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) {
-      // User cancelled file dialog or no files selected.
       return;
     }
 
@@ -191,45 +190,47 @@ export default function CaptionWiseClient() {
       return;
     }
 
-    resetSuggestionsAndMedia(); // Reset state for new upload attempt
+    resetSuggestionsAndMedia(); 
     
     const uploadedFiles = Array.from(files);
     let filesToProcess = uploadedFiles;
 
-    if (uploadedFiles.length > 8) {
-      toast({ title: "Too Many Files Selected", description: `You selected ${uploadedFiles.length} files. Up to 8 images (if multiple files are images) or the first file (if it's a single image/video from a larger selection) will be processed.` });
-      filesToProcess = uploadedFiles.slice(0, 8); // Process up to 8 files
+    if (uploadedFiles.length > 50) {
+      toast({ title: "Too Many Files Selected", description: `You selected ${uploadedFiles.length} files. Up to 50 images (if multiple files are images) or the first file (if it's a single image/video from a larger selection) will be processed.` });
+      filesToProcess = uploadedFiles.slice(0, 50); 
     }
     
     let currentMediaType: AppMediaType;
 
-    if (filesToProcess.length > 1) { // Case: 2 to 8 files to process
+    if (filesToProcess.length > 1) { 
       const allImages = filesToProcess.every(file => file.type.startsWith('image/'));
       if (!allImages) {
-        toast({ variant: "destructive", title: "Invalid File Mix", description: "If uploading multiple files (2-8), all must be images." });
+        toast({ variant: "destructive", title: "Invalid File Mix", description: "If uploading multiple files (2-50), all must be images." });
         if (event.target) event.target.value = '';
-        return; // State already reset by resetSuggestionsAndMedia()
+        return; 
       }
-      currentMediaType = 'image_collection'; // 2-8 images implies min 1 pic, max 8 pics
-    } else if (filesToProcess.length === 1) { // Case: Exactly one file to process
+      currentMediaType = 'image_collection'; 
+    } else if (filesToProcess.length === 1) { 
       const singleFile = filesToProcess[0];
       if (singleFile.type.startsWith('image/')) {
-        currentMediaType = 'image'; // 1 image implies min 1 pic, max 8 pics
+        currentMediaType = 'image'; 
       } else if (singleFile.type.startsWith('video/')) {
-        currentMediaType = 'video'; // Not a picture
+        currentMediaType = 'video'; 
       } else {
-        // Single file is neither an image nor a video
         toast({ variant: "destructive", title: "Invalid File Type", description: "Please select an image file or a video file." });
         if (event.target) event.target.value = '';
-        return; // State already reset
+        setMediaFiles(null); 
+        setMediaSrcs(null);
+        setMediaType(null);
+        return; 
       }
     } else { 
-      // This case (filesToProcess.length === 0) should not be reached if `files.length > 0` initially.
-      // It would only happen if uploadedFiles was empty, but that's caught by the first `if` statement.
-      // Or if slice(0,8) on an array of length > 8 somehow resulted in an empty array (impossible).
       toast({ variant: "destructive", title: "No Processable Files", description: "No valid files were found in your selection." });
       if (event.target) event.target.value = '';
-      return; // State already reset
+      setMediaFiles(null); 
+      setMediaSrcs(null);
+      setMediaType(null);
+      return; 
     }
     
     setMediaFiles(filesToProcess);
@@ -242,7 +243,6 @@ export default function CaptionWiseClient() {
     } catch (error) {
       console.error("Error processing files:", error);
       toast({ variant: "destructive", title: "File Processing Error", description: "Could not process the uploaded files." });
-      // Explicitly clear states that might have been set before the error in try block
       setMediaFiles(null);
       setMediaSrcs(null);
       setMediaType(null);
@@ -311,13 +311,11 @@ export default function CaptionWiseClient() {
     const placeholders = ["Please refine this caption.", "Consider this alternative.", "Add more detail here.", "How about this style?"];
     let captions = sourceCaptions ? [...sourceCaptions] : [];
     
-    if (captions.length === 0) return placeholders; // if no source, return 4 placeholders
+    if (captions.length === 0) return placeholders; 
     
-    // Pad to 4 if less than 4
     while (captions.length < 4) {
-      captions.push(placeholders[captions.length % placeholders.length]);
+      captions.push(captions[captions.length - 1] || placeholders[captions.length % placeholders.length]);
     }
-    // Slice to 4 if more than 4
     return captions.slice(0, 4);
   };
 
@@ -325,13 +323,11 @@ export default function CaptionWiseClient() {
     const placeholders = ["Please suggest a song.", "Please suggest another song."];
     let songs = sourceSongs ? [...sourceSongs] : [];
 
-    if (songs.length === 0) return placeholders; // if no source, return 2 placeholders
+    if (songs.length === 0) return placeholders; 
 
-    // Pad to 2 if less than 2
     while (songs.length < 2) {
-      songs.push(placeholders[songs.length % placeholders.length]);
+      songs.push(songs[songs.length - 1] || placeholders[songs.length % placeholders.length]);
     }
-    // Slice to 2 if more than 2
     return songs.slice(0, 2);
   };
 
@@ -721,7 +717,7 @@ export default function CaptionWiseClient() {
               <UploadCloud className="h-6 w-6 text-primary" />
               3. Upload Your Media
             </CardTitle>
-            <CardDescription>Select 1-8 images, or a single video. Suggestions will be generated for the languages chosen in Step 1.</CardDescription>
+            <CardDescription>Select 1-50 images, or a single video. Suggestions will be generated for the languages chosen in Step 1.</CardDescription>
           </CardHeader>
           <CardContent>
             <Input
@@ -861,6 +857,3 @@ export default function CaptionWiseClient() {
     </div>
   );
 }
-
-
-    

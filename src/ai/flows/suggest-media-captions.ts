@@ -5,7 +5,7 @@
  * @fileOverview Media (image/video/image_collection) caption and song suggestion AI agent.
  * Allows users to specify target languages for generation.
  * Outputs suggestions as an array of language-specific entries.
- * Handles single images, single videos, or a collection of up to 8 images.
+ * Handles single images, single videos, or a collection of up to 50 images.
  *
  * This file exports:
  * - `suggestMediaCaptions`: A function that handles the media caption and song suggestion process.
@@ -20,9 +20,9 @@ const SuggestMediaCaptionsInputSchema = z.object({
   mediaDataUris: z
     .array(z.string().min(1))
     .min(1)
-    .max(8)
+    .max(50)
     .describe(
-      "An array of media items (1 to 8 images if mediaType is 'image_collection', or 1 image/video otherwise), each as a data URI. Data URI must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "An array of media items (1 to 50 images if mediaType is 'image_collection', or 1 image/video otherwise), each as a data URI. Data URI must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
   mediaType: z.enum(['image', 'video', 'image_collection']).describe('The type of the media provided (image, video, or image_collection for multiple images).'),
   targetLanguages: z.array(z.string()).min(1).describe('An array of language names (e.g., "English", "Spanish") for which to generate captions and song suggestions.'),
@@ -74,9 +74,11 @@ const prompt = ai.definePrompt({
     {{#each mediaDataUris}}
       Image {{@index}}: {{media url=this}}
     {{/each}}
-  {{else if isImage}}
+  {{/if}}
+  {{#if isImage}}
     Image: {{media url=mediaDataUris.[0]}}
-  {{else if isVideo}}
+  {{/if}}
+  {{#if isVideo}}
     Video: {{media url=mediaDataUris.[0]}}
   {{/if}}
 

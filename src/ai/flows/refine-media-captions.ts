@@ -5,7 +5,7 @@
  * @fileOverview A flow to refine media (image/video/image_collection) caption suggestions using Genkit.
  * This flow now handles captions in multiple user-specified languages, producing four refined captions per language,
  * and expects/returns data as arrays of language-specific entries.
- * It accepts multiple media data URIs if mediaType is 'image_collection'.
+ * It accepts multiple media data URIs if mediaType is 'image_collection' (up to 50 images).
  *
  * This file exports:
  * - `refineMediaCaptions`: An async function that refines caption suggestions based on user input.
@@ -27,9 +27,9 @@ const RefineMediaCaptionsInputSchema = z.object({
   mediaDataUris: z
     .array(z.string().min(1))
     .min(1)
-    .max(8)
+    .max(50)
     .describe(
-      "An array of media items (1 to 8 images if mediaType is 'image_collection', or 1 image/video otherwise), each as a data URI. Data URI must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "An array of media items (1 to 50 images if mediaType is 'image_collection', or 1 image/video otherwise), each as a data URI. Data URI must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
   mediaType: z.enum(['image', 'video', 'image_collection']).describe('The type of the media provided (image, video, or image_collection).'),
   mediaDescription: z
@@ -92,9 +92,11 @@ const refineMediaCaptionsPrompt = ai.definePrompt({
     {{#each mediaDataUris}}
       Image {{@index}}: {{media url=this}}
     {{/each}}
-  {{else if isImage}}
+  {{/if}}
+  {{#if isImage}}
     Image: {{media url=mediaDataUris.[0]}}
-  {{else if isVideo}}
+  {{/if}}
+  {{#if isVideo}}
     Video: {{media url=mediaDataUris.[0]}}
   {{/if}}
 
