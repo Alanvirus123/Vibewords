@@ -205,7 +205,7 @@ export default function CaptionWiseClient() {
         return; 
       }
       if (filesToProcess.length > 50) {
-        toast({ title: "Too Many Images", description: `You selected ${filesToProcess.length} images. Please select between 1 and 50 images.` });
+        toast({ title: "Too Many Images", description: `You selected ${filesToProcess.length} images. The maximum is 50. Processing the first 50.` });
         filesToProcess = filesToProcess.slice(0, 50);
       }
       currentMediaType = 'image_collection'; 
@@ -239,12 +239,26 @@ export default function CaptionWiseClient() {
       const dataUris = await Promise.all(filesToProcess.map(file => fileToDataUri(file)));
       setMediaSrcs(dataUris);
       await handleSuggestCaptionsAndSongs(dataUris, currentMediaType, selectedLanguages);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error processing files:", error);
-      toast({ variant: "destructive", title: "File Processing Error", description: "Could not process the uploaded files. The file(s) might be too large or corrupted." });
+      let description = "Could not process the uploaded files. The file(s) might be too large, corrupted, or the server encountered an issue.";
+      if (error && error.message && (error.message.toLowerCase().includes("unexpected response") || error.message.toLowerCase().includes("failed to fetch"))) {
+        description = "The server had an issue processing your request, possibly due to request size or network problem. Please try fewer/smaller files. Check console for details."
+      } else if (error && error.message) {
+        description = `File processing error: ${error.message}. Check console for details.`;
+      }
+      toast({ variant: "destructive", title: "File Processing Error", description });
+      
       setMediaFiles(null);
       setMediaSrcs(null);
       setMediaType(null);
+      setSuggestedCaptions(null);
+      setRefinedCaptions(null);
+      setSuggestedSongs(null);
+      setRefinedSongSuggestions(null);
+      setCaptionFeedback("");
+      setSongFeedback("");
+
       if (event.target) event.target.value = '';
     }
   };
@@ -290,10 +304,15 @@ export default function CaptionWiseClient() {
          toast({ title: "No songs suggested", description: `The AI could not suggest songs for the ${mediaTypeName}, but captions were suggested.` });
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error suggesting captions/songs:", error);
-      const mediaTypeName = currentMediaType === 'image_collection' ? 'images' : mediaType;
-      toast({ variant: "destructive", title: "Error", description: `Failed to suggest captions or songs for the ${mediaTypeName}. Check console for details.` });
+      const mediaTypeName = currentMediaType === 'image_collection' ? 'images' : currentMediaType || 'media';
+      let description = `Failed to suggest captions or songs for the ${mediaTypeName}.`;
+      if (error && error.message) {
+        description += ` Server said: ${error.message}.`;
+      }
+      description += " Please check the console for full details.";
+      toast({ variant: "destructive", title: "Suggestion Error", description });
     } finally {
       setIsSuggesting(false);
     }
@@ -431,9 +450,14 @@ export default function CaptionWiseClient() {
               } else {
                 toast({ title: "Song Suggestions Also Refined!", description: "New song suggestions generated using refined captions and your song feedback." });
               }
-            } catch (songError) {
+            } catch (songError: any) {
               console.error("Error auto-refining song suggestions:", songError);
-              toast({ variant: "destructive", title: "Song Refinement Error", description: "Failed to automatically refine song suggestions. Check console." });
+              let description = "Failed to automatically refine song suggestions.";
+              if (songError && songError.message) {
+                description += ` Server said: ${songError.message}.`;
+              }
+              description += " Please check the console for full details.";
+              toast({ variant: "destructive", title: "Song Refinement Error", description });
             } finally {
               setIsRefiningSongs(false); 
             }
@@ -442,9 +466,14 @@ export default function CaptionWiseClient() {
       } else {
         toast({ title: "No captions refined", description: "The AI could not refine captions based on your feedback." });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error refining captions:", error);
-      toast({ variant: "destructive", title: "Error", description: "Failed to refine captions. Check console." });
+      let description = "Failed to refine captions.";
+      if (error && error.message) {
+        description += ` Server said: ${error.message}.`;
+      }
+      description += " Please check the console for full details.";
+      toast({ variant: "destructive", title: "Caption Refinement Error", description });
     } finally {
       setIsRefiningCaptions(false); 
     }
@@ -502,9 +531,14 @@ export default function CaptionWiseClient() {
       } else {
         toast({ title: "Song Suggestions Refined!", description: "New song suggestions generated based on your feedback." });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error refining song suggestions:", error);
-      toast({ variant: "destructive", title: "Error", description: "Failed to refine song suggestions. Check console." });
+      let description = "Failed to refine song suggestions.";
+      if (error && error.message) {
+        description += ` Server said: ${error.message}.`;
+      }
+      description += " Please check the console for full details.";
+      toast({ variant: "destructive", title: "Song Refinement Error", description });
     } finally {
       setIsRefiningSongs(false);
     }
@@ -858,5 +892,3 @@ export default function CaptionWiseClient() {
     </div>
   );
 }
-
-
