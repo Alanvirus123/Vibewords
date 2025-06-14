@@ -240,7 +240,7 @@ export default function CaptionWiseClient() {
       setMediaSrcs(dataUris);
       await handleSuggestCaptionsAndSongs(dataUris, currentMediaType, selectedLanguages);
     } catch (error: any) {
-      console.error("Error processing files:", error);
+      console.error("Error during media processing or initial AI suggestion phase:", error);
       let description = "Could not process the uploaded files. The file(s) might be too large, corrupted, or the server encountered an issue.";
       if (error && error.message && (error.message.toLowerCase().includes("unexpected response") || error.message.toLowerCase().includes("failed to fetch"))) {
         description = "The server had an issue processing your request, possibly due to request size or network problem. Please try fewer/smaller files. Check console for details."
@@ -305,7 +305,7 @@ export default function CaptionWiseClient() {
       }
 
     } catch (error: any) {
-      console.error("Error suggesting captions/songs:", error);
+      console.error("Error in handleSuggestCaptionsAndSongs calling suggestMediaCaptions flow:", error);
       const mediaTypeName = currentMediaType === 'image_collection' ? 'images' : currentMediaType || 'media';
       let description = `Failed to suggest captions or songs for the ${mediaTypeName}.`;
       if (error && error.message) {
@@ -451,7 +451,7 @@ export default function CaptionWiseClient() {
                 toast({ title: "Song Suggestions Also Refined!", description: "New song suggestions generated using refined captions and your song feedback." });
               }
             } catch (songError: any) {
-              console.error("Error auto-refining song suggestions:", songError);
+              console.error("Error in handleRefineCaptions calling refineSongSuggestions flow (auto-refine):", songError);
               let description = "Failed to automatically refine song suggestions.";
               if (songError && songError.message) {
                 description += ` Server said: ${songError.message}.`;
@@ -467,7 +467,7 @@ export default function CaptionWiseClient() {
         toast({ title: "No captions refined", description: "The AI could not refine captions based on your feedback." });
       }
     } catch (error: any) {
-      console.error("Error refining captions:", error);
+      console.error("Error in handleRefineCaptions calling refineMediaCaptions flow:", error);
       let description = "Failed to refine captions.";
       if (error && error.message) {
         description += ` Server said: ${error.message}.`;
@@ -532,7 +532,7 @@ export default function CaptionWiseClient() {
         toast({ title: "Song Suggestions Refined!", description: "New song suggestions generated based on your feedback." });
       }
     } catch (error: any) {
-      console.error("Error refining song suggestions:", error);
+      console.error("Error in handleRefineSongs calling refineSongSuggestions flow:", error);
       let description = "Failed to refine song suggestions.";
       if (error && error.message) {
         description += ` Server said: ${error.message}.`;
@@ -892,3 +892,4 @@ export default function CaptionWiseClient() {
     </div>
   );
 }
+
