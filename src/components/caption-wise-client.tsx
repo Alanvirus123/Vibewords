@@ -57,7 +57,7 @@ const PREDEFINED_LANGUAGES = [
   { value: "Manipuri", label: "মৈতৈলোন্ (Manipuri / Meitei)" },
   { value: "Marathi", label: "मराठी (Marathi)" },
   { value: "Nepali", label: "नेपाली (Nepali)" },
-  { value: "Norwegian", label: "Norsk (Norwegian)" },
+  { value: "Norwegian", label: "Norsk (Norsk)" },
   { value: "Odia", label: "ଓଡ଼ିଆ (Odia)" },
   { value: "Polish", label: "Polski (Polish)" },
   { value: "Portuguese", label: "Português (Portuguese)" },
@@ -176,6 +176,7 @@ export default function CaptionWiseClient() {
   const handleMediaUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) {
+      if (event.target) event.target.value = '';
       return;
     }
 
@@ -194,12 +195,6 @@ export default function CaptionWiseClient() {
     
     const uploadedFiles = Array.from(files);
     let filesToProcess = uploadedFiles;
-
-    if (uploadedFiles.length > 50) {
-      toast({ title: "Too Many Files Selected", description: `You selected ${uploadedFiles.length} files. Up to 50 images (if multiple files are images) or the first file (if it's a single image/video from a larger selection) will be processed.` });
-      filesToProcess = uploadedFiles.slice(0, 50); 
-    }
-    
     let currentMediaType: AppMediaType;
 
     if (filesToProcess.length > 1) { 
@@ -209,6 +204,10 @@ export default function CaptionWiseClient() {
         if (event.target) event.target.value = '';
         return; 
       }
+      if (filesToProcess.length > 50) {
+        toast({ title: "Too Many Images", description: `You selected ${filesToProcess.length} images. Please select between 1 and 50 images.` });
+        filesToProcess = filesToProcess.slice(0, 50);
+      }
       currentMediaType = 'image_collection'; 
     } else if (filesToProcess.length === 1) { 
       const singleFile = filesToProcess[0];
@@ -217,7 +216,7 @@ export default function CaptionWiseClient() {
       } else if (singleFile.type.startsWith('video/')) {
         currentMediaType = 'video'; 
       } else {
-        toast({ variant: "destructive", title: "Invalid File Type", description: "Please select an image file or a video file." });
+        toast({ variant: "destructive", title: "Invalid File Type", description: "Please select an image file (up to 50 if multiple) or a single video file (up to 2GB)." });
         if (event.target) event.target.value = '';
         setMediaFiles(null); 
         setMediaSrcs(null);
@@ -242,7 +241,7 @@ export default function CaptionWiseClient() {
       await handleSuggestCaptionsAndSongs(dataUris, currentMediaType, selectedLanguages);
     } catch (error) {
       console.error("Error processing files:", error);
-      toast({ variant: "destructive", title: "File Processing Error", description: "Could not process the uploaded files." });
+      toast({ variant: "destructive", title: "File Processing Error", description: "Could not process the uploaded files. The file(s) might be too large or corrupted." });
       setMediaFiles(null);
       setMediaSrcs(null);
       setMediaType(null);
@@ -293,7 +292,7 @@ export default function CaptionWiseClient() {
 
     } catch (error) {
       console.error("Error suggesting captions/songs:", error);
-      const mediaTypeName = currentMediaType === 'image_collection' ? 'images' : currentMediaType;
+      const mediaTypeName = currentMediaType === 'image_collection' ? 'images' : mediaType;
       toast({ variant: "destructive", title: "Error", description: `Failed to suggest captions or songs for the ${mediaTypeName}. Check console for details.` });
     } finally {
       setIsSuggesting(false);
@@ -312,11 +311,12 @@ export default function CaptionWiseClient() {
     let captions = sourceCaptions ? [...sourceCaptions] : [];
     
     if (captions.length === 0) return placeholders; 
+    if (captions.length > 4) return captions.slice(0, 4);
     
     while (captions.length < 4) {
       captions.push(captions[captions.length - 1] || placeholders[captions.length % placeholders.length]);
     }
-    return captions.slice(0, 4);
+    return captions;
   };
 
   const prepareSongsForRefinement = (sourceSongs: string[] | undefined): string[] => {
@@ -324,11 +324,12 @@ export default function CaptionWiseClient() {
     let songs = sourceSongs ? [...sourceSongs] : [];
 
     if (songs.length === 0) return placeholders; 
+    if (songs.length > 2) return songs.slice(0, 2);
 
     while (songs.length < 2) {
       songs.push(songs[songs.length - 1] || placeholders[songs.length % placeholders.length]);
     }
-    return songs.slice(0, 2);
+    return songs;
   };
 
 
@@ -717,7 +718,7 @@ export default function CaptionWiseClient() {
               <UploadCloud className="h-6 w-6 text-primary" />
               3. Upload Your Media
             </CardTitle>
-            <CardDescription>Select 1-50 images, or a single video. Suggestions will be generated for the languages chosen in Step 1.</CardDescription>
+            <CardDescription>Select 1-50 images, or a single video (up to 2GB). Suggestions will be generated for the languages chosen in Step 1.</CardDescription>
           </CardHeader>
           <CardContent>
             <Input
@@ -857,3 +858,5 @@ export default function CaptionWiseClient() {
     </div>
   );
 }
+
+
