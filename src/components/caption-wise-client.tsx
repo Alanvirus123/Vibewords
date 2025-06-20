@@ -311,7 +311,9 @@ export default function CaptionWiseClient() {
       console.error("Error in handleSuggestCaptionsAndSongs calling suggestMediaCaptions flow:", error);
       const mediaTypeName = currentMediaType === 'image_collection' ? 'images' : currentMediaType || 'media';
       let description = `Failed to suggest captions or songs for the ${mediaTypeName}.`;
-      if (error && error.message) {
+      if (error && error.message && (error.message.toLowerCase().includes("unexpected response") || error.message.toLowerCase().includes("failed to fetch"))) {
+        description += ` The server may be overloaded or the request too large. Try fewer/smaller files. Server said: ${error.message}.`;
+      } else if (error && error.message) {
         description += ` Server said: ${error.message}.`;
       }
       description += " Please check the console for full details.";
@@ -356,8 +358,24 @@ export default function CaptionWiseClient() {
 
 
   const handleRefineCaptions = async () => {
-    if (!mediaSrcs || mediaSrcs.length === 0 || !suggestedCaptions || Object.keys(suggestedCaptions).length === 0 || !captionFeedback || !mediaType || selectedLanguages.length === 0) {
-      toast({ variant: "destructive", title: "Error", description: "Missing media, initial captions, media type, feedback, or selected languages for caption refinement." });
+    const hasAnyCaptionsToRefine =
+      (suggestedCaptions && Object.values(suggestedCaptions).some(c => c?.length > 0)) ||
+      (refinedCaptions && Object.values(refinedCaptions).some(c => c?.length > 0));
+
+    if (
+      !mediaSrcs ||
+      mediaSrcs.length === 0 ||
+      !hasAnyCaptionsToRefine ||
+      !captionFeedback ||
+      !mediaType ||
+      selectedLanguages.length === 0
+    ) {
+      toast({
+        variant: 'destructive',
+        title: 'Refinement Error',
+        description:
+          'Missing media, captions to refine, feedback, or selected languages.',
+      });
       return;
     }
     setIsRefiningCaptions(true);
@@ -406,7 +424,9 @@ export default function CaptionWiseClient() {
         setRefinedCaptions(newRefinedCaptions);
         toast({ title: "Captions Refined!", description: "New captions generated. Attempting to refine songs as well..." });
 
-        if (suggestedSongs && Object.keys(suggestedSongs).length > 0 && mediaType && selectedSongLanguages.length > 0 && mediaSrcs && mediaSrcs.length > 0) {
+        const hasAnySongsToAutoRefine = (suggestedSongs && Object.values(suggestedSongs).some(s => s?.length > 0)) || (refinedSongSuggestions && Object.values(refinedSongSuggestions).some(s => s?.length > 0));
+
+        if (hasAnySongsToAutoRefine && mediaType && selectedSongLanguages.length > 0 && mediaSrcs && mediaSrcs.length > 0) {
           setIsRefiningSongs(true); 
           setRefinedSongSuggestions(null); 
           
@@ -457,7 +477,9 @@ export default function CaptionWiseClient() {
             } catch (songError: any) {
               console.error("Error in handleRefineCaptions calling refineSongSuggestions flow (auto-refine):", songError);
               let description = "Failed to automatically refine song suggestions.";
-              if (songError && songError.message) {
+              if (songError && songError.message && (songError.message.toLowerCase().includes("unexpected response") || songError.message.toLowerCase().includes("failed to fetch"))) {
+                description += ` The server may be overloaded or the request too large. Try fewer/smaller files. Server said: ${songError.message}.`;
+              } else if (songError && songError.message) {
                 description += ` Server said: ${songError.message}.`;
               }
               description += " Please check the console for full details.";
@@ -473,7 +495,9 @@ export default function CaptionWiseClient() {
     } catch (error: any) {
       console.error("Error in handleRefineCaptions calling refineMediaCaptions flow:", error);
       let description = "Failed to refine captions.";
-      if (error && error.message) {
+      if (error && error.message && (error.message.toLowerCase().includes("unexpected response") || error.message.toLowerCase().includes("failed to fetch"))) {
+        description += ` The server may be overloaded or the request too large. Try fewer/smaller files. Server said: ${error.message}.`;
+      } else if (error && error.message) {
         description += ` Server said: ${error.message}.`;
       }
       description += " Please check the console for full details.";
@@ -484,8 +508,24 @@ export default function CaptionWiseClient() {
   };
 
   const handleRefineSongs = async () => {
-    if (!mediaSrcs || mediaSrcs.length === 0 || !suggestedSongs || Object.keys(suggestedSongs).length === 0 || !songFeedback || !mediaType || selectedSongLanguages.length === 0) {
-      toast({ variant: "destructive", title: "Error", description: "Missing media, initial song suggestions, media type, feedback, or selected song languages for song refinement." });
+    const hasAnySongsToRefine =
+      (suggestedSongs && Object.values(suggestedSongs).some(s => s?.length > 0)) ||
+      (refinedSongSuggestions && Object.values(refinedSongSuggestions).some(s => s?.length > 0));
+
+    if (
+      !mediaSrcs ||
+      mediaSrcs.length === 0 ||
+      !hasAnySongsToRefine ||
+      !songFeedback ||
+      !mediaType ||
+      selectedSongLanguages.length === 0
+    ) {
+      toast({
+        variant: 'destructive',
+        title: 'Refinement Error',
+        description:
+          'Missing media, song suggestions to refine, feedback, or selected song languages.',
+      });
       return;
     }
     setIsRefiningSongs(true);
@@ -539,7 +579,9 @@ export default function CaptionWiseClient() {
     } catch (error: any) {
       console.error("Error in handleRefineSongs calling refineSongSuggestions flow:", error);
       let description = "Failed to refine song suggestions.";
-      if (error && error.message) {
+      if (error && error.message && (error.message.toLowerCase().includes("unexpected response") || error.message.toLowerCase().includes("failed to fetch"))) {
+        description += ` The server may be overloaded or the request too large. Try fewer/smaller files. Server said: ${error.message}.`;
+      } else if (error && error.message) {
         description += ` Server said: ${error.message}.`;
       }
       description += " Please check the console for full details.";
