@@ -6,11 +6,6 @@
  * Handles song suggestions in multiple user-specified languages.
  * Expects/returns data as arrays of language-specific entries.
  * It accepts multiple media data URIs if mediaType is 'image_collection' (up to 50 images).
- *
- * This file exports:
- * - `refineSongSuggestions`: An async function that refines song suggestions based on user input.
- * - `RefineSongSuggestionsInput`: The input type for the `refineSongSuggestions` function.
- * - `RefineSongSuggestionsOutput`: The output type for the `refineSongSuggestions` function.
  */
 
 import {ai} from '@/ai/genkit';
@@ -41,6 +36,7 @@ const RefineSongSuggestionsInputSchema = z.object({
     .min(1)
     .describe('An array of objects, where each object contains the language and the initial two song suggestions for that language to refine.'),
   userFeedback: z.string().describe('The user feedback on the initial song suggestions (applies to all selected languages).'),
+  artistPreference: z.string().optional().describe('User-specified artist preferences to guide song suggestions.'),
   targetLanguages: z.array(z.string()).min(1).describe('An array of language names for which to refine song suggestions. This list should correspond to the languages present in initialSongEntries.'),
 });
 
@@ -80,9 +76,9 @@ const refineSongSuggestionsPrompt = ai.definePrompt({
   name: 'refineSongSuggestionsPrompt',
   input: {schema: RefineSongSuggestionsPromptInputSchema},
   output: {schema: RefineSongSuggestionsOutputSchema},
-  prompt: `You are an expert music curator. You will be provided with media (one or more images, or a video), a general media description, an array of initial song entries (each for a specific language, containing two song titles), userFeedback, and a list of target languages.
+  prompt: `You are an expert music curator. You will be provided with media (one or more images, or a video), a general media description, an array of initial song entries (each for a specific language, containing two song titles), userFeedback, optional artist preferences, and a list of target languages.
 
-  Your goal is to refine the initial song suggestions for all specified target languages based on the user feedback and the provided media. For each target language, create a new set of two improved song suggestions. If multiple images are provided, the song suggestions should reflect the overall vibe of the collection.
+  Your goal is to refine the initial song suggestions for all specified target languages based on the user feedback, artist preferences, and the provided media. If multiple images are provided, the song suggestions should reflect the overall vibe of the collection.
 
   Target Languages for Refinement: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
 
@@ -112,6 +108,9 @@ const refineSongSuggestionsPrompt = ai.definePrompt({
   {{/each}}
 
   User Feedback on Songs (applies to all languages): {{{userFeedback}}}
+  {{#if artistPreference}}
+  Artist/Genre Preferences: {{{artistPreference}}}
+  {{/if}}
 
   Return the refined song suggestions as an array in the 'refinedLanguageSongEntries' field. Each element in this array should be an object corresponding to one of the target languages.
   Each object in the 'refinedLanguageSongEntries' array must contain:

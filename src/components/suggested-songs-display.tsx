@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Loader2, RefreshCw, Music2 } from "lucide-react";
 import type { MediaSuggestions, LanguageOption } from './caption-wise-client';
 
@@ -14,6 +15,8 @@ interface SuggestedSongsDisplayProps {
   suggestedSongs: MediaSuggestions | null; // Contains songs for ALL initially selected languages
   songFeedback: string;
   setSongFeedback: (value: string) => void;
+  artistPreference: string;
+  setArtistPreference: (value: string) => void;
   handleRefineSongs: () => Promise<void>;
   isRefiningCaptions: boolean;
   isRefiningSongs: boolean;
@@ -27,6 +30,8 @@ const SuggestedSongsDisplay: React.FC<SuggestedSongsDisplayProps> = ({
   suggestedSongs,
   songFeedback,
   setSongFeedback,
+  artistPreference,
+  setArtistPreference,
   handleRefineSongs,
   isRefiningCaptions,
   isRefiningSongs,
@@ -63,14 +68,25 @@ const SuggestedSongsDisplay: React.FC<SuggestedSongsDisplayProps> = ({
         ))}
       </CardContent>
       <CardFooter className="flex-col items-start gap-4 pt-6 border-t">
-        <Label htmlFor="songFeedback" className="font-semibold text-md">Refine Song Suggestions (for selected song languages):</Label>
-        <Textarea
-          id="songFeedback"
-          placeholder="Your feedback for songs (e.g., 'more upbeat songs', 'instrumental only')"
-          value={songFeedback}
-          onChange={(e) => setSongFeedback(e.target.value)}
-          className="min-h-[80px]"
-        />
+        <div className="w-full space-y-2">
+          <Label htmlFor="songFeedback" className="font-semibold text-md">Refine Song Suggestions (for selected song languages):</Label>
+          <Textarea
+            id="songFeedback"
+            placeholder="Your feedback for songs (e.g., 'more upbeat songs', 'instrumental only')"
+            value={songFeedback}
+            onChange={(e) => setSongFeedback(e.target.value)}
+            className="min-h-[80px]"
+          />
+        </div>
+        <div className="w-full space-y-2">
+          <Label htmlFor="artistPreference" className="font-semibold text-md">Artist/Genre Preferences (Optional):</Label>
+          <Input
+            id="artistPreference"
+            placeholder="e.g., Taylor Swift, instrumental piano, 80s rock"
+            value={artistPreference}
+            onChange={(e) => setArtistPreference(e.target.value)}
+          />
+        </div>
         <Button onClick={handleRefineSongs} disabled={isRefiningSongs || !songFeedback || isRefiningCaptions} className="w-full sm:w-auto">
           {isRefiningSongs && !isRefiningCaptions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
           Refine Songs

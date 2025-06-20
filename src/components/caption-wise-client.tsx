@@ -127,6 +127,7 @@ export default function CaptionWiseClient() {
   const [suggestedSongs, setSuggestedSongs] = useState<MediaSuggestions | null>(null);
   const [refinedSongSuggestions, setRefinedSongSuggestions] = useState<MediaSuggestions | null>(null);
   const [songFeedback, setSongFeedback] = useState<string>("");
+  const [artistPreference, setArtistPreference] = useState<string>("");
 
   const [isSuggesting, setIsSuggesting] = useState<boolean>(false);
   const [isRefiningCaptions, setIsRefiningCaptions] = useState<boolean>(false);
@@ -141,6 +142,7 @@ export default function CaptionWiseClient() {
     setSuggestedSongs(null);
     setRefinedSongSuggestions(null);
     setSongFeedback("");
+    setArtistPreference("");
     setMediaFiles(null);
     setMediaSrcs(null);
     setMediaType(null);
@@ -258,6 +260,7 @@ export default function CaptionWiseClient() {
       setRefinedSongSuggestions(null);
       setCaptionFeedback("");
       setSongFeedback("");
+      setArtistPreference("");
 
       if (event.target) event.target.value = '';
     }
@@ -431,6 +434,7 @@ export default function CaptionWiseClient() {
                 mediaDescription: songRefinementMediaDesc, 
                 initialSongEntries: initialSongEntriesForSongRefinement,
                 userFeedback: songFeedback || "Make them match the vibe of the refined captions.", 
+                artistPreference: artistPreference,
                 targetLanguages: selectedSongLanguages,
               };
               const songResult: RefineSongSuggestionsOutput = await refineSongSuggestions(songInput);
@@ -512,6 +516,7 @@ export default function CaptionWiseClient() {
         mediaDescription: mediaDesc,
         initialSongEntries: initialSongEntriesForRefinement,
         userFeedback: songFeedback,
+        artistPreference: artistPreference,
         targetLanguages: selectedSongLanguages,
       };
       const result: RefineSongSuggestionsOutput = await refineSongSuggestions(input);
@@ -850,6 +855,8 @@ export default function CaptionWiseClient() {
                 suggestedSongs={suggestedSongs}
                 songFeedback={songFeedback}
                 setSongFeedback={setSongFeedback}
+                artistPreference={artistPreference}
+                setArtistPreference={setArtistPreference}
                 handleRefineSongs={handleRefineSongs}
                 isRefiningCaptions={isRefiningCaptions}
                 isRefiningSongs={isRefiningSongs}
@@ -892,4 +899,3 @@ export default function CaptionWiseClient() {
     </div>
   );
 }
-
