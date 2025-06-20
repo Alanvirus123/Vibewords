@@ -77,8 +77,8 @@ const SuggestedCaptionsDisplay: React.FC<SuggestedCaptionsDisplayProps> = ({
           className="min-h-[80px]"
         />
         <Button onClick={handleRefineCaptions} disabled={isRefiningCaptions || !captionFeedback || isRefiningSongs} className="w-full sm:w-auto">
-          {isRefiningCaptions && !isRefiningSongs ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-          Refine Captions {isRefiningSongs && !isRefiningCaptions && "& Songs..."}
+          {isRefiningCaptions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+          {isRefiningCaptions ? "Refining..." : "Refine Captions"}
         </Button>
       </CardFooter>
     </Card>

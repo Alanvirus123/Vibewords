@@ -88,8 +88,8 @@ const SuggestedSongsDisplay: React.FC<SuggestedSongsDisplayProps> = ({
           />
         </div>
         <Button onClick={handleRefineSongs} disabled={isRefiningSongs || !songFeedback || isRefiningCaptions} className="w-full sm:w-auto">
-          {isRefiningSongs && !isRefiningCaptions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-          Refine Songs
+          {isRefiningSongs ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+          {isRefiningSongs ? "Refining..." : "Refine Songs"}
         </Button>
       </CardFooter>
     </Card>
