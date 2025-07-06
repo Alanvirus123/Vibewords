@@ -3,7 +3,8 @@
 
 import React, { useState, type ChangeEvent, useCallback, useMemo, Suspense } from "react";
 import Image from "next/image";
-import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, ChevronDown, Edit3, Search, ImagePlus, Images } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, ChevronDown, Edit3, Search, ImagePlus, Images, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -108,6 +109,9 @@ const LoadingFallback = () => (
 
 
 export default function CaptionWiseClient() {
+  const router = useRouter();
+  const { toast } = useToast();
+
   const [mediaFiles, setMediaFiles] = useState<File[] | null>(null);
   const [mediaSrcs, setMediaSrcs] = useState<string[] | null>(null);
   const [mediaType, setMediaType] = useState<AppMediaType | null>(null);
@@ -133,7 +137,23 @@ export default function CaptionWiseClient() {
   const [isRefiningCaptions, setIsRefiningCaptions] = useState<boolean>(false);
   const [isRefiningSongs, setIsRefiningSongs] = useState<boolean>(false);
 
-  const { toast } = useToast();
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem('caption-wise-user');
+      toast({
+        title: "Logged Out",
+        description: "You have been successfully logged out.",
+      });
+      router.replace('/login');
+    } catch (error) {
+      console.error("Could not access localStorage to log out:", error);
+      toast({
+        variant: "destructive",
+        title: "Logout Error",
+        description: "Could not log out. Please clear your site data manually.",
+      });
+    }
+  };
 
   const resetSuggestionsAndMedia = () => {
     setSuggestedCaptions(null);
@@ -670,7 +690,12 @@ export default function CaptionWiseClient() {
     <div className="container mx-auto p-4 md:p-8 min-h-screen flex flex-col items-center antialiased font-sans">
       <header className="w-full flex justify-between items-center mb-8 md:mb-12">
         <h1 className="text-3xl md:text-4xl font-bold text-[hsl(var(--app-title))]">VibeWords</h1>
-        <ThemeToggle />
+        <div className="flex items-center gap-4">
+          <ThemeToggle />
+          <Button variant="outline" size="icon" onClick={handleLogout} aria-label="Log out">
+            <LogOut className="h-5 w-5" />
+          </Button>
+        </div>
       </header>
 
       <main className="w-full max-w-2xl flex flex-col gap-8 items-center">
@@ -870,7 +895,7 @@ export default function CaptionWiseClient() {
            </Suspense>
         )}
         
-        {isRefiningCaptions && !isRefiningSongs && !hasRefinedCaptions && ( 
+        {isRefiningCaptions && !isRefiningSongs && ( 
            <Card className="w-full shadow-lg rounded-xl">
             <CardContent className="p-6 flex flex-col items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
@@ -917,7 +942,7 @@ export default function CaptionWiseClient() {
             </CardContent>
           </Card>
         )}
-        {isRefiningSongs && !isRefiningCaptions && !hasRefinedSongs && ( 
+        {isRefiningSongs && !isRefiningCaptions && ( 
            <Card className="w-full shadow-lg rounded-xl">
             <CardContent className="p-6 flex flex-col items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
@@ -941,3 +966,7 @@ export default function CaptionWiseClient() {
     </div>
   );
 }
+
+    
+
+    
