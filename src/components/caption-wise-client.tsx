@@ -1,10 +1,10 @@
 
 "use client";
 
-import React, { useState, type ChangeEvent, useCallback, useMemo, Suspense } from "react";
+import React, { useState, type ChangeEvent, useCallback, useMemo, Suspense, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, ChevronDown, Edit3, Search, ImagePlus, Images, LogOut } from "lucide-react";
+import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, ChevronDown, Edit3, Search, ImagePlus, Images, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import { suggestMediaCaptions, type SuggestMediaCaptionsInput, type SuggestMedia
 import { refineMediaCaptions, type RefineMediaCaptionsInput, type RefineMediaCaptionsOutput, type RefinedLanguageCaptionEntry } from "@/ai/flows/refine-media-captions";
 import { refineSongSuggestions, type RefineSongSuggestionsInput, type RefineSongSuggestionsOutput, type RefinedLanguageSongEntry } from "@/ai/flows/refine-song-suggestions";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const SuggestedCaptionsDisplay = React.lazy(() => import('@/components/suggested-captions-display'));
 const RefinedCaptionsDisplay = React.lazy(() => import('@/components/refined-captions-display'));
@@ -97,6 +98,11 @@ export type MediaSuggestions = Record<string, string[]>;
 export type LanguageOption = { value: string; label: string };
 type AppMediaType = 'image' | 'video' | 'image_collection';
 
+interface StoredUserDetails {
+  name: string;
+  email: string;
+  phone: string;
+}
 
 const LoadingFallback = () => (
   <Card className="w-full shadow-lg rounded-xl">
@@ -136,6 +142,20 @@ export default function CaptionWiseClient() {
   const [isSuggesting, setIsSuggesting] = useState<boolean>(false);
   const [isRefiningCaptions, setIsRefiningCaptions] = useState<boolean>(false);
   const [isRefiningSongs, setIsRefiningSongs] = useState<boolean>(false);
+  
+  const [userDetails, setUserDetails] = useState<StoredUserDetails | null>(null);
+
+  useEffect(() => {
+    // This effect runs on the client after mount to safely access localStorage
+    try {
+      const storedUser = localStorage.getItem('caption-wise-user');
+      if (storedUser) {
+        setUserDetails(JSON.parse(storedUser));
+      }
+    } catch (error) {
+      console.error("Could not parse user data from localStorage:", error);
+    }
+  }, []);
 
   const handleLogout = () => {
     try {
@@ -690,8 +710,43 @@ export default function CaptionWiseClient() {
     <div className="container mx-auto p-4 md:p-8 min-h-screen flex flex-col items-center antialiased font-sans">
       <header className="w-full flex justify-between items-center mb-8 md:mb-12">
         <h1 className="text-3xl md:text-4xl font-bold text-[hsl(var(--app-title))]">VibeWords</h1>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <ThemeToggle />
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="icon" aria-label="View user profile">
+                <User className="h-5 w-5" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>User Profile</DialogTitle>
+                <DialogDescription>
+                  This is the information you provided at login.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                {userDetails ? (
+                  <>
+                    <div className="flex flex-col space-y-1">
+                      <Label htmlFor="name" className="text-sm font-medium text-muted-foreground">Name</Label>
+                      <p id="name" className="text-lg font-semibold">{userDetails.name}</p>
+                    </div>
+                    <div className="flex flex-col space-y-1">
+                      <Label htmlFor="email" className="text-sm font-medium text-muted-foreground">Email</Label>
+                      <p id="email" className="text-lg font-semibold">{userDetails.email}</p>
+                    </div>
+                    <div className="flex flex-col space-y-1">
+                      <Label htmlFor="phone" className="text-sm font-medium text-muted-foreground">Phone</Label>
+                      <p id="phone" className="text-lg font-semibold">{userDetails.phone}</p>
+                    </div>
+                  </>
+                ) : (
+                  <p>Loading user data...</p>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
           <Button variant="outline" size="icon" onClick={handleLogout} aria-label="Log out">
             <LogOut className="h-5 w-5" />
           </Button>
@@ -966,7 +1021,3 @@ export default function CaptionWiseClient() {
     </div>
   );
 }
-
-    
-
-    
