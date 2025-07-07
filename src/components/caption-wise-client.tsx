@@ -4,20 +4,20 @@
 import React, { useState, type ChangeEvent, useCallback, useMemo, Suspense, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, ChevronDown, Edit3, Search, ImagePlus, Images, LogOut, User } from "lucide-react";
+import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, Edit3, ImagePlus, Images, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { suggestMediaCaptions, type SuggestMediaCaptionsInput, type SuggestMediaCaptionsOutput, type LanguageSuggestionEntry } from "@/ai/flows/suggest-media-captions";
 import { refineMediaCaptions, type RefineMediaCaptionsInput, type RefineMediaCaptionsOutput, type RefinedLanguageCaptionEntry } from "@/ai/flows/refine-media-captions";
 import { refineSongSuggestions, type RefineSongSuggestionsInput, type RefineSongSuggestionsOutput, type RefinedLanguageSongEntry } from "@/ai/flows/refine-song-suggestions";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { LanguageSelector } from './language-selector';
+import type { MediaSuggestions, LanguageOption } from '@/lib/types';
+
 
 const SuggestedCaptionsDisplay = React.lazy(() => import('@/components/suggested-captions-display'));
 const RefinedCaptionsDisplay = React.lazy(() => import('@/components/refined-captions-display'));
@@ -25,7 +25,7 @@ const SuggestedSongsDisplay = React.lazy(() => import('@/components/suggested-so
 const RefinedSongsDisplay = React.lazy(() => import('@/components/refined-songs-display'));
 
 
-const PREDEFINED_LANGUAGES = [
+const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "Arabic", label: "العربية (Arabic)" },
   { value: "Assamese", label: "অসমীয়া (Assamese)" },
   { value: "Bengali", label: "বাংলা (Bengali)" },
@@ -94,8 +94,6 @@ const fileToDataUri = (file: File): Promise<string> => {
   });
 };
 
-export type MediaSuggestions = Record<string, string[]>;
-export type LanguageOption = { value: string; label: string };
 type AppMediaType = 'image' | 'video' | 'image_collection';
 
 interface StoredUserDetails {
@@ -123,12 +121,7 @@ export default function CaptionWiseClient() {
   const [mediaType, setMediaType] = useState<AppMediaType | null>(null);
   
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["English"]);
-  const [isLanguagePopoverOpen, setIsLanguagePopoverOpen] = useState(false);
-  const [languageSearchTerm, setLanguageSearchTerm] = useState("");
-
   const [selectedSongLanguages, setSelectedSongLanguages] = useState<string[]>(["English"]);
-  const [isSongLanguagePopoverOpen, setIsSongLanguagePopoverOpen] = useState(false);
-  const [songLanguageSearchTerm, setSongLanguageSearchTerm] = useState("");
 
   const [suggestedCaptions, setSuggestedCaptions] = useState<MediaSuggestions | null>(null);
   const [refinedCaptions, setRefinedCaptions] = useState<MediaSuggestions | null>(null);
@@ -668,44 +661,6 @@ export default function CaptionWiseClient() {
   const hasRefinedSongs = useMemo(() => refinedSongSuggestions && Object.keys(refinedSongSuggestions).length > 0 && selectedSongLanguages.some(lang => refinedSongSuggestions[lang] && refinedSongSuggestions[lang].length > 0), [refinedSongSuggestions, selectedSongLanguages]);
 
   
-  const displayedLanguages = useMemo(() => {
-    const labels = selectedLanguages.map(val => PREDEFINED_LANGUAGES.find(l => l.value === val)?.label || val);
-    if (labels.length > 2) {
-      return `${labels.slice(0, 2).join(', ')} + ${labels.length - 2} more`;
-    }
-    return labels.join(', ') || "Select languages...";
-  }, [selectedLanguages]);
-
-  const displayedSongLanguages = useMemo(() => {
-    const labels = selectedSongLanguages.map(val => PREDEFINED_LANGUAGES.find(l => l.value === val)?.label || val);
-    if (labels.length > 2) {
-      return `${labels.slice(0, 2).join(', ')} + ${labels.length - 2} more`;
-    }
-    return labels.join(', ') || "Select song languages...";
-  }, [selectedSongLanguages]);
-
-
-  const filteredLanguages = useMemo(() => {
-    if (!languageSearchTerm) {
-      return PREDEFINED_LANGUAGES;
-    }
-    return PREDEFINED_LANGUAGES.filter(lang => 
-      lang.label.toLowerCase().includes(languageSearchTerm.toLowerCase()) ||
-      lang.value.toLowerCase().includes(languageSearchTerm.toLowerCase())
-    );
-  }, [languageSearchTerm]);
-
-  const filteredSongLanguages = useMemo(() => {
-    if (!songLanguageSearchTerm) {
-      return PREDEFINED_LANGUAGES;
-    }
-    return PREDEFINED_LANGUAGES.filter(lang => 
-      lang.label.toLowerCase().includes(songLanguageSearchTerm.toLowerCase()) ||
-      lang.value.toLowerCase().includes(songLanguageSearchTerm.toLowerCase())
-    );
-  }, [songLanguageSearchTerm]);
-
-
   return (
     <div className="container mx-auto p-4 md:p-8 min-h-screen flex flex-col items-center antialiased font-sans">
       <header className="w-full flex justify-between items-center mb-8 md:mb-12">
@@ -754,123 +709,23 @@ export default function CaptionWiseClient() {
       </header>
 
       <main className="w-full max-w-2xl flex flex-col gap-8 items-center">
-        <Card className="w-full shadow-lg rounded-xl">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
-              <LanguagesIcon className="h-6 w-6 text-primary" />
-              1. Select Languages (for Captions & Initial Suggestions)
-            </CardTitle>
-            <CardDescription>Choose languages for captions. Initial song suggestions will also be in these languages. English is default.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Popover open={isLanguagePopoverOpen} onOpenChange={setIsLanguagePopoverOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-between">
-                  {displayedLanguages}
-                  <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent 
-                className="w-[--radix-popover-trigger-width] p-0"
-                side="bottom"
-                align="start"
-                sideOffset={8}
-              >
-                <div className="p-2">
-                  <div className="relative">
-                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="text"
-                      placeholder="Search languages..."
-                      className="w-full pl-8 pr-2 py-1 h-9 rounded-md border"
-                      value={languageSearchTerm}
-                      onChange={(e) => setLanguageSearchTerm(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <ScrollArea className="h-60"> 
-                  <div className="p-2 space-y-1"> 
-                  {filteredLanguages.map(lang => (
-                    <div key={lang.value} className="flex items-center space-x-2 p-1 hover:bg-accent rounded-md"> 
-                      <Checkbox
-                        id={`lang-${lang.value}`}
-                        checked={selectedLanguages.includes(lang.value)}
-                        onCheckedChange={() => handleLanguageChange(lang.value)}
-                      />
-                      <Label htmlFor={`lang-${lang.value}`} className="font-normal cursor-pointer flex-1 text-sm">{lang.label}</Label> 
-                    </div>
-                  ))}
-                  {filteredLanguages.length === 0 && (
-                    <p className="p-2 text-sm text-muted-foreground text-center">No languages found.</p>
-                  )}
-                  </div>
-                </ScrollArea>
-              </PopoverContent>
-            </Popover>
-             <p className="mt-2 text-xs text-muted-foreground">
-                Selected for captions: {selectedLanguages.map(val => PREDEFINED_LANGUAGES.find(l => l.value === val)?.label || val).join(', ') || 'None'}
-            </p>
-          </CardContent>
-        </Card>
+        <LanguageSelector
+          allLanguages={PREDEFINED_LANGUAGES}
+          selectedLanguages={selectedLanguages}
+          onLanguageChange={handleLanguageChange}
+          title="1. Select Languages (for Captions & Initial Suggestions)"
+          description="Choose languages for captions. Initial song suggestions will also be in these languages. English is default."
+          icon={<LanguagesIcon className="h-6 w-6 text-primary" />}
+        />
 
-        <Card className="w-full shadow-lg rounded-xl">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
-              <Music2 className="h-6 w-6 text-primary" />
-              2. Select Song Languages (for Display & Refinement)
-            </CardTitle>
-            <CardDescription>Choose languages for song suggestions display and refinement. English is default.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Popover open={isSongLanguagePopoverOpen} onOpenChange={setIsSongLanguagePopoverOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-between">
-                  {displayedSongLanguages}
-                  <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent 
-                className="w-[--radix-popover-trigger-width] p-0"
-                side="bottom"
-                align="start"
-                sideOffset={8}
-              >
-                <div className="p-2">
-                  <div className="relative">
-                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="text"
-                      placeholder="Search song languages..."
-                      className="w-full pl-8 pr-2 py-1 h-9 rounded-md border"
-                      value={songLanguageSearchTerm}
-                      onChange={(e) => setSongLanguageSearchTerm(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <ScrollArea className="h-60"> 
-                  <div className="p-2 space-y-1"> 
-                  {filteredSongLanguages.map(lang => (
-                    <div key={`song-lang-${lang.value}`} className="flex items-center space-x-2 p-1 hover:bg-accent rounded-md"> 
-                      <Checkbox
-                        id={`song-lang-${lang.value}`}
-                        checked={selectedSongLanguages.includes(lang.value)}
-                        onCheckedChange={() => handleSongLanguageChange(lang.value)}
-                      />
-                      <Label htmlFor={`song-lang-${lang.value}`} className="font-normal cursor-pointer flex-1 text-sm">{lang.label}</Label> 
-                    </div>
-                  ))}
-                  {filteredSongLanguages.length === 0 && (
-                    <p className="p-2 text-sm text-muted-foreground text-center">No song languages found.</p>
-                  )}
-                  </div>
-                </ScrollArea>
-              </PopoverContent>
-            </Popover>
-             <p className="mt-2 text-xs text-muted-foreground">
-                Selected for songs: {selectedSongLanguages.map(val => PREDEFINED_LANGUAGES.find(l => l.value === val)?.label || val).join(', ') || 'None'}
-            </p>
-          </CardContent>
-        </Card>
+        <LanguageSelector
+          allLanguages={PREDEFINED_LANGUAGES}
+          selectedLanguages={selectedSongLanguages}
+          onLanguageChange={handleSongLanguageChange}
+          title="2. Select Song Languages (for Display & Refinement)"
+          description="Choose languages for song suggestions display and refinement. English is default."
+          icon={<Music2 className="h-6 w-6 text-primary" />}
+        />
 
 
         <Card className="w-full shadow-lg rounded-xl">

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Loader2, RefreshCw, Edit3, Images, Film } from "lucide-react"; 
-import type { MediaSuggestions, LanguageOption } from './caption-wise-client';
+import type { MediaSuggestions, LanguageOption } from '@/lib/types';
 
 interface SuggestedCaptionsDisplayProps {
   mediaType: "image" | "video" | "image_collection" | null;

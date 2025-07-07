@@ -4,7 +4,7 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Sparkles as SparklesLucideIcon } from "lucide-react";
-import type { MediaSuggestions, LanguageOption } from './caption-wise-client';
+import type { MediaSuggestions, LanguageOption } from '@/lib/types';
 
 interface RefinedCaptionsDisplayProps {
   refinedCaptions: MediaSuggestions | null;
