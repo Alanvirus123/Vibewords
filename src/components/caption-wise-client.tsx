@@ -4,7 +4,7 @@
 import React, { useState, type ChangeEvent, useCallback, useMemo, Suspense, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, Edit3, ImagePlus, Images, LogOut, User, History } from "lucide-react";
+import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, Edit3, ImagePlus, Images, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,8 +16,7 @@ import { refineSongSuggestions, type RefineSongSuggestionsInput, type RefineSong
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { LanguageSelector } from './language-selector';
-import type { MediaSuggestions, LanguageOption, HistoryEntry } from '@/lib/types';
-import { HistoryDialog } from "./history-dialog";
+import type { MediaSuggestions, LanguageOption } from '@/lib/types';
 
 
 const SuggestedCaptionsDisplay = React.lazy(() => import('@/components/suggested-captions-display'));
@@ -112,8 +111,6 @@ const LoadingFallback = () => (
   </Card>
 );
 
-const MAX_HISTORY_LENGTH = 20;
-
 export default function CaptionWiseClient() {
   const router = useRouter();
   const { toast } = useToast();
@@ -139,8 +136,6 @@ export default function CaptionWiseClient() {
   const [isRefiningSongs, setIsRefiningSongs] = useState<boolean>(false);
   
   const [userDetails, setUserDetails] = useState<StoredUserDetails | null>(null);
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
 
   useEffect(() => {
     // This effect runs on the client after mount to safely access localStorage
@@ -149,65 +144,10 @@ export default function CaptionWiseClient() {
       if (storedUser) {
         setUserDetails(JSON.parse(storedUser));
       }
-      const storedHistory = localStorage.getItem('caption-wise-history');
-      if (storedHistory) {
-        setHistory(JSON.parse(storedHistory));
-      }
     } catch (error) {
       console.error("Could not parse data from localStorage:", error);
     }
   }, []);
-
-  const saveHistoryEntry = (entry: Omit<HistoryEntry, 'id' | 'timestamp'>) => {
-    setHistory(prevHistory => {
-        const newHistory: HistoryEntry[] = [
-            {...entry, id: new Date().toISOString(), timestamp: new Date().toISOString() },
-            ...prevHistory
-        ].slice(0, MAX_HISTORY_LENGTH);
-
-        try {
-            localStorage.setItem('caption-wise-history', JSON.stringify(newHistory));
-        } catch (error) {
-            console.error("Failed to save history to localStorage:", error);
-            toast({
-                variant: 'destructive',
-                title: 'History Error',
-                description: 'Could not save this session to your history. It might be full.'
-            });
-        }
-        return newHistory;
-    });
-  };
-
-  const loadHistoryEntry = (entry: HistoryEntry) => {
-    setMediaFiles(null);
-    setMediaSrcs(entry.mediaSrcs);
-    setMediaType(entry.mediaType);
-    setSelectedLanguages(entry.selectedLanguages);
-    setSelectedSongLanguages(entry.selectedSongLanguages);
-    setSuggestedCaptions(entry.suggestedCaptions);
-    setRefinedCaptions(entry.refinedCaptions);
-    setCaptionFeedback(entry.captionFeedback);
-    setSuggestedSongs(entry.suggestedSongs);
-    setRefinedSongSuggestions(entry.refinedSongSuggestions);
-    setSongFeedback(entry.songFeedback);
-    setArtistPreference(entry.artistPreference);
-    setIsHistoryDialogOpen(false);
-    toast({ title: "Session Loaded", description: "Loaded past session from history." });
-  };
-  
-  const clearHistory = () => {
-      setHistory([]);
-      try {
-          localStorage.removeItem('caption-wise-history');
-          toast({ title: "History Cleared", description: "Your session history has been cleared." });
-      } catch (error) {
-          console.error("Failed to clear history from localStorage:", error);
-          toast({ variant: 'destructive', title: 'History Error', description: 'Could not clear history.' });
-      }
-      setIsHistoryDialogOpen(false);
-  };
-
 
   const handleLogout = () => {
     try {
@@ -390,22 +330,6 @@ export default function CaptionWiseClient() {
         } 
         if (!hasAnySongs) {
            toast({ title: "No songs suggested", description: `The AI could not suggest songs for the ${mediaTypeName}, but captions were suggested.` });
-        }
-        // Save to history only if we got some results
-        if (hasAnyCaptions || hasAnySongs) {
-            saveHistoryEntry({
-                mediaSrcs: dataUris,
-                mediaType: currentMediaType,
-                suggestedCaptions: hasAnyCaptions ? newSuggestedCaptions : null,
-                suggestedSongs: hasAnySongs ? newSuggestedSongs : null,
-                refinedCaptions: null,
-                refinedSongSuggestions: null,
-                captionFeedback: "",
-                songFeedback: "",
-                artistPreference: "",
-                selectedLanguages: selectedLanguages,
-                selectedSongLanguages: selectedSongLanguages,
-            });
         }
       }
 
@@ -736,13 +660,6 @@ export default function CaptionWiseClient() {
         <h1 className="text-3xl md:text-4xl font-bold text-[hsl(var(--app-title))]">VibeWords</h1>
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <HistoryDialog
-            isOpen={isHistoryDialogOpen}
-            onOpenChange={setIsHistoryDialogOpen}
-            history={history}
-            onLoadHistory={loadHistoryEntry}
-            onClearHistory={clearHistory}
-          />
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="outline" size="icon" aria-label="View user profile">
