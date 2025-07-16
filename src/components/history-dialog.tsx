@@ -131,9 +131,7 @@ export const HistoryDialog: React.FC<HistoryDialogProps> = ({ isOpen, onOpenChan
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => {
-                            onClearHistory();
-                        }}>
+                        <AlertDialogAction onClick={onClearHistory}>
                             Continue
                         </AlertDialogAction>
                         </AlertDialogFooter>

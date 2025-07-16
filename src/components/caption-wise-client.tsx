@@ -205,6 +205,7 @@ export default function CaptionWiseClient() {
           console.error("Failed to clear history from localStorage:", error);
           toast({ variant: 'destructive', title: 'History Error', description: 'Could not clear history.' });
       }
+      setIsHistoryDialogOpen(false);
   };
 
 
@@ -880,14 +881,15 @@ export default function CaptionWiseClient() {
            </Suspense>
         )}
         
-        {isRefiningCaptions && !hasRefiningSongs && ( 
-           <Card className="w-full shadow-lg rounded-xl">
+        {isRefiningCaptions && !hasRefinedCaptions && (
+          <Card className="w-full shadow-lg rounded-xl">
             <CardContent className="p-6 flex flex-col items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
               <p className="text-muted-foreground">Refining captions...</p>
             </CardContent>
           </Card>
         )}
+
         
         {hasRefinedCaptions && ( 
           <Suspense fallback={<LoadingFallback />}>
@@ -919,16 +921,8 @@ export default function CaptionWiseClient() {
           </Suspense>
         )}
 
-        {isRefiningSongs && isRefiningCaptions && !hasRefinedSongs && ( 
-           <Card className="w-full shadow-lg rounded-xl">
-            <CardContent className="p-6 flex flex-col items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-              <p className="text-muted-foreground">Refining captions &amp; then songs...</p>
-            </CardContent>
-          </Card>
-        )}
-        {isRefiningSongs && !isRefiningCaptions && ( 
-           <Card className="w-full shadow-lg rounded-xl">
+        {isRefiningSongs && (
+          <Card className="w-full shadow-lg rounded-xl">
             <CardContent className="p-6 flex flex-col items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
               <p className="text-muted-foreground">Refining song suggestions...</p>
