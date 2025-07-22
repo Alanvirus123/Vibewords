@@ -6,6 +6,7 @@
  * This flow now handles captions in multiple user-specified languages, producing four refined captions per language,
  * and expects/returns data as arrays of language-specific entries.
  * It accepts multiple media data URIs if mediaType is 'image_collection' (up to 50 images).
+ * It also accepts an optional tone for refinement.
  *
  * This file exports:
  * - `refineMediaCaptions`: An async function that refines caption suggestions based on user input.
@@ -41,6 +42,7 @@ const RefineMediaCaptionsInputSchema = z.object({
     .min(1)
     .describe('An array of objects, where each object contains the language and the initial four captions for that language to refine.'),
   userFeedback: z.string().describe('The user feedback on the initial captions (applies to all selected languages).'),
+  tone: z.string().optional().describe('An optional tone to apply to the refined captions (e.g., "Funny", "Professional").'),
   targetLanguages: z.array(z.string()).min(1).describe('An array of language names for which to refine captions. This list should correspond to the languages present in initialCaptionEntries.'),
 });
 
@@ -83,6 +85,10 @@ const refineMediaCaptionsPrompt = ai.definePrompt({
   prompt: `You are an expert caption writer. You will be provided with media (one or more images, or a video), a general media description, an array of initial caption entries (each for a specific language), user feedback, and a list of target languages.
 
   Your goal is to refine the initial captions for all specified target languages based on the user feedback and the provided media. For each target language, create a new set of four improved caption suggestions.
+
+  {{#if tone}}
+  The user has requested a specific tone for the refined captions: **{{{tone}}}**. Please ensure the refined captions reflect this tone.
+  {{/if}}
 
   Target Languages for Refinement: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
 

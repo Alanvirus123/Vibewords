@@ -2,7 +2,7 @@
 'use server';
 
 /**
- * @fileOverview Media (image/video/image_collection) caption and song suggestion AI agent.
+ * @fileOverview Media (image/video/image_collection) caption, song, and hashtag suggestion AI agent.
  * Allows users to specify target languages for generation.
  * Outputs suggestions as an array of language-specific entries.
  * Handles single images, single videos, or a collection of up to 50 images.
@@ -42,7 +42,10 @@ const LanguageSuggestionEntrySchema = z.object({
     .describe("An array of EXACTLY four suggested captions in this language. This field is MANDATORY."),
   songSuggestions: z.array(z.string().min(1))
     .length(2)
-    .describe("An array containing EXACTLY two suggested song titles in this language. This field is MANDATORY.")
+    .describe("An array containing EXACTLY two suggested song titles in this language. This field is MANDATORY."),
+  hashtags: z.array(z.string().min(1))
+    .length(10)
+    .describe("An array of EXACTLY ten relevant hashtags in this language. This field is MANDATORY."),
 });
 
 const SuggestMediaCaptionsOutputSchema = z.object({
@@ -67,6 +70,7 @@ const prompt = ai.definePrompt({
   For EACH of these target languages, you MUST generate:
   1. EXACTLY four engaging captions. The captions should be relevant to the media's content and appropriate for a general audience. If multiple images are provided (mediaType 'image_collection'), the captions should be relevant to the entire set of images.
   2. EXACTLY two song titles that would fit the mood or theme of the media. If multiple images are provided, the song suggestions should reflect the overall vibe of the collection.
+  3. EXACTLY ten relevant hashtags. The hashtags should be relevant to the media and useful for social media platforms.
 
   Provided Media:
   {{#if isImageCollection}}
@@ -87,6 +91,7 @@ const prompt = ai.definePrompt({
   - 'language': A string with the name of the language (e.g., "English", "Spanish"). This MUST be one of the target languages.
   - 'captions': An array of EXACTLY four caption strings in that language.
   - 'songSuggestions': An array containing EXACTLY two song title strings in that language.
+  - 'hashtags': An array of EXACTLY ten hashtag strings in that language.
 
   Ensure that every language listed in 'targetLanguages' has a corresponding entry in the 'languageEntries' array, and each entry is complete with all required fields.
 
@@ -95,12 +100,14 @@ const prompt = ai.definePrompt({
     {
       "language": "English",
       "captions": ["English Caption 1", "English Caption 2", "English Caption 3", "English Caption 4"],
-      "songSuggestions": ["Example English Song Title 1", "Example English Song Title 2"]
+      "songSuggestions": ["Example English Song Title 1", "Example English Song Title 2"],
+      "hashtags": ["#englishhashtag1", "#englishhashtag2", "#englishhashtag3", "#englishhashtag4", "#englishhashtag5", "#englishhashtag6", "#englishhashtag7", "#englishhashtag8", "#englishhashtag9", "#englishhashtag10"]
     },
     {
       "language": "Spanish",
       "captions": ["Leyenda en Español 1", "Leyenda en Español 2", "Leyenda en Español 3", "Leyenda en Español 4"],
-      "songSuggestions": ["Título de Canción en Español de Ejemplo 1", "Título de Canción en Español de Ejemplo 2"]
+      "songSuggestions": ["Título de Canción en Español de Ejemplo 1", "Título de Canción en Español de Ejemplo 2"],
+      "hashtags": ["#hashtagEspañol1", "#hashtagEspañol2", "#hashtagEspañol3", "#hashtagEspañol4", "#hashtagEspañol5", "#hashtagEspañol6", "#hashtagEspañol7", "#hashtagEspañol8", "#hashtagEspañol9", "#hashtagEspañol10"]
     }
   ]`,
 });

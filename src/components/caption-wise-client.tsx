@@ -4,7 +4,7 @@
 import React, { useState, type ChangeEvent, useCallback, useMemo, Suspense, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, Edit3, ImagePlus, Images, LogOut, User, Text, Music } from "lucide-react";
+import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, Edit3, ImagePlus, Images, LogOut, User, Text, Music, Hash, Feather } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,11 +13,14 @@ import { useToast } from "@/hooks/use-toast";
 import { suggestMediaCaptions, type SuggestMediaCaptionsInput, type SuggestMediaCaptionsOutput, type LanguageSuggestionEntry } from "@/ai/flows/suggest-media-captions";
 import { refineMediaCaptions, type RefineMediaCaptionsInput, type RefineMediaCaptionsOutput, type RefinedLanguageCaptionEntry } from "@/ai/flows/refine-media-captions";
 import { refineSongSuggestions, type RefineSongSuggestionsInput, type RefineSongSuggestionsOutput, type RefinedLanguageSongEntry } from "@/ai/flows/refine-song-suggestions";
+import { analyzeMediaVibe, type AnalyzeMediaVibeInput, type AnalyzeMediaVibeOutput } from "@/ai/flows/analyze-media-vibe";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { LanguageSelector } from './language-selector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { MediaSuggestions, LanguageOption } from '@/lib/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 
 const SuggestedCaptionsDisplay = React.lazy(() => import('@/components/suggested-captions-display'));
@@ -83,6 +86,8 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "Vietnamese", label: "Tiếng Việt (Vietnamese)" },
 ].sort((a, b) => a.label.localeCompare(b.label));
 
+const TONES = ["Default", "Funny", "Professional", "Inspirational", "Casual", "Poetic", "Witty", "Sarcastic"];
+
 
 const fileToDataUri = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -126,11 +131,17 @@ export default function CaptionWiseClient() {
   const [suggestedCaptions, setSuggestedCaptions] = useState<MediaSuggestions | null>(null);
   const [refinedCaptions, setRefinedCaptions] = useState<MediaSuggestions | null>(null);
   const [captionFeedback, setCaptionFeedback] = useState<string>("");
+  const [selectedTone, setSelectedTone] = useState<string>("Default");
 
   const [suggestedSongs, setSuggestedSongs] = useState<MediaSuggestions | null>(null);
   const [refinedSongSuggestions, setRefinedSongSuggestions] = useState<MediaSuggestions | null>(null);
   const [songFeedback, setSongFeedback] = useState<string>("");
   const [artistPreference, setArtistPreference] = useState<string>("");
+
+  const [suggestedHashtags, setSuggestedHashtags] = useState<MediaSuggestions | null>(null);
+
+  const [mediaVibe, setMediaVibe] = useState<string | null>(null);
+  const [isAnalyzingVibe, setIsAnalyzingVibe] = useState<boolean>(false);
 
   const [isSuggesting, setIsSuggesting] = useState<boolean>(false);
   const [isRefiningCaptions, setIsRefiningCaptions] = useState<boolean>(false);
@@ -179,6 +190,9 @@ export default function CaptionWiseClient() {
     setMediaFiles(null);
     setMediaSrcs(null);
     setMediaType(null);
+    setMediaVibe(null);
+    setSuggestedHashtags(null);
+    setSelectedTone("Default");
   };
 
   const handleLanguageChange = (languageValue: string) => {
@@ -273,6 +287,7 @@ export default function CaptionWiseClient() {
     try {
       const dataUris = await Promise.all(filesToProcess.map(file => fileToDataUri(file)));
       setMediaSrcs(dataUris);
+      handleVibeAnalysis(dataUris, currentMediaType); // Call vibe analysis first
       await handleSuggestCaptionsAndSongs(dataUris, currentMediaType, selectedLanguages);
     } catch (error: any) {
       console.error("Error during media processing or initial AI suggestion phase:", error);
@@ -290,6 +305,21 @@ export default function CaptionWiseClient() {
     }
   };
 
+  const handleVibeAnalysis = async (dataUris: string[], currentMediaType: AppMediaType) => {
+    setIsAnalyzingVibe(true);
+    setMediaVibe(null);
+    try {
+      const input: AnalyzeMediaVibeInput = { mediaDataUris: dataUris, mediaType: currentMediaType };
+      const result = await analyzeMediaVibe(input);
+      setMediaVibe(result.vibe);
+    } catch (error) {
+      console.error("Error analyzing media vibe:", error);
+      toast({ variant: "destructive", title: "Vibe Analysis Failed", description: "Could not analyze the media's vibe." });
+    } finally {
+      setIsAnalyzingVibe(false);
+    }
+  };
+
   const handleSuggestCaptionsAndSongs = async (dataUris: string[], currentMediaType: AppMediaType, targetLanguagesForSuggestions: string[]) => {
     if (targetLanguagesForSuggestions.length === 0) {
       toast({ variant: "destructive", title: "Language Missing", description: "Please select languages for suggestions." });
@@ -298,6 +328,7 @@ export default function CaptionWiseClient() {
     setIsSuggesting(true);
     setSuggestedCaptions(null);
     setSuggestedSongs(null);
+    setSuggestedHashtags(null);
 
     try {
       const input: SuggestMediaCaptionsInput = { mediaDataUris: dataUris, mediaType: currentMediaType, targetLanguages: targetLanguagesForSuggestions };
@@ -305,8 +336,11 @@ export default function CaptionWiseClient() {
       
       const newSuggestedCaptions: MediaSuggestions = {};
       const newSuggestedSongs: MediaSuggestions = {};
+      const newSuggestedHashtags: MediaSuggestions = {};
+
       let hasAnyCaptions = false;
       let hasAnySongs = false;
+      let hasAnyHashtags = false;
 
       result.languageEntries?.forEach((entry: LanguageSuggestionEntry) => {
         if (entry.language && entry.captions && entry.captions.length > 0) {
@@ -317,21 +351,29 @@ export default function CaptionWiseClient() {
           newSuggestedSongs[entry.language] = entry.songSuggestions;
           hasAnySongs = true;
         }
+        if (entry.language && entry.hashtags && entry.hashtags.length > 0) {
+            newSuggestedHashtags[entry.language] = entry.hashtags;
+            hasAnyHashtags = true;
+        }
       });
 
       setSuggestedCaptions(hasAnyCaptions ? newSuggestedCaptions : null);
-      setSuggestedSongs(hasAnySongs ? newSuggestedSongs : null); 
+      setSuggestedSongs(hasAnySongs ? newSuggestedSongs : null);
+      setSuggestedHashtags(hasAnyHashtags ? newSuggestedHashtags : null);
       
       const mediaTypeName = currentMediaType === 'image_collection' ? 'images' : currentMediaType;
-      if (!hasAnyCaptions && !hasAnySongs) {
-        toast({ title: "No suggestions generated", description: `The AI could not suggest captions or songs for the uploaded ${mediaTypeName} in the selected languages.` });
+      if (!hasAnyCaptions && !hasAnySongs && !hasAnyHashtags) {
+        toast({ title: "No suggestions generated", description: `The AI could not suggest captions, songs, or hashtags for the uploaded ${mediaTypeName} in the selected languages.` });
       } else {
         if (!hasAnyCaptions) {
-          toast({ title: "No captions suggested", description: `The AI could not suggest captions for the ${mediaTypeName}, but songs were suggested.` });
+          toast({ title: "No captions suggested", description: `The AI could not suggest captions for the ${mediaTypeName}.` });
         } 
         if (!hasAnySongs) {
-           toast({ title: "No songs suggested", description: `The AI could not suggest songs for the ${mediaTypeName}, but captions were suggested.` });
+           toast({ title: "No songs suggested", description: `The AI could not suggest songs for the ${mediaTypeName}.` });
         }
+        if (!hasAnyHashtags) {
+            toast({ title: "No hashtags suggested", description: `The AI could not suggest hashtags for the ${mediaTypeName}.` });
+         }
       }
 
     } catch (error: any) {
@@ -434,6 +476,7 @@ export default function CaptionWiseClient() {
         mediaDescription: mediaDesc,
         initialCaptionEntries: initialCaptionEntriesForRefinement,
         userFeedback: captionFeedback,
+        tone: selectedTone === 'Default' ? undefined : selectedTone,
         targetLanguages: selectedLanguages,
       };
       const captionResult: RefineMediaCaptionsOutput = await refineMediaCaptions(captionInput);
@@ -653,6 +696,7 @@ export default function CaptionWiseClient() {
   const hasRefinedCaptions = useMemo(() => refinedCaptions && Object.keys(refinedCaptions).length > 0 && Object.values(refinedCaptions).some(arr => arr.length > 0), [refinedCaptions]);
   const hasSuggestedSongs = useMemo(() => suggestedSongs && Object.keys(suggestedSongs).length > 0 && selectedSongLanguages.some(lang => suggestedSongs[lang] && suggestedSongs[lang].length > 0), [suggestedSongs, selectedSongLanguages]);
   const hasRefinedSongs = useMemo(() => refinedSongSuggestions && Object.keys(refinedSongSuggestions).length > 0 && selectedSongLanguages.some(lang => refinedSongSuggestions[lang] && refinedSongSuggestions[lang].length > 0), [refinedSongSuggestions, selectedSongLanguages]);
+  const hasSuggestedHashtags = useMemo(() => suggestedHashtags && Object.keys(suggestedHashtags).length > 0 && selectedLanguages.some(lang => suggestedHashtags[lang] && suggestedHashtags[lang].length > 0), [suggestedHashtags, selectedLanguages]);
 
   
   return (
@@ -714,7 +758,7 @@ export default function CaptionWiseClient() {
           <CardContent>
              <Tabs defaultValue="captions" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="captions"><Text className="mr-2 h-4 w-4" />Captions</TabsTrigger>
+                <TabsTrigger value="captions"><Text className="mr-2 h-4 w-4" />Captions & Hashtags</TabsTrigger>
                 <TabsTrigger value="songs"><Music className="mr-2 h-4 w-4" />Songs</TabsTrigger>
               </TabsList>
               <TabsContent value="captions" className="pt-4">
@@ -783,6 +827,25 @@ export default function CaptionWiseClient() {
                     )}
                   </>
                 )}
+                 {(isAnalyzingVibe || mediaVibe) && (
+                  <div className="p-4 bg-background border-t">
+                    {isAnalyzingVibe && (
+                       <div className="flex items-center text-sm text-muted-foreground">
+                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                         Analyzing vibe...
+                       </div>
+                    )}
+                    {mediaVibe && !isAnalyzingVibe && (
+                      <div className="flex items-start text-sm">
+                        <Feather className="h-5 w-5 mr-3 mt-0.5 text-primary"/>
+                        <div>
+                          <p className="font-semibold text-foreground">The Vibe</p>
+                          <p className="text-muted-foreground">{mediaVibe}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
@@ -810,6 +873,9 @@ export default function CaptionWiseClient() {
                 selectedLanguages={selectedLanguages} 
                 PREDEFINED_LANGUAGES={PREDEFINED_LANGUAGES}
                 CaptionDisplayCardRenderer={CaptionDisplayCardRenderer}
+                selectedTone={selectedTone}
+                setSelectedTone={setSelectedTone}
+                tones={TONES}
             />
            </Suspense>
         )}
@@ -822,7 +888,6 @@ export default function CaptionWiseClient() {
             </CardContent>
           </Card>
         )}
-
         
         {hasRefinedCaptions && ( 
           <Suspense fallback={<LoadingFallback />}>
@@ -833,6 +898,34 @@ export default function CaptionWiseClient() {
                 CaptionDisplayCardRenderer={CaptionDisplayCardRenderer}
             />
           </Suspense>
+        )}
+
+        {!isSuggesting && hasSuggestedHashtags && (
+           <Card className="w-full shadow-lg rounded-xl">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
+                    <Hash className="h-6 w-6 text-primary" />
+                    AI-Suggested Hashtags
+                </CardTitle>
+                <CardDescription>Hashtags for your selected caption languages. Click to copy.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+            {suggestedHashtags && selectedLanguages.map(language => (
+                suggestedHashtags[language] && suggestedHashtags[language].length > 0 && (
+                <div key={`hashtag-${language}-section`} className="space-y-2">
+                    <h4 className="font-semibold text-md text-foreground">{PREDEFINED_LANGUAGES.find(l => l.value === language)?.label || language}</h4>
+                    <div className="flex flex-wrap gap-2">
+                    {suggestedHashtags[language].map((tag, index) => (
+                       <Badge key={`hashtag-${language}-${index}`} variant="secondary" className="cursor-pointer hover:bg-primary/20" onClick={() => handleCopyText(tag, 'Hashtag')}>
+                        {tag}
+                       </Badge>
+                    ))}
+                    </div>
+                </div>
+                )
+            ))}
+            </CardContent>
+           </Card>
         )}
 
         {!isSuggesting && hasSuggestedSongs && (
