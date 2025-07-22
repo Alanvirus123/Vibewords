@@ -24,7 +24,7 @@ const RefinedSongsDisplay: React.FC<RefinedSongsDisplayProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
           <SparklesLucideIcon className="h-6 w-6 text-primary" />
-          7. Refined Song Suggestions
+          6. Refined Song Suggestions
         </CardTitle>
         <CardDescription>Refined song suggestions based on your feedback, for your selected song languages.</CardDescription>
       </CardHeader>
@@ -46,3 +46,5 @@ const RefinedSongsDisplay: React.FC<RefinedSongsDisplayProps> = ({
 };
 
 export default RefinedSongsDisplay;
+
+    

@@ -3,7 +3,6 @@
 
 import React, { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -16,18 +15,14 @@ interface LanguageSelectorProps {
   allLanguages: LanguageOption[];
   selectedLanguages: string[];
   onLanguageChange: (languageValue: string) => void;
-  title: string;
   description: string;
-  icon: React.ReactNode;
 }
 
 export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   allLanguages,
   selectedLanguages,
   onLanguageChange,
-  title,
   description,
-  icon,
 }) => {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -50,18 +45,11 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
     );
   }, [searchTerm, allLanguages]);
   
-  const uniqueIdPrefix = `lang-sel-${title.replace(/\s+/g, '-').toLowerCase()}`;
+  const uniqueIdPrefix = `lang-sel-${description.replace(/\s+/g, '-').toLowerCase()}`;
 
   return (
-    <Card className="w-full shadow-lg rounded-xl">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
-          {icon}
-          {title}
-        </CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">{description}</p>
         <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
           <PopoverTrigger asChild>
             <Button variant="outline" className="w-full justify-between">
@@ -109,7 +97,8 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
          <p className="mt-2 text-xs text-muted-foreground">
             Selected: {selectedLanguages.map(val => allLanguages.find(l => l.value === val)?.label || val).join(', ') || 'None'}
         </p>
-      </CardContent>
-    </Card>
+    </div>
   );
 };
+
+    

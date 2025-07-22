@@ -4,7 +4,7 @@
 import React, { useState, type ChangeEvent, useCallback, useMemo, Suspense, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, Edit3, ImagePlus, Images, LogOut, User } from "lucide-react";
+import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, Edit3, ImagePlus, Images, LogOut, User, Text, Music } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import { refineSongSuggestions, type RefineSongSuggestionsInput, type RefineSong
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { LanguageSelector } from './language-selector';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { MediaSuggestions, LanguageOption } from '@/lib/types';
 
 
@@ -702,32 +703,47 @@ export default function CaptionWiseClient() {
       </header>
 
       <main className="w-full max-w-2xl flex flex-col gap-8 items-center">
-        <LanguageSelector
-          allLanguages={PREDEFINED_LANGUAGES}
-          selectedLanguages={selectedLanguages}
-          onLanguageChange={handleLanguageChange}
-          title="1. Select Languages (for Captions & Initial Suggestions)"
-          description="Choose languages for captions. Initial song suggestions will also be in these languages. English is default."
-          icon={<LanguagesIcon className="h-6 w-6 text-primary" />}
-        />
-
-        <LanguageSelector
-          allLanguages={PREDEFINED_LANGUAGES}
-          selectedLanguages={selectedSongLanguages}
-          onLanguageChange={handleSongLanguageChange}
-          title="2. Select Song Languages (for Display & Refinement)"
-          description="Choose languages for song suggestions display and refinement. English is default."
-          icon={<Music2 className="h-6 w-6 text-primary" />}
-        />
-
+        <Card className="w-full shadow-lg rounded-xl">
+          <CardHeader>
+             <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
+              <LanguagesIcon className="h-6 w-6 text-primary" />
+              1. Select Languages
+            </CardTitle>
+            <CardDescription>Choose languages for captions and song suggestions.</CardDescription>
+          </CardHeader>
+          <CardContent>
+             <Tabs defaultValue="captions" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="captions"><Text className="mr-2 h-4 w-4" />Captions</TabsTrigger>
+                <TabsTrigger value="songs"><Music className="mr-2 h-4 w-4" />Songs</TabsTrigger>
+              </TabsList>
+              <TabsContent value="captions" className="pt-4">
+                <LanguageSelector
+                  allLanguages={PREDEFINED_LANGUAGES}
+                  selectedLanguages={selectedLanguages}
+                  onLanguageChange={handleLanguageChange}
+                  description="For initial suggestions and refinement. English is default."
+                />
+              </TabsContent>
+              <TabsContent value="songs" className="pt-4">
+                 <LanguageSelector
+                  allLanguages={PREDEFINED_LANGUAGES}
+                  selectedLanguages={selectedSongLanguages}
+                  onLanguageChange={handleSongLanguageChange}
+                  description="For display and refinement. English is default."
+                />
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
 
         <Card className="w-full shadow-lg rounded-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
               <UploadCloud className="h-6 w-6 text-primary" />
-              3. Upload Your Media
+              2. Upload Your Media
             </CardTitle>
-            <CardDescription>Select 1-50 images, or a single video (up to 2GB). Suggestions will be generated for the languages chosen in Step 1.</CardDescription>
+            <CardDescription>Select 1-50 images, or a single video (up to 2GB). Suggestions will be generated for the languages chosen for captions.</CardDescription>
           </CardHeader>
           <CardContent>
             <Input
@@ -862,3 +878,5 @@ export default function CaptionWiseClient() {
     </div>
   );
 }
+
+    

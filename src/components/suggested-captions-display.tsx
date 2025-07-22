@@ -51,7 +51,7 @@ const SuggestedCaptionsDisplay: React.FC<SuggestedCaptionsDisplayProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
           {getMediaTypeIcon()}
-          4. AI-Suggested Captions
+          3. AI-Suggested Captions
         </CardTitle>
         <CardDescription>Here are captions for {getMediaTypeName()}. Copy or refine them (refining captions also refines songs).</CardDescription>
       </CardHeader>
@@ -86,3 +86,5 @@ const SuggestedCaptionsDisplay: React.FC<SuggestedCaptionsDisplayProps> = ({
 };
 
 export default SuggestedCaptionsDisplay;
+
+    

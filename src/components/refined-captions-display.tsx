@@ -24,7 +24,7 @@ const RefinedCaptionsDisplay: React.FC<RefinedCaptionsDisplayProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
           <SparklesLucideIcon className="h-6 w-6 text-primary" />
-          6. Refined Captions
+          5. Refined Captions
         </CardTitle>
         <CardDescription>Refined captions based on your feedback.</CardDescription>
       </CardHeader>
@@ -45,3 +45,5 @@ const RefinedCaptionsDisplay: React.FC<RefinedCaptionsDisplayProps> = ({
 };
 
 export default RefinedCaptionsDisplay;
+
+    
