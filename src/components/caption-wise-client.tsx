@@ -4,7 +4,7 @@
 import React, { useState, type ChangeEvent, useCallback, useMemo, Suspense, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, Edit3, ImagePlus, Images, LogOut, User, Text, Music, Hash, Feather } from "lucide-react";
+import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, Edit3, ImagePlus, Images, LogOut, User, Text, Music, Hash, Feather, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { MediaSuggestions, LanguageOption } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { AiAssistant } from "@/components/ai-assistant";
 
 
 const SuggestedCaptionsDisplay = React.lazy(() => import('@/components/suggested-captions-display'));
@@ -705,6 +706,24 @@ export default function CaptionWiseClient() {
         <h1 className="text-3xl md:text-4xl font-bold text-[hsl(var(--app-title))]">VibeWords</h1>
         <div className="flex items-center gap-2">
           <ThemeToggle />
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="icon" aria-label="Open AI Assistant">
+                <HelpCircle className="h-5 w-5" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-2xl">
+              <AiAssistant
+                mediaType={mediaType}
+                mediaVibe={mediaVibe}
+                suggestedCaptions={suggestedCaptions}
+                suggestedSongs={suggestedSongs}
+                captionFeedback={captionFeedback}
+                songFeedback={songFeedback}
+                selectedTone={selectedTone}
+              />
+            </DialogContent>
+          </Dialog>
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="outline" size="icon" aria-label="View user profile">
