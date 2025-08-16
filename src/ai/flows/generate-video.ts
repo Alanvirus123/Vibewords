@@ -71,8 +71,9 @@ const generateVideoFlow = ai.defineFlow(
         return { videoDataUri: videoPart.media.url };
     }
 
+    const videoUrl = `${videoPart.media.url}&key=${process.env.GEMINI_API_KEY}`;
     // If it's a URL, fetch it and convert to a data URI
-    const response = await fetch(videoPart.media.url);
+    const response = await fetch(videoUrl);
     if (!response.ok) {
         throw new Error(`Failed to download the generated video from ${videoPart.media.url}`);
     }
