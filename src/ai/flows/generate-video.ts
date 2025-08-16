@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -12,6 +13,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
+
 
 // Define the input schema for the generateVideo function.
 const GenerateVideoInputSchema = z.object({
@@ -38,7 +40,7 @@ const generateVideoFlow = ai.defineFlow(
     outputSchema: GenerateVideoOutputSchema,
   },
   async (input) => {
-    let { operation } = await ai.generate({
+    let { operation } = await googleAI.generateVideo({
       model: googleAI.model('veo-3.0-generate-preview'),
       prompt: input.prompt,
     });
@@ -64,11 +66,13 @@ const generateVideoFlow = ai.defineFlow(
       throw new Error('Failed to find the generated video in the operation result');
     }
 
-    // The URL from Genkit might be a gs:// URL or a data URI. We will assume it is a data URI for direct display.
-    // If it were a gs:// URL, we would need to download it and convert it to a data URI.
-    // For this implementation, we directly use the url.
+    // The URL from the operation is already a data URI.
+    const response = await fetch(videoPart.media.url);
+    const buffer = await response.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString('base64');
+
     return {
-      videoDataUri: videoPart.media.url,
+      videoDataUri: `data:video/mp4;base64,${base64}`,
     };
   }
 );
