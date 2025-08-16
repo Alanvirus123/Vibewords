@@ -4,7 +4,7 @@
 import React, { useState, type ChangeEvent, useCallback, useMemo, Suspense, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, Edit3, ImagePlus, Images, LogOut, User, Text, Music, Hash, Feather, HelpCircle } from "lucide-react";
+import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, Edit3, ImagePlus, Images, LogOut, User, Text, Music, Hash, Feather, HelpCircle, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { suggestMediaCaptions, type SuggestMediaCaptionsInput, type SuggestMedia
 import { refineMediaCaptions, type RefineMediaCaptionsInput, type RefineMediaCaptionsOutput, type RefinedLanguageCaptionEntry } from "@/ai/flows/refine-media-captions";
 import { refineSongSuggestions, type RefineSongSuggestionsInput, type RefineSongSuggestionsOutput, type RefinedLanguageSongEntry } from "@/ai/flows/refine-song-suggestions";
 import { analyzeMediaVibe, type AnalyzeMediaVibeInput, type AnalyzeMediaVibeOutput } from "@/ai/flows/analyze-media-vibe";
+import { generateVideo, type GenerateVideoInput, type GenerateVideoOutput } from "@/ai/flows/generate-video";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { LanguageSelector } from './language-selector';
@@ -22,6 +23,7 @@ import type { MediaSuggestions, LanguageOption } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { AiAssistant } from "@/components/ai-assistant";
+import { Textarea } from "./ui/textarea";
 
 
 const SuggestedCaptionsDisplay = React.lazy(() => import('@/components/suggested-captions-display'));
@@ -149,6 +151,11 @@ export default function CaptionWiseClient() {
   const [isRefiningSongs, setIsRefiningSongs] = useState<boolean>(false);
   
   const [userDetails, setUserDetails] = useState<StoredUserDetails | null>(null);
+
+  const [videoPrompt, setVideoPrompt] = useState<string>("");
+  const [generatedVideo, setGeneratedVideo] = useState<string | null>(null);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState<boolean>(false);
+
 
   useEffect(() => {
     // This effect runs on the client after mount to safely access localStorage
@@ -669,6 +676,26 @@ export default function CaptionWiseClient() {
       .catch(() => toast({ variant: "destructive", title: "Error", description: `Failed to copy ${type}.` }));
   };
 
+  const handleGenerateVideo = async () => {
+    if (!videoPrompt.trim()) {
+      toast({ variant: "destructive", title: "Prompt is empty", description: "Please enter a prompt to generate a video." });
+      return;
+    }
+    setIsGeneratingVideo(true);
+    setGeneratedVideo(null);
+    try {
+      const input: GenerateVideoInput = { prompt: videoPrompt };
+      const result = await generateVideo(input);
+      setGeneratedVideo(result.videoDataUri);
+      toast({ title: "Video Generated!", description: "Your video has been successfully generated." });
+    } catch (error: any) {
+      console.error("Error generating video:", error);
+      toast({ variant: "destructive", title: "Video Generation Failed", description: "Could not generate the video. " + (error.message || "") });
+    } finally {
+      setIsGeneratingVideo(false);
+    }
+  };
+
   const CaptionDisplayCardRenderer: React.FC<{ caption: string; language: string }> = ({ caption, language }) => (
     <div className="p-3 border rounded-md bg-card flex justify-between items-center gap-2 shadow-sm">
       <div className="flex-grow">
@@ -986,6 +1013,45 @@ export default function CaptionWiseClient() {
             />
           </Suspense>
         )}
+
+        <Card className="w-full shadow-lg rounded-xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
+              <Video className="h-6 w-6 text-primary" />
+              Bonus: Generate a Video
+            </CardTitle>
+            <CardDescription>
+              Create a short video from a text prompt using AI. This is an experimental feature and may take a minute or two.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Textarea
+              id="videoPrompt"
+              placeholder="e.g., 'A majestic dragon soaring over a mystical forest at dawn.'"
+              value={videoPrompt}
+              onChange={(e) => setVideoPrompt(e.target.value)}
+              className="min-h-[80px]"
+            />
+            <Button onClick={handleGenerateVideo} disabled={isGeneratingVideo || !videoPrompt.trim()}>
+              {isGeneratingVideo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <SparklesLucideIcon className="mr-2 h-4 w-4" />}
+              {isGeneratingVideo ? "Generating..." : "Generate Video"}
+            </Button>
+            {isGeneratingVideo && (
+              <div className="flex items-center text-sm text-muted-foreground">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <span>Generating video. This can take up to a minute...</span>
+              </div>
+            )}
+            {generatedVideo && (
+              <div className="mt-4 border rounded-lg overflow-hidden shadow-md">
+                <video src={generatedVideo} controls className="w-full h-auto" data-ai-hint="generated video">
+                  Your browser does not support the video tag.
+                </video>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
       </main>
     </div>
   );
