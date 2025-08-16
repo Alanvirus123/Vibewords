@@ -14,7 +14,6 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
 
-
 // Define the input schema for the generateVideo function.
 const GenerateVideoInputSchema = z.object({
   prompt: z.string().describe('The text prompt to generate the video from.'),
@@ -40,7 +39,7 @@ const generateVideoFlow = ai.defineFlow(
     outputSchema: GenerateVideoOutputSchema,
   },
   async (input) => {
-    let { operation } = await googleAI.generateVideo({
+    let { operation } = await ai.generate({
       model: googleAI.model('veo-3.0-generate-preview'),
       prompt: input.prompt,
     });
@@ -66,13 +65,23 @@ const generateVideoFlow = ai.defineFlow(
       throw new Error('Failed to find the generated video in the operation result');
     }
 
-    // The URL from the operation is already a data URI.
+    // The URL from the operation can be a googleapis URL that needs to be fetched,
+    // or it could be a data URI directly. Let's handle both.
+    if (videoPart.media.url.startsWith('data:')) {
+        return { videoDataUri: videoPart.media.url };
+    }
+
+    // If it's a URL, fetch it and convert to a data URI
     const response = await fetch(videoPart.media.url);
+    if (!response.ok) {
+        throw new Error(`Failed to download the generated video from ${videoPart.media.url}`);
+    }
     const buffer = await response.arrayBuffer();
     const base64 = Buffer.from(buffer).toString('base64');
+    const contentType = response.headers.get('content-type') || 'video/mp4';
 
     return {
-      videoDataUri: `data:video/mp4;base64,${base64}`,
+      videoDataUri: `data:${contentType};base64,${base64}`,
     };
   }
 );
