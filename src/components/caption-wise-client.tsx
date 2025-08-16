@@ -289,7 +289,7 @@ export default function CaptionWiseClient() {
       const dataUris = await Promise.all(filesToProcess.map(file => fileToDataUri(file)));
       setMediaSrcs(dataUris);
       handleVibeAnalysis(dataUris, currentMediaType); // Call vibe analysis first
-      await handleSuggestCaptionsAndSongs(dataUris, currentMediaType, selectedLanguages);
+      await handleSuggestCaptionsAndSongs(dataUris, currentMediaType, [...new Set([...selectedLanguages, ...selectedSongLanguages])]);
     } catch (error: any) {
       console.error("Error during media processing or initial AI suggestion phase:", error);
       let description = "Could not process the uploaded files. The file(s) might be too large, corrupted, or the server encountered an issue.";
@@ -806,7 +806,7 @@ export default function CaptionWiseClient() {
               <UploadCloud className="h-6 w-6 text-primary" />
               2. Upload Your Media
             </CardTitle>
-            <CardDescription>Select 1-50 images, or a single video (up to 2GB). Suggestions will be generated for the languages chosen for captions.</CardDescription>
+            <CardDescription>Select 1-50 images, or a single video (up to 2GB). Suggestions will be generated for all languages chosen for captions and songs.</CardDescription>
           </CardHeader>
           <CardContent>
             <Input
@@ -924,7 +924,7 @@ export default function CaptionWiseClient() {
             <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
                     <Hash className="h-6 w-6 text-primary" />
-                    AI-Suggested Hashtags
+                    4. AI-Suggested Hashtags
                 </CardTitle>
                 <CardDescription>Hashtags for your selected caption languages. Click to copy.</CardDescription>
             </CardHeader>
@@ -966,7 +966,7 @@ export default function CaptionWiseClient() {
           </Suspense>
         )}
 
-        {isRefiningSongs && (
+        {isRefiningSongs && !hasRefinedSongs && (
           <Card className="w-full shadow-lg rounded-xl">
             <CardContent className="p-6 flex flex-col items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
