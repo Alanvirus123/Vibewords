@@ -50,7 +50,7 @@ const SuggestedSongsDisplay: React.FC<SuggestedSongsDisplayProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
           <Music2 className="h-6 w-6 text-primary" />
-          5. AI-Suggested Songs 
+          6. AI-Suggested Songs 
         </CardTitle>
         <CardDescription>Song titles for {getMediaTypeName()} in your selected song languages. Copy or refine them!</CardDescription>
       </CardHeader>
@@ -97,5 +97,3 @@ const SuggestedSongsDisplay: React.FC<SuggestedSongsDisplayProps> = ({
 };
 
 export default SuggestedSongsDisplay;
-
-    

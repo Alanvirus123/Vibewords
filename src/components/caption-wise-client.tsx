@@ -4,7 +4,7 @@
 import React, { useState, type ChangeEvent, useCallback, useMemo, Suspense, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, Edit3, ImagePlus, Images, LogOut, User, Text, Music, Hash, Feather, HelpCircle } from "lucide-react";
+import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, Edit3, ImagePlus, Images, LogOut, User, Text, Music, Hash, Feather, HelpCircle, History, Image as ImageIcon, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,16 +14,19 @@ import { suggestMediaCaptions, type SuggestMediaCaptionsInput, type SuggestMedia
 import { refineMediaCaptions, type RefineMediaCaptionsInput, type RefineMediaCaptionsOutput, type RefinedLanguageCaptionEntry } from "@/ai/flows/refine-media-captions";
 import { refineSongSuggestions, type RefineSongSuggestionsInput, type RefineSongSuggestionsOutput, type RefinedLanguageSongEntry } from "@/ai/flows/refine-song-suggestions";
 import { analyzeMediaVibe, type AnalyzeMediaVibeInput, type AnalyzeMediaVibeOutput } from "@/ai/flows/analyze-media-vibe";
+import { generateImage, type GenerateImageInput, type GenerateImageOutput } from "@/ai/flows/generate-image";
+import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { LanguageSelector } from './language-selector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { MediaSuggestions, LanguageOption } from '@/lib/types';
+import type { MediaSuggestions, LanguageOption, StoredUserDetails, GenerationHistoryItem } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { AiAssistant } from "@/components/ai-assistant";
 import { Textarea } from "./ui/textarea";
-
+import { saveUser, saveGeneration, getGenerations } from '@/services/firebase';
+import { HistoryDialog } from "@/components/history-dialog";
 
 const SuggestedCaptionsDisplay = React.lazy(() => import('@/components/suggested-captions-display'));
 const RefinedCaptionsDisplay = React.lazy(() => import('@/components/refined-captions-display'));
@@ -78,7 +81,7 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "Slovak", label: "Slovenčina (Slovak)" },
   { value: "Spanish", label: "Español (Spanish)" },
   { value: "Swahili", label: "Kiswahili (Swahili)" },
-  { value: "Swedish", label: "Svenska (Swedish)" },
+  { value: "Swedish", "label": "Svenska (Swedish)" },
   { value: "Tamil", label: "தமிழ் (Tamil)" },
   { value: "Telugu", label: "తెలుగు (Telugu)" },
   { value: "Thai", label: "ไทย (Thai)" },
@@ -89,7 +92,6 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
 ].sort((a, b) => a.label.localeCompare(b.label));
 
 const TONES = ["Default", "Funny", "Professional", "Inspirational", "Casual", "Poetic", "Witty", "Sarcastic"];
-
 
 const fileToDataUri = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -104,12 +106,6 @@ const fileToDataUri = (file: File): Promise<string> => {
 
 type AppMediaType = 'image' | 'video' | 'image_collection';
 
-interface StoredUserDetails {
-  name: string;
-  email: string;
-  phone: string;
-}
-
 const LoadingFallback = () => (
   <Card className="w-full shadow-lg rounded-xl">
     <CardContent className="p-6 flex flex-col items-center justify-center">
@@ -122,6 +118,9 @@ const LoadingFallback = () => (
 export default function CaptionWiseClient() {
   const router = useRouter();
   const { toast } = useToast();
+  
+  const [imagePrompt, setImagePrompt] = useState<string>("");
+  const [isGeneratingImage, setIsGeneratingImage] = useState<boolean>(false);
 
   const [mediaFiles, setMediaFiles] = useState<File[] | null>(null);
   const [mediaSrcs, setMediaSrcs] = useState<string[] | null>(null);
@@ -150,13 +149,21 @@ export default function CaptionWiseClient() {
   const [isRefiningSongs, setIsRefiningSongs] = useState<boolean>(false);
   
   const [userDetails, setUserDetails] = useState<StoredUserDetails | null>(null);
+  
+  const [history, setHistory] = useState<GenerationHistoryItem[]>([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  
+  const [activeAudio, setActiveAudio] = useState<HTMLAudioElement | null>(null);
+  const [playingCaption, setPlayingCaption] = useState<string | null>(null);
+
 
   useEffect(() => {
-    // This effect runs on the client after mount to safely access localStorage
     try {
       const storedUser = localStorage.getItem('caption-wise-user');
       if (storedUser) {
-        setUserDetails(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        setUserDetails(parsedUser);
+        saveUser(parsedUser); // Save to Firestore on initial load
       }
     } catch (error) {
       console.error("Could not parse data from localStorage:", error);
@@ -180,8 +187,8 @@ export default function CaptionWiseClient() {
       });
     }
   };
-
-  const resetSuggestionsAndMedia = () => {
+  
+  const resetSuggestions = () => {
     setSuggestedCaptions(null);
     setRefinedCaptions(null);
     setCaptionFeedback("");
@@ -189,13 +196,22 @@ export default function CaptionWiseClient() {
     setRefinedSongSuggestions(null);
     setSongFeedback("");
     setArtistPreference("");
-    setMediaFiles(null);
-    setMediaSrcs(null);
-    setMediaType(null);
     setMediaVibe(null);
     setSuggestedHashtags(null);
     setSelectedTone("Default");
-  };
+  }
+
+  const resetMedia = () => {
+      setMediaFiles(null);
+      setMediaSrcs(null);
+      setMediaType(null);
+      setImagePrompt("");
+  }
+  
+  const resetAll = () => {
+    resetSuggestions();
+    resetMedia();
+  }
 
   const handleLanguageChange = (languageValue: string) => {
     setSelectedLanguages(prev => {
@@ -222,6 +238,33 @@ export default function CaptionWiseClient() {
       return newSelection;
     });
   };
+  
+  const handleGenerateImage = async () => {
+    if (!imagePrompt) {
+        toast({ variant: "destructive", title: "Prompt Missing", description: "Please enter a prompt to generate an image." });
+        return;
+    }
+    resetAll();
+    setIsGeneratingImage(true);
+
+    try {
+        const input: GenerateImageInput = { prompt: imagePrompt };
+        const result = await generateImage(input);
+        
+        setMediaSrcs([result.imageDataUri]);
+        setMediaType('image');
+        toast({ title: "Image Generated!", description: "Now generating suggestions..." });
+        
+        handleVibeAnalysis([result.imageDataUri], 'image');
+        await handleSuggestCaptionsAndSongs([result.imageDataUri], 'image', [...new Set([...selectedLanguages, ...selectedSongLanguages])]);
+    } catch (error: any) {
+        console.error("Error generating image:", error);
+        toast({ variant: "destructive", title: "Image Generation Failed", description: "Could not generate the image. " + error.message });
+        resetAll();
+    } finally {
+        setIsGeneratingImage(false);
+    }
+  };
 
 
   const handleMediaUpload = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -231,18 +274,13 @@ export default function CaptionWiseClient() {
       return;
     }
 
-    if (selectedLanguages.length === 0) {
-      toast({ variant: "destructive", title: "Language Missing", description: "Please select at least one language for captions before uploading media." });
+    if (selectedLanguages.length === 0 || selectedSongLanguages.length === 0) {
+      toast({ variant: "destructive", title: "Language(s) Missing", description: "Please select at least one language for captions and songs before uploading." });
       if (event.target) event.target.value = ''; 
       return;
     }
-    if (selectedSongLanguages.length === 0) {
-      toast({ variant: "destructive", title: "Song Language Missing", description: "Please select at least one language for songs before uploading media." });
-      if (event.target) event.target.value = '';
-      return;
-    }
-
-    resetSuggestionsAndMedia(); 
+    
+    resetAll(); 
     
     const uploadedFiles = Array.from(files);
     let filesToProcess = uploadedFiles;
@@ -267,19 +305,14 @@ export default function CaptionWiseClient() {
       } else if (singleFile.type.startsWith('video/')) {
         currentMediaType = 'video'; 
       } else {
-        toast({ variant: "destructive", title: "Invalid File Type", description: "Please select an image file (up to 50 if multiple) or a single video file (up to 2GB)." });
+        toast({ variant: "destructive", title: "Invalid File Type", description: "Please select an image file (up to 50 if multiple) or a single video file." });
         if (event.target) event.target.value = '';
-        setMediaFiles(null); 
-        setMediaSrcs(null);
-        setMediaType(null);
+        resetMedia();
         return; 
       }
     } else { 
-      toast({ variant: "destructive", title: "No Processable Files", description: "No valid files were found in your selection." });
       if (event.target) event.target.value = '';
-      setMediaFiles(null); 
-      setMediaSrcs(null);
-      setMediaType(null);
+      resetMedia();
       return; 
     }
     
@@ -293,16 +326,14 @@ export default function CaptionWiseClient() {
       await handleSuggestCaptionsAndSongs(dataUris, currentMediaType, [...new Set([...selectedLanguages, ...selectedSongLanguages])]);
     } catch (error: any) {
       console.error("Error during media processing or initial AI suggestion phase:", error);
-      let description = "Could not process the uploaded files. The file(s) might be too large, corrupted, or the server encountered an issue.";
-      if (error && error.message && (error.message.toLowerCase().includes("unexpected response") || error.message.toLowerCase().includes("failed to fetch"))) {
-        description = "The server had an issue processing your request, possibly due to request size or network problem. Please try fewer/smaller files. Check console for details."
-      } else if (error && error.message) {
-        description = `File processing error: ${error.message}. Check console for details.`;
+      let description = "Could not process the uploaded files.";
+       if (error?.message?.toLowerCase().includes("failed to fetch")) {
+        description = "The server had an issue processing your request, possibly due to request size. Please try fewer/smaller files."
+      } else if (error?.message) {
+        description = `File processing error: ${error.message}.`;
       }
       toast({ variant: "destructive", title: "File Processing Error", description });
-      
-      resetSuggestionsAndMedia();
-
+      resetAll();
       if (event.target) event.target.value = '';
     }
   };
@@ -328,9 +359,7 @@ export default function CaptionWiseClient() {
       return;
     }
     setIsSuggesting(true);
-    setSuggestedCaptions(null);
-    setSuggestedSongs(null);
-    setSuggestedHashtags(null);
+    resetSuggestions();
 
     try {
       const input: SuggestMediaCaptionsInput = { mediaDataUris: dataUris, mediaType: currentMediaType, targetLanguages: targetLanguagesForSuggestions };
@@ -339,56 +368,38 @@ export default function CaptionWiseClient() {
       const newSuggestedCaptions: MediaSuggestions = {};
       const newSuggestedSongs: MediaSuggestions = {};
       const newSuggestedHashtags: MediaSuggestions = {};
-
-      let hasAnyCaptions = false;
-      let hasAnySongs = false;
-      let hasAnyHashtags = false;
-
+      
       result.languageEntries?.forEach((entry: LanguageSuggestionEntry) => {
-        if (entry.language && entry.captions && entry.captions.length > 0) {
-          newSuggestedCaptions[entry.language] = entry.captions;
-          hasAnyCaptions = true;
-        }
-        if (entry.language && entry.songSuggestions && entry.songSuggestions.length > 0) {
-          newSuggestedSongs[entry.language] = entry.songSuggestions;
-          hasAnySongs = true;
-        }
-        if (entry.language && entry.hashtags && entry.hashtags.length > 0) {
-            newSuggestedHashtags[entry.language] = entry.hashtags;
-            hasAnyHashtags = true;
+        if (entry.language) {
+          if (entry.captions?.length > 0) newSuggestedCaptions[entry.language] = entry.captions;
+          if (entry.songSuggestions?.length > 0) newSuggestedSongs[entry.language] = entry.songSuggestions;
+          if (entry.hashtags?.length > 0) newSuggestedHashtags[entry.language] = entry.hashtags;
         }
       });
-
-      setSuggestedCaptions(hasAnyCaptions ? newSuggestedCaptions : null);
-      setSuggestedSongs(hasAnySongs ? newSuggestedSongs : null);
-      setSuggestedHashtags(hasAnyHashtags ? newSuggestedHashtags : null);
       
-      const mediaTypeName = currentMediaType === 'image_collection' ? 'images' : currentMediaType;
-      if (!hasAnyCaptions && !hasAnySongs && !hasAnyHashtags) {
-        toast({ title: "No suggestions generated", description: `The AI could not suggest captions, songs, or hashtags for the uploaded ${mediaTypeName} in the selected languages.` });
-      } else {
-        if (!hasAnyCaptions) {
-          toast({ title: "No captions suggested", description: `The AI could not suggest captions for the ${mediaTypeName}.` });
-        } 
-        if (!hasAnySongs) {
-           toast({ title: "No songs suggested", description: `The AI could not suggest songs for the ${mediaTypeName}.` });
-        }
-        if (!hasAnyHashtags) {
-            toast({ title: "No hashtags suggested", description: `The AI could not suggest hashtags for the ${mediaTypeName}.` });
-         }
+      setSuggestedCaptions(Object.keys(newSuggestedCaptions).length > 0 ? newSuggestedCaptions : null);
+      setSuggestedSongs(Object.keys(newSuggestedSongs).length > 0 ? newSuggestedSongs : null);
+      setSuggestedHashtags(Object.keys(newSuggestedHashtags).length > 0 ? newSuggestedHashtags : null);
+      
+      // Save to history
+      if (userDetails?.email && (Object.keys(newSuggestedCaptions).length > 0 || Object.keys(newSuggestedSongs).length > 0)) {
+        const historyItem: Omit<GenerationHistoryItem, 'id' | 'timestamp'> = {
+            userEmail: userDetails.email,
+            mediaSrcs: dataUris,
+            mediaType: currentMediaType,
+            vibe: mediaVibe,
+            suggestions: {
+                captions: newSuggestedCaptions,
+                songs: newSuggestedSongs,
+                hashtags: newSuggestedHashtags,
+            },
+        };
+        await saveGeneration(historyItem);
       }
 
     } catch (error: any) {
-      console.error("Error in handleSuggestCaptionsAndSongs calling suggestMediaCaptions flow:", error);
-      const mediaTypeName = currentMediaType === 'image_collection' ? 'images' : currentMediaType || 'media';
-      let description = `Failed to suggest captions or songs for the ${mediaTypeName}.`;
-      if (error && error.message && (error.message.toLowerCase().includes("unexpected response") || error.message.toLowerCase().includes("failed to fetch"))) {
-        description += ` The server may be overloaded or the request too large. Try fewer/smaller files. Server said: ${error.message}.`;
-      } else if (error && error.message) {
-        description += ` Server said: ${error.message}.`;
-      }
-      description += " Please check the console for full details.";
-      toast({ variant: "destructive", title: "Suggestion Error", description });
+      console.error("Error suggesting captions/songs:", error);
+      toast({ variant: "destructive", title: "Suggestion Error", description: `Failed to get suggestions. ${error.message}` });
     } finally {
       setIsSuggesting(false);
     }
@@ -404,260 +415,148 @@ export default function CaptionWiseClient() {
   const prepareCaptionsForRefinement = (sourceCaptions: string[] | undefined): string[] => {
     const placeholders = ["Please refine this caption.", "Consider this alternative.", "Add more detail here.", "How about this style?"];
     let captions = sourceCaptions ? [...sourceCaptions] : [];
-    
     if (captions.length === 0) return placeholders; 
-    if (captions.length > 4) return captions.slice(0, 4);
-    
-    while (captions.length < 4) {
-      captions.push(captions[captions.length - 1] || placeholders[captions.length % placeholders.length]);
-    }
-    return captions;
+    while (captions.length < 4) captions.push(captions[captions.length - 1]);
+    return captions.slice(0, 4);
   };
 
   const prepareSongsForRefinement = (sourceSongs: string[] | undefined): string[] => {
     const placeholders = ["Please suggest a song.", "Please suggest another song."];
     let songs = sourceSongs ? [...sourceSongs] : [];
-
     if (songs.length === 0) return placeholders; 
-    if (songs.length > 2) return songs.slice(0, 2);
-
-    while (songs.length < 2) {
-      songs.push(songs[songs.length - 1] || placeholders[songs.length % placeholders.length]);
-    }
-    return songs;
+    while (songs.length < 2) songs.push(songs[songs.length - 1]);
+    return songs.slice(0, 2);
   };
 
-
   const handleRefineCaptions = async () => {
-    const hasAnyCaptionsToRefine =
-      (suggestedCaptions && Object.values(suggestedCaptions).some(c => c?.length > 0)) ||
-      (refinedCaptions && Object.values(refinedCaptions).some(c => c?.length > 0));
-
-    if (
-      !mediaSrcs ||
-      mediaSrcs.length === 0 ||
-      !hasAnyCaptionsToRefine ||
-      !captionFeedback ||
-      !mediaType ||
-      selectedLanguages.length === 0
-    ) {
-      toast({
-        variant: 'destructive',
-        title: 'Refinement Error',
-        description:
-          'Missing media, captions to refine, feedback, or selected languages.',
-      });
+    const hasAnyCaptionsToRefine = (suggestedCaptions && Object.values(suggestedCaptions).some(c => c?.length > 0)) || (refinedCaptions && Object.values(refinedCaptions).some(c => c?.length > 0));
+    if (!mediaSrcs || !mediaType || !hasAnyCaptionsToRefine || !captionFeedback || selectedLanguages.length === 0) {
+      toast({ variant: 'destructive', title: 'Refinement Error', description: 'Missing media, initial captions, feedback, or selected languages.' });
       return;
     }
     setIsRefiningCaptions(true);
     setRefinedCaptions(null); 
 
-    const mediaDesc = getMediaDescriptionForRefinementFlow();
-    
-    const initialCaptionEntriesForRefinement = selectedLanguages
-      .map(lang => {
-        const sourceCaptions = (refinedCaptions && refinedCaptions[lang] && refinedCaptions[lang].length > 0) 
-                             ? refinedCaptions[lang] 
-                             : suggestedCaptions?.[lang];
-        const preparedCaptions = prepareCaptionsForRefinement(sourceCaptions);
-        return { language: lang, captions: preparedCaptions };
-      })
-      .filter(entry => entry.captions.length === 4) as { language: string; captions: string[] }[];
-
-
-    if (initialCaptionEntriesForRefinement.length === 0) {
-      toast({ variant: "destructive", title: "Error", description: "No valid initial captions found for selected languages to refine (must be 4 per language)." });
-      setIsRefiningCaptions(false);
-      return;
-    }
+    const initialCaptionEntries = selectedLanguages.map(lang => ({
+        language: lang,
+        captions: prepareCaptionsForRefinement((refinedCaptions || suggestedCaptions)?.[lang]),
+    }));
 
     try {
       const captionInput: RefineMediaCaptionsInput = {
         mediaDataUris: mediaSrcs,
         mediaType: mediaType,
-        mediaDescription: mediaDesc,
-        initialCaptionEntries: initialCaptionEntriesForRefinement,
+        mediaDescription: getMediaDescriptionForRefinementFlow(),
+        initialCaptionEntries,
         userFeedback: captionFeedback,
         tone: selectedTone === 'Default' ? undefined : selectedTone,
         targetLanguages: selectedLanguages,
       };
-      const captionResult: RefineMediaCaptionsOutput = await refineMediaCaptions(captionInput);
+      const captionResult = await refineMediaCaptions(captionInput);
 
       const newRefinedCaptions: MediaSuggestions = {};
-      let hasAnyRefinedCaptions = false;
       captionResult.refinedLanguageEntries?.forEach((entry: RefinedLanguageCaptionEntry) => {
-        if (entry.language && entry.refinedCaptions && entry.refinedCaptions.length > 0) {
-          newRefinedCaptions[entry.language] = entry.refinedCaptions;
-          hasAnyRefinedCaptions = true;
-        }
+        if (entry.language && entry.refinedCaptions?.length > 0) newRefinedCaptions[entry.language] = entry.refinedCaptions;
       });
 
-      if (hasAnyRefinedCaptions) {
+      if (Object.keys(newRefinedCaptions).length > 0) {
         setRefinedCaptions(newRefinedCaptions);
-        toast({ title: "Captions Refined!", description: "New captions generated. Attempting to refine songs as well..." });
-
-        const hasAnySongsToAutoRefine = (suggestedSongs && Object.values(suggestedSongs).some(s => s?.length > 0)) || (refinedSongSuggestions && Object.values(refinedSongSuggestions).some(s => s?.length > 0));
-
-        if (hasAnySongsToAutoRefine && mediaType && selectedSongLanguages.length > 0 && mediaSrcs && mediaSrcs.length > 0) {
-          setIsRefiningSongs(true); 
-          setRefinedSongSuggestions(null); 
-          
-          const songRefinementMediaDesc = getMediaDescriptionForRefinementFlow();
-
-          const initialSongEntriesForSongRefinement = selectedSongLanguages
-            .map(lang => {
-              const sourceSongs = (refinedSongSuggestions && refinedSongSuggestions[lang] && refinedSongSuggestions[lang].length > 0) 
-                                ? refinedSongSuggestions[lang] 
-                                : suggestedSongs?.[lang];
-              const preparedSongs = prepareSongsForRefinement(sourceSongs);
-              return { language: lang, songSuggestions: preparedSongs };
-            })
-            .filter(entry => entry.songSuggestions.length === 2) as { language: string; songSuggestions: string[] }[];
-
-
-          if (initialSongEntriesForSongRefinement.length === 0) {
-             toast({ title: "Song Refinement Skipped", description: "No valid initial song suggestions found for selected song languages to refine (must be 2 per language)." });
-             setIsRefiningSongs(false);
-          } else {
-            try {
-              const songInput: RefineSongSuggestionsInput = {
-                mediaDataUris: mediaSrcs,
-                mediaType: mediaType,
-                mediaDescription: songRefinementMediaDesc, 
-                initialSongEntries: initialSongEntriesForSongRefinement,
-                userFeedback: songFeedback || "Make them match the vibe of the refined captions.", 
-                artistPreference: artistPreference,
-                targetLanguages: selectedSongLanguages,
-              };
-              const songResult: RefineSongSuggestionsOutput = await refineSongSuggestions(songInput);
-              
-              const newRefinedSongs: MediaSuggestions = {};
-              let hasAnyRefinedSongs = false;
-              songResult.refinedLanguageSongEntries?.forEach((entry: RefinedLanguageSongEntry) => {
-                if (entry.language && entry.refinedSongSuggestions && entry.refinedSongSuggestions.length > 0) {
-                  newRefinedSongs[entry.language] = entry.refinedSongSuggestions;
-                  hasAnyRefinedSongs = true;
-                }
-              });
-              setRefinedSongSuggestions(hasAnyRefinedSongs ? newRefinedSongs : null);
-              
-              if (!hasAnyRefinedSongs) {
-                toast({ title: "No songs automatically refined", description: "The AI could not refine song suggestions based on the new captions and song feedback." });
-              } else {
-                toast({ title: "Song Suggestions Also Refined!", description: "New song suggestions generated using refined captions and your song feedback." });
-              }
-            } catch (songError: any) {
-              console.error("Error in handleRefineCaptions calling refineSongSuggestions flow (auto-refine):", songError);
-              let description = "Failed to automatically refine song suggestions.";
-              if (songError && songError.message && (songError.message.toLowerCase().includes("unexpected response") || songError.message.toLowerCase().includes("failed to fetch"))) {
-                description += ` The server may be overloaded or the request too large. Try fewer/smaller files. Server said: ${songError.message}.`;
-              } else if (songError && songError.message) {
-                description += ` Server said: ${songError.message}.`;
-              }
-              description += " Please check the console for full details.";
-              toast({ variant: "destructive", title: "Song Refinement Error", description });
-            } finally {
-              setIsRefiningSongs(false); 
-            }
-          }
-        }
+        toast({ title: "Captions Refined!", description: "New captions generated. Now auto-refining songs..." });
+        await handleAutoRefineSongs();
       } else {
         toast({ title: "No captions refined", description: "The AI could not refine captions based on your feedback." });
       }
     } catch (error: any) {
-      console.error("Error in handleRefineCaptions calling refineMediaCaptions flow:", error);
-      let description = "Failed to refine captions.";
-      if (error && error.message && (error.message.toLowerCase().includes("unexpected response") || error.message.toLowerCase().includes("failed to fetch"))) {
-        description += ` The server may be overloaded or the request too large. Try fewer/smaller files. Server said: ${error.message}.`;
-      } else if (error && error.message) {
-        description += ` Server said: ${error.message}.`;
-      }
-      description += " Please check the console for full details.";
-      toast({ variant: "destructive", title: "Caption Refinement Error", description });
+      console.error("Error refining captions:", error);
+      toast({ variant: "destructive", title: "Caption Refinement Error", description: `Failed to refine captions. ${error.message}` });
     } finally {
-      setIsRefiningCaptions(false); 
+      setIsRefiningCaptions(false);
     }
   };
+  
+  const handleAutoRefineSongs = async () => {
+    const hasSongs = (suggestedSongs && Object.keys(suggestedSongs).length > 0) || (refinedSongSuggestions && Object.keys(refinedSongSuggestions).length > 0);
+    if (!mediaSrcs || !mediaType || !hasSongs || selectedSongLanguages.length === 0) {
+        return; // Don't auto-refine if there's nothing to work with
+    }
+    setIsRefiningSongs(true);
+    setRefinedSongSuggestions(null);
+    
+    const initialSongEntries = selectedSongLanguages.map(lang => ({
+        language: lang,
+        songSuggestions: prepareSongsForRefinement((refinedSongSuggestions || suggestedSongs)?.[lang]),
+    }));
+
+    try {
+        const songInput: RefineSongSuggestionsInput = {
+            mediaDataUris: mediaSrcs,
+            mediaType: mediaType,
+            mediaDescription: getMediaDescriptionForRefinementFlow(),
+            initialSongEntries,
+            userFeedback: songFeedback || "Make them match the vibe of the refined captions.", 
+            artistPreference,
+            targetLanguages: selectedSongLanguages,
+        };
+        const songResult = await refineSongSuggestions(songInput);
+        const newRefinedSongs: MediaSuggestions = {};
+        songResult.refinedLanguageSongEntries?.forEach((entry) => {
+            if (entry.language && entry.refinedSongSuggestions?.length > 0) newRefinedSongs[entry.language] = entry.refinedSongSuggestions;
+        });
+
+        if (Object.keys(newRefinedSongs).length > 0) {
+          setRefinedSongSuggestions(newRefinedSongs);
+          toast({ title: "Songs Auto-Refined!", description: "New song suggestions generated to match your new captions." });
+        } else {
+          toast({ title: "Songs Not Auto-Refined", description: "Could not automatically refine songs." });
+        }
+    } catch(error: any) {
+        console.error("Error auto-refining songs:", error);
+        toast({ variant: "destructive", title: "Song Auto-Refine Error", description: `Failed to refine songs automatically. ${error.message}` });
+    } finally {
+        setIsRefiningSongs(false);
+    }
+  }
 
   const handleRefineSongs = async () => {
-    const hasAnySongsToRefine =
-      (suggestedSongs && Object.values(suggestedSongs).some(s => s?.length > 0)) ||
-      (refinedSongSuggestions && Object.values(refinedSongSuggestions).some(s => s?.length > 0));
-
-    if (
-      !mediaSrcs ||
-      mediaSrcs.length === 0 ||
-      !hasAnySongsToRefine ||
-      !songFeedback ||
-      !mediaType ||
-      selectedSongLanguages.length === 0
-    ) {
-      toast({
-        variant: 'destructive',
-        title: 'Refinement Error',
-        description:
-          'Missing media, song suggestions to refine, feedback, or selected song languages.',
-      });
+    const hasAnySongsToRefine = (suggestedSongs && Object.values(suggestedSongs).some(s => s?.length > 0)) || (refinedSongSuggestions && Object.values(refinedSongSuggestions).some(s => s?.length > 0));
+    if (!mediaSrcs || !mediaType || !hasAnySongsToRefine || !songFeedback || selectedSongLanguages.length === 0) {
+      toast({ variant: 'destructive', title: 'Refinement Error', description: 'Missing media, initial songs, feedback, or selected languages.' });
       return;
     }
     setIsRefiningSongs(true);
     setRefinedSongSuggestions(null);
 
-    const initialSongEntriesForRefinement = selectedSongLanguages
-        .map(lang => {
-          const sourceSongs = (refinedSongSuggestions && refinedSongSuggestions[lang] && refinedSongSuggestions[lang].length > 0) 
-                            ? refinedSongSuggestions[lang] 
-                            : suggestedSongs?.[lang];
-          const preparedSongs = prepareSongsForRefinement(sourceSongs);
-          return { language: lang, songSuggestions: preparedSongs };
-        })
-        .filter(entry => entry.songSuggestions.length === 2) as { language: string; songSuggestions: string[] }[];
-
-
-    if (initialSongEntriesForRefinement.length === 0) {
-      toast({ variant: "destructive", title: "Error", description: "No valid initial song suggestions found for selected song languages to refine (must be 2 per language)." });
-      setIsRefiningSongs(false);
-      return;
-    }
+    const initialSongEntries = selectedSongLanguages.map(lang => ({
+        language: lang,
+        songSuggestions: prepareSongsForRefinement((refinedSongSuggestions || suggestedSongs)?.[lang]),
+    }));
     
     try {
-      const mediaDesc = getMediaDescriptionForRefinementFlow();
       const input: RefineSongSuggestionsInput = {
         mediaDataUris: mediaSrcs,
         mediaType: mediaType,
-        mediaDescription: mediaDesc,
-        initialSongEntries: initialSongEntriesForRefinement,
+        mediaDescription: getMediaDescriptionForRefinementFlow(),
+        initialSongEntries,
         userFeedback: songFeedback,
         artistPreference: artistPreference,
         targetLanguages: selectedSongLanguages,
       };
-      const result: RefineSongSuggestionsOutput = await refineSongSuggestions(input);
+      const result = await refineSongSuggestions(input);
       
       const newRefinedSongs: MediaSuggestions = {};
-      let hasAnyRefinedSongs = false;
-      result.refinedLanguageSongEntries?.forEach((entry: RefinedLanguageSongEntry) => {
-        if (entry.language && entry.refinedSongSuggestions && entry.refinedSongSuggestions.length > 0) {
-          newRefinedSongs[entry.language] = entry.refinedSongSuggestions;
-          hasAnyRefinedSongs = true;
-        }
+      result.refinedLanguageSongEntries?.forEach((entry) => {
+        if (entry.language && entry.refinedSongSuggestions?.length > 0) newRefinedSongs[entry.language] = entry.refinedSongSuggestions;
       });
-      setRefinedSongSuggestions(hasAnyRefinedSongs ? newRefinedSongs : null);
 
-      if (!hasAnyRefinedSongs) {
-        toast({ title: "No songs refined", description: "The AI could not refine song suggestions based on your feedback." });
-      } else {
+      if (Object.keys(newRefinedSongs).length > 0) {
+        setRefinedSongSuggestions(newRefinedSongs);
         toast({ title: "Song Suggestions Refined!", description: "New song suggestions generated based on your feedback." });
+      } else {
+        toast({ title: "No songs refined", description: "The AI could not refine song suggestions based on your feedback." });
       }
     } catch (error: any) {
-      console.error("Error in handleRefineSongs calling refineSongSuggestions flow:", error);
-      let description = "Failed to refine song suggestions.";
-      if (error && error.message && (error.message.toLowerCase().includes("unexpected response") || error.message.toLowerCase().includes("failed to fetch"))) {
-        description += ` The server may be overloaded or the request too large. Try fewer/smaller files. Server said: ${error.message}.`;
-      } else if (error && error.message) {
-        description += ` Server said: ${error.message}.`;
-      }
-      description += " Please check the console for full details.";
-      toast({ variant: "destructive", title: "Song Refinement Error", description });
+      console.error("Error refining songs:", error);
+      toast({ variant: "destructive", title: "Song Refinement Error", description: `Failed to refine songs. ${error.message}` });
     } finally {
       setIsRefiningSongs(false);
     }
@@ -669,6 +568,62 @@ export default function CaptionWiseClient() {
       .then(() => toast({ title: "Copied!", description: `${type} copied to clipboard.` }))
       .catch(() => toast({ variant: "destructive", title: "Error", description: `Failed to copy ${type}.` }));
   };
+  
+  const handlePlayAudio = async (caption: string, language: string) => {
+    if (playingCaption === caption) {
+        activeAudio?.pause();
+        setPlayingCaption(null);
+        return;
+    }
+    
+    setPlayingCaption(caption); // Indicate loading
+    if (activeAudio) activeAudio.pause();
+
+    try {
+        const { audioDataUri } = await textToSpeech({ text: caption });
+        const audio = new Audio(audioDataUri);
+        setActiveAudio(audio);
+        audio.play();
+        audio.onended = () => {
+            setPlayingCaption(null);
+            setActiveAudio(null);
+        };
+    } catch (error: any) {
+        console.error("Error with TTS:", error);
+        toast({ variant: "destructive", title: "Audio Error", description: "Could not play audio for this caption."});
+        setPlayingCaption(null);
+    }
+  }
+  
+  const handleOpenHistory = async () => {
+    if (userDetails?.email) {
+      const userHistory = await getGenerations(userDetails.email);
+      setHistory(userHistory);
+      setIsHistoryOpen(true);
+    }
+  };
+
+  const handleLoadHistoryItem = (item: GenerationHistoryItem) => {
+    resetAll();
+    setMediaSrcs(item.mediaSrcs);
+    setMediaType(item.mediaType);
+    setMediaVibe(item.vibe);
+
+    const captions = item.suggestions.captions || null;
+    const songs = item.suggestions.songs || null;
+    const hashtags = item.suggestions.hashtags || null;
+    
+    setSuggestedCaptions(captions);
+    setSuggestedSongs(songs);
+    setSuggestedHashtags(hashtags);
+
+    if (captions) setSelectedLanguages(Object.keys(captions));
+    if (songs) setSelectedSongLanguages(Object.keys(songs));
+
+    setIsHistoryOpen(false);
+    toast({ title: "History Loaded", description: "Previous session has been restored." });
+  };
+
 
   const CaptionDisplayCardRenderer: React.FC<{ caption: string; language: string }> = ({ caption, language }) => (
     <div className="p-3 border rounded-md bg-card flex justify-between items-center gap-2 shadow-sm">
@@ -676,9 +631,14 @@ export default function CaptionWiseClient() {
         <p className="text-xs text-muted-foreground font-semibold">{PREDEFINED_LANGUAGES.find(l=>l.value === language)?.label || language}</p>
         <p className="text-sm text-card-foreground">{caption}</p>
       </div>
-      <Button variant="ghost" size="icon" onClick={() => handleCopyText(caption, `${language} Caption`)} aria-label={`Copy ${language} caption`}>
-        <Copy className="h-4 w-4" />
-      </Button>
+      <div className="flex items-center">
+        <Button variant="ghost" size="icon" onClick={() => handlePlayAudio(caption, language)} aria-label={`Listen to ${language} caption`} disabled={playingCaption === caption}>
+            {playingCaption === caption ? <Loader2 className="h-4 w-4 animate-spin" /> : <Volume2 className="h-4 w-4" />}
+        </Button>
+        <Button variant="ghost" size="icon" onClick={() => handleCopyText(caption, `${language} Caption`)} aria-label={`Copy ${language} caption`}>
+            <Copy className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 
@@ -725,6 +685,14 @@ export default function CaptionWiseClient() {
               />
             </DialogContent>
           </Dialog>
+          <HistoryDialog
+            isOpen={isHistoryOpen}
+            onOpenChange={setIsHistoryOpen}
+            history={history}
+            onLoadHistory={handleLoadHistoryItem}
+            onOpen={handleOpenHistory}
+            PREDEFINED_LANGUAGES={PREDEFINED_LANGUAGES}
+          />
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="outline" size="icon" aria-label="View user profile">
@@ -768,10 +736,59 @@ export default function CaptionWiseClient() {
 
       <main className="w-full max-w-2xl flex flex-col gap-8 items-center">
         <Card className="w-full shadow-lg rounded-xl">
+           <CardHeader>
+             <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
+              <SparklesLucideIcon className="h-6 w-6 text-primary" />
+              1. Create Your Content
+            </CardTitle>
+            <CardDescription>Generate an image with AI or upload your own media to get started.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="generate" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="generate"><ImageIcon className="mr-2 h-4 w-4"/>Generate Image</TabsTrigger>
+                <TabsTrigger value="upload"><UploadCloud className="mr-2 h-4 w-4"/>Upload Media</TabsTrigger>
+              </TabsList>
+              <TabsContent value="generate" className="pt-6">
+                <div className="space-y-4">
+                    <Label htmlFor="image-prompt" className="font-semibold">Image Prompt</Label>
+                    <Textarea
+                        id="image-prompt"
+                        placeholder="e.g., A futuristic cityscape at sunset, cinematic style"
+                        value={imagePrompt}
+                        onChange={(e) => setImagePrompt(e.target.value)}
+                        disabled={isGeneratingImage}
+                    />
+                    <Button onClick={handleGenerateImage} disabled={isGeneratingImage || !imagePrompt} className="w-full">
+                        {isGeneratingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <SparklesLucideIcon className="mr-2 h-4 w-4"/>}
+                        {isGeneratingImage ? 'Generating Image...' : 'Generate with AI'}
+                    </Button>
+                </div>
+              </TabsContent>
+              <TabsContent value="upload" className="pt-6">
+                 <div className="space-y-2">
+                   <Label htmlFor="mediaUpload">Media File(s)</Label>
+                   <Input
+                      id="mediaUpload"
+                      type="file"
+                      accept="image/*,video/*"
+                      multiple 
+                      onChange={handleMediaUpload}
+                      disabled={selectedLanguages.length === 0 || selectedSongLanguages.length === 0 || isGeneratingImage}
+                      className="text-base file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                    />
+                    <p className="text-xs text-muted-foreground">Select 1-50 images, or a single video.</p>
+                 </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+        
+        <Card className="w-full shadow-lg rounded-xl">
           <CardHeader>
              <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
               <LanguagesIcon className="h-6 w-6 text-primary" />
-              1. Select Languages
+              2. Select Languages
             </CardTitle>
             <CardDescription>Choose languages for captions and song suggestions.</CardDescription>
           </CardHeader>
@@ -800,76 +817,69 @@ export default function CaptionWiseClient() {
             </Tabs>
           </CardContent>
         </Card>
-
-        <Card className="w-full shadow-lg rounded-xl">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
-              <UploadCloud className="h-6 w-6 text-primary" />
-              2. Upload Your Media
-            </CardTitle>
-            <CardDescription>Select 1-50 images, or a single video (up to 2GB). Suggestions will be generated for all languages chosen for captions and songs.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Input
-              id="mediaUpload"
-              type="file"
-              accept="image/*,video/*"
-              multiple 
-              onChange={handleMediaUpload}
-              disabled={selectedLanguages.length === 0 || selectedSongLanguages.length === 0}
-              className="text-base file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-            />
-            {mediaSrcs && mediaSrcs.length > 0 && (
-              <div className="mt-6 border rounded-lg overflow-hidden shadow-md bg-muted/20">
-                {mediaSrcs.length > 1 && mediaType === 'image_collection' ? (
-                  <div className="flex space-x-2 overflow-x-auto p-2">
-                    {mediaSrcs.map((src, index) => (
-                      <Image 
-                        key={index} 
-                        src={src} 
-                        alt={`Uploaded image ${index + 1}`} 
-                        width={150} 
-                        height={100} 
-                        className="object-contain rounded-md h-24 w-auto" 
-                        data-ai-hint="uploaded image" 
-                      />
-                    ))}
-                  </div>
-                ) : mediaSrcs.length === 1 && mediaSrcs[0] && (
-                  <>
-                    {mediaType === 'image' && (
-                      <Image src={mediaSrcs[0]} alt="Uploaded image preview" width={600} height={400} className="w-full h-auto object-contain" data-ai-hint="uploaded image" />
+        
+        {(isSuggesting || isGeneratingImage || mediaSrcs) && (
+            <Card className="w-full shadow-lg rounded-xl">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
+                    <Images className="h-6 w-6 text-primary" />
+                    3. Your Media & Vibe
+                </CardTitle>
+                <CardDescription>This is the content the AI will generate suggestions for.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {mediaSrcs && mediaSrcs.length > 0 && (
+                  <div className="mt-6 border rounded-lg overflow-hidden shadow-md bg-muted/20">
+                    {mediaSrcs.length > 1 && mediaType === 'image_collection' ? (
+                      <div className="flex space-x-2 overflow-x-auto p-2">
+                        {mediaSrcs.map((src, index) => (
+                          <Image 
+                            key={index} 
+                            src={src} 
+                            alt={`Uploaded image ${index + 1}`} 
+                            width={150} 
+                            height={100} 
+                            className="object-contain rounded-md h-24 w-auto" 
+                            data-ai-hint="uploaded image" 
+                          />
+                        ))}
+                      </div>
+                    ) : mediaSrcs.length === 1 && mediaSrcs[0] && (
+                      <>
+                        {mediaType === 'image' && (
+                          <Image src={mediaSrcs[0]} alt="Uploaded image preview" width={600} height={400} className="w-full h-auto object-contain" data-ai-hint="uploaded image" />
+                        )}
+                        {mediaType === 'video' && (
+                          <video src={mediaSrcs[0]} controls className="w-full h-auto max-h-[400px] object-contain rounded-lg" data-ai-hint="uploaded video">
+                            Your browser does not support the video tag.
+                          </video>
+                        )}
+                      </>
                     )}
-                    {mediaType === 'video' && (
-                      <video src={mediaSrcs[0]} controls className="w-full h-auto max-h-[400px] object-contain rounded-lg" data-ai-hint="uploaded video">
-                        Your browser does not support the video tag.
-                      </video>
-                    )}
-                  </>
-                )}
-                 {(isAnalyzingVibe || mediaVibe) && (
-                  <div className="p-4 bg-background border-t">
-                    {isAnalyzingVibe && (
-                       <div className="flex items-center text-sm text-muted-foreground">
-                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                         Analyzing vibe...
-                       </div>
-                    )}
-                    {mediaVibe && !isAnalyzingVibe && (
-                      <div className="flex items-start text-sm">
-                        <Feather className="h-5 w-5 mr-3 mt-0.5 text-primary"/>
-                        <div>
-                          <p className="font-semibold text-foreground">The Vibe</p>
-                          <p className="text-muted-foreground">{mediaVibe}</p>
-                        </div>
+                     {(isAnalyzingVibe || mediaVibe) && (
+                      <div className="p-4 bg-background border-t">
+                        {isAnalyzingVibe && (
+                           <div className="flex items-center text-sm text-muted-foreground">
+                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                             Analyzing vibe...
+                           </div>
+                        )}
+                        {mediaVibe && !isAnalyzingVibe && (
+                          <div className="flex items-start text-sm">
+                            <Feather className="h-5 w-5 mr-3 mt-0.5 text-primary"/>
+                            <div>
+                              <p className="font-semibold text-foreground">The Vibe</p>
+                              <p className="text-muted-foreground">{mediaVibe}</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
                 )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+        )}
 
         {isSuggesting && (
           <Card className="w-full shadow-lg rounded-xl">
@@ -925,7 +935,7 @@ export default function CaptionWiseClient() {
             <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
                     <Hash className="h-6 w-6 text-primary" />
-                    4. AI-Suggested Hashtags
+                    5. AI-Suggested Hashtags
                 </CardTitle>
                 <CardDescription>Hashtags for your selected caption languages. Click to copy.</CardDescription>
             </CardHeader>

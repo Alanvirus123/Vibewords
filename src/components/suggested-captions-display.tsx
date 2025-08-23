@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, RefreshCw, Edit3, Images, Film } from "lucide-react"; 
+import { Loader2, RefreshCw, Edit3, Images, Film, Text } from "lucide-react"; 
 import type { MediaSuggestions, LanguageOption } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -42,12 +42,6 @@ const SuggestedCaptionsDisplay: React.FC<SuggestedCaptionsDisplayProps> = ({
   setSelectedTone,
   tones,
 }) => {
-  const getMediaTypeIcon = () => {
-    if (mediaType === 'image_collection') return <Images className="h-6 w-6 text-primary" />;
-    if (mediaType === 'video') return <Film className="h-6 w-6 text-primary" />;
-    return <Edit3 className="h-6 w-6 text-primary" />; 
-  };
-  
   const getMediaTypeName = () => {
     if (mediaType === 'image_collection') return 'your images';
     if (mediaType === 'video') return 'your video';
@@ -58,10 +52,10 @@ const SuggestedCaptionsDisplay: React.FC<SuggestedCaptionsDisplayProps> = ({
     <Card className="w-full shadow-lg rounded-xl">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
-          {getMediaTypeIcon()}
-          3. AI-Suggested Captions
+          <Text className="h-6 w-6 text-primary" />
+          4. AI-Suggested Captions
         </CardTitle>
-        <CardDescription>Here are captions for {getMediaTypeName()}. Copy or refine them (refining captions also refines songs).</CardDescription>
+        <CardDescription>Here are captions for {getMediaTypeName()}. Listen, copy, or refine them (refining captions also auto-refines songs).</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {suggestedCaptions && selectedLanguages.map(language => (

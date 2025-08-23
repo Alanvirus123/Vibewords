@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { saveUser } from '@/services/firebase';
 
 // Schema for the user details form
 const detailsSchema = z.object({
@@ -56,13 +57,19 @@ export default function LoginForm() {
   };
 
   // Handle verification of the OTP
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (otpInput === MOCK_OTP) {
       if (userDetails) {
-        localStorage.setItem('caption-wise-user', JSON.stringify(userDetails));
-        toast({ title: "Success!", description: "You have been logged in." });
-        router.push('/');
+        try {
+          await saveUser(userDetails); // Save user to Firestore
+          localStorage.setItem('caption-wise-user', JSON.stringify(userDetails));
+          toast({ title: "Success!", description: "You have been logged in." });
+          router.push('/');
+        } catch (error) {
+          console.error("Error saving user:", error);
+          toast({ variant: "destructive", title: "Login Error", description: "Could not save user data. Please try again." });
+        }
       }
     } else {
       toast({
