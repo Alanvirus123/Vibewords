@@ -14,7 +14,6 @@ import { suggestMediaCaptions, type SuggestMediaCaptionsInput, type SuggestMedia
 import { refineMediaCaptions, type RefineMediaCaptionsInput, type RefineMediaCaptionsOutput, type RefinedLanguageCaptionEntry } from "@/ai/flows/refine-media-captions";
 import { refineSongSuggestions, type RefineSongSuggestionsInput, type RefineSongSuggestionsOutput, type RefinedLanguageSongEntry } from "@/ai/flows/refine-song-suggestions";
 import { analyzeMediaVibe, type AnalyzeMediaVibeInput, type AnalyzeMediaVibeOutput } from "@/ai/flows/analyze-media-vibe";
-import { generateImage, type GenerateImageInput, type GenerateImageOutput } from "@/ai/flows/generate-image";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -119,9 +118,6 @@ export default function CaptionWiseClient() {
   const router = useRouter();
   const { toast } = useToast();
   
-  const [imagePrompt, setImagePrompt] = useState<string>("");
-  const [isGeneratingImage, setIsGeneratingImage] = useState<boolean>(false);
-
   const [mediaFiles, setMediaFiles] = useState<File[] | null>(null);
   const [mediaSrcs, setMediaSrcs] = useState<string[] | null>(null);
   const [mediaType, setMediaType] = useState<AppMediaType | null>(null);
@@ -205,7 +201,6 @@ export default function CaptionWiseClient() {
       setMediaFiles(null);
       setMediaSrcs(null);
       setMediaType(null);
-      setImagePrompt("");
   }
   
   const resetAll = () => {
@@ -239,34 +234,6 @@ export default function CaptionWiseClient() {
     });
   };
   
-  const handleGenerateImage = async () => {
-    if (!imagePrompt) {
-        toast({ variant: "destructive", title: "Prompt Missing", description: "Please enter a prompt to generate an image." });
-        return;
-    }
-    resetAll();
-    setIsGeneratingImage(true);
-
-    try {
-        const input: GenerateImageInput = { prompt: imagePrompt };
-        const result = await generateImage(input);
-        
-        setMediaSrcs([result.imageDataUri]);
-        setMediaType('image');
-        toast({ title: "Image Generated!", description: "Now generating suggestions..." });
-        
-        handleVibeAnalysis([result.imageDataUri], 'image');
-        await handleSuggestCaptionsAndSongs([result.imageDataUri], 'image', [...new Set([...selectedLanguages, ...selectedSongLanguages])]);
-    } catch (error: any) {
-        console.error("Error generating image:", error);
-        toast({ variant: "destructive", title: "Image Generation Failed", description: "Could not generate the image. " + error.message });
-        resetAll();
-    } finally {
-        setIsGeneratingImage(false);
-    }
-  };
-
-
   const handleMediaUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) {
@@ -738,49 +705,25 @@ export default function CaptionWiseClient() {
         <Card className="w-full shadow-lg rounded-xl">
            <CardHeader>
              <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
-              <SparklesLucideIcon className="h-6 w-6 text-primary" />
-              1. Create Your Content
+              <UploadCloud className="h-6 w-6 text-primary" />
+              1. Upload Your Content
             </CardTitle>
-            <CardDescription>Generate an image with AI or upload your own media to get started.</CardDescription>
+            <CardDescription>Upload your own media to get started.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="generate" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="generate"><ImageIcon className="mr-2 h-4 w-4"/>Generate Image</TabsTrigger>
-                <TabsTrigger value="upload"><UploadCloud className="mr-2 h-4 w-4"/>Upload Media</TabsTrigger>
-              </TabsList>
-              <TabsContent value="generate" className="pt-6">
-                <div className="space-y-4">
-                    <Label htmlFor="image-prompt" className="font-semibold">Image Prompt</Label>
-                    <Textarea
-                        id="image-prompt"
-                        placeholder="e.g., A futuristic cityscape at sunset, cinematic style"
-                        value={imagePrompt}
-                        onChange={(e) => setImagePrompt(e.target.value)}
-                        disabled={isGeneratingImage}
-                    />
-                    <Button onClick={handleGenerateImage} disabled={isGeneratingImage || !imagePrompt} className="w-full">
-                        {isGeneratingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <SparklesLucideIcon className="mr-2 h-4 w-4"/>}
-                        {isGeneratingImage ? 'Generating Image...' : 'Generate with AI'}
-                    </Button>
-                </div>
-              </TabsContent>
-              <TabsContent value="upload" className="pt-6">
-                 <div className="space-y-2">
-                   <Label htmlFor="mediaUpload">Media File(s)</Label>
-                   <Input
-                      id="mediaUpload"
-                      type="file"
-                      accept="image/*,video/*"
-                      multiple 
-                      onChange={handleMediaUpload}
-                      disabled={selectedLanguages.length === 0 || selectedSongLanguages.length === 0 || isGeneratingImage}
-                      className="text-base file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-                    />
-                    <p className="text-xs text-muted-foreground">Select 1-50 images, or a single video.</p>
-                 </div>
-              </TabsContent>
-            </Tabs>
+            <div className="space-y-2">
+              <Label htmlFor="mediaUpload">Media File(s)</Label>
+              <Input
+                 id="mediaUpload"
+                 type="file"
+                 accept="image/*,video/*"
+                 multiple 
+                 onChange={handleMediaUpload}
+                 disabled={selectedLanguages.length === 0 || selectedSongLanguages.length === 0}
+                 className="text-base file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+               />
+               <p className="text-xs text-muted-foreground">Select 1-50 images, or a single video.</p>
+            </div>
           </CardContent>
         </Card>
         
@@ -818,7 +761,7 @@ export default function CaptionWiseClient() {
           </CardContent>
         </Card>
         
-        {(isSuggesting || isGeneratingImage || mediaSrcs) && (
+        {(isSuggesting || mediaSrcs) && (
             <Card className="w-full shadow-lg rounded-xl">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
