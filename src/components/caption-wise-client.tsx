@@ -494,7 +494,7 @@ export default function CaptionWiseClient() {
             mediaDescription: getMediaDescriptionForRefinementFlow(),
             initialSongEntries,
             userFeedback: songFeedback || "Make them match the vibe of the refined captions.", 
-            artistPreference,
+            artistPreference: artistPreference || undefined,
             targetLanguages: selectedSongLanguages,
         };
         const songResult = await refineSongSuggestions(songInput);
@@ -538,7 +538,7 @@ export default function CaptionWiseClient() {
         mediaDescription: getMediaDescriptionForRefinementFlow(),
         initialSongEntries,
         userFeedback: songFeedback,
-        artistPreference: artistPreference,
+        artistPreference: artistPreference || undefined,
         targetLanguages: selectedSongLanguages,
       };
       const result = await refineSongSuggestions(input);
