@@ -379,20 +379,26 @@ export default function CaptionWiseClient() {
     return "User-uploaded media.";
   }, [mediaType]);
 
-  const prepareCaptionsForRefinement = (sourceCaptions: string[] | undefined): string[] => {
+  const prepareCaptionsForRefinement = (lang: string): string[] => {
     const placeholders = ["Please refine this caption.", "Consider this alternative.", "Add more detail here.", "How about this style?"];
-    let captions = sourceCaptions ? [...sourceCaptions] : [];
-    if (captions.length === 0) return placeholders; 
+    let sourceCaptions = (refinedCaptions && refinedCaptions[lang]) || (suggestedCaptions && suggestedCaptions[lang]);
+    
+    if (!sourceCaptions || sourceCaptions.length === 0) return placeholders;
+
+    let captions = [...sourceCaptions];
     while (captions.length < 4) captions.push(captions[captions.length - 1]);
     return captions.slice(0, 4);
   };
 
-  const prepareSongsForRefinement = (sourceSongs: string[] | undefined): string[] => {
-    const placeholders = ["Please suggest a song.", "Please suggest another song."];
-    let songs = sourceSongs ? [...sourceSongs] : [];
-    if (songs.length === 0) return placeholders; 
-    while (songs.length < 2) songs.push(songs[songs.length - 1]);
-    return songs.slice(0, 2);
+  const prepareSongsForRefinement = (lang: string): string[] => {
+      const placeholders = ["Please suggest a song.", "Please suggest another song."];
+      let sourceSongs = (refinedSongSuggestions && refinedSongSuggestions[lang]) || (suggestedSongs && suggestedSongs[lang]);
+      
+      if (!sourceSongs || sourceSongs.length === 0) return placeholders;
+
+      let songs = [...sourceSongs];
+      while (songs.length < 2) songs.push(songs[songs.length - 1]);
+      return songs.slice(0, 2);
   };
 
   const handleRefineCaptions = async () => {
@@ -406,7 +412,7 @@ export default function CaptionWiseClient() {
 
     const initialCaptionEntries = selectedLanguages.map(lang => ({
         language: lang,
-        captions: prepareCaptionsForRefinement((refinedCaptions || suggestedCaptions)?.[lang]),
+        captions: prepareCaptionsForRefinement(lang),
     }));
 
     try {
@@ -451,7 +457,7 @@ export default function CaptionWiseClient() {
     
     const initialSongEntries = selectedSongLanguages.map(lang => ({
         language: lang,
-        songSuggestions: prepareSongsForRefinement((refinedSongSuggestions || suggestedSongs)?.[lang]),
+        songSuggestions: prepareSongsForRefinement(lang),
     }));
 
     try {
@@ -495,7 +501,7 @@ export default function CaptionWiseClient() {
 
     const initialSongEntries = selectedSongLanguages.map(lang => ({
         language: lang,
-        songSuggestions: prepareSongsForRefinement((refinedSongSuggestions || suggestedSongs)?.[lang]),
+        songSuggestions: prepareSongsForRefinement(lang),
     }));
     
     try {
@@ -944,6 +950,8 @@ export default function CaptionWiseClient() {
     </div>
   );
 }
+
+    
 
     
 
