@@ -379,7 +379,7 @@ export default function CaptionWiseClient() {
     return "User-uploaded media.";
   }, [mediaType]);
 
-  const prepareCaptionsForRefinement = (lang: string): string[] => {
+  const prepareCaptionsForRefinement = useCallback((lang: string): string[] => {
     const placeholders = ["Please refine this caption.", "Consider this alternative.", "Add more detail here.", "How about this style?"];
     // Prioritize refined captions, then fall back to initial suggestions.
     const sourceCaptions = (refinedCaptions && refinedCaptions[lang]) || (suggestedCaptions && suggestedCaptions[lang]);
@@ -387,11 +387,11 @@ export default function CaptionWiseClient() {
     if (!sourceCaptions || sourceCaptions.length === 0) return placeholders;
 
     let captions = [...sourceCaptions];
-    while (captions.length < 4) captions.push(captions[captions.length - 1]);
+    while (captions.length < 4) captions.push(captions[captions.length - 1] || placeholders[captions.length]);
     return captions.slice(0, 4);
-  };
+  }, [refinedCaptions, suggestedCaptions]);
 
-  const prepareSongsForRefinement = (lang: string): string[] => {
+  const prepareSongsForRefinement = useCallback((lang: string): string[] => {
       const placeholders = ["Please suggest a song.", "Please suggest another song."];
       // Prioritize refined songs, then fall back to initial suggestions.
       const sourceSongs = (refinedSongSuggestions && refinedSongSuggestions[lang]) || (suggestedSongs && suggestedSongs[lang]);
@@ -399,9 +399,10 @@ export default function CaptionWiseClient() {
       if (!sourceSongs || sourceSongs.length === 0) return placeholders;
 
       let songs = [...sourceSongs];
-      while (songs.length < 2) songs.push(songs[songs.length - 1]);
+      while (songs.length < 2) songs.push(songs[songs.length - 1] || placeholders[songs.length]);
       return songs.slice(0, 2);
-  };
+  }, [refinedSongSuggestions, suggestedSongs]);
+
 
   const handleRefineCaptions = async () => {
     const hasAnyCaptionsToRefine = (suggestedCaptions && Object.values(suggestedCaptions).some(c => c?.length > 0)) || (refinedCaptions && Object.values(refinedCaptions).some(c => c?.length > 0));
@@ -410,7 +411,6 @@ export default function CaptionWiseClient() {
       return;
     }
     setIsRefiningCaptions(true);
-    setRefinedCaptions(null); 
 
     const initialCaptionEntries = selectedLanguages.map(lang => ({
         language: lang,
@@ -429,6 +429,7 @@ export default function CaptionWiseClient() {
       };
       const captionResult = await refineMediaCaptions(captionInput);
 
+      setRefinedCaptions(null); 
       const newRefinedCaptions: MediaSuggestions = {};
       captionResult.refinedLanguageEntries?.forEach((entry: RefinedLanguageCaptionEntry) => {
         if (entry.language && entry.refinedCaptions?.length > 0) newRefinedCaptions[entry.language] = entry.refinedCaptions;
@@ -455,7 +456,6 @@ export default function CaptionWiseClient() {
         return; // Don't auto-refine if there's nothing to work with
     }
     setIsRefiningSongs(true);
-    setRefinedSongSuggestions(null);
     
     const initialSongEntries = selectedSongLanguages.map(lang => ({
         language: lang,
@@ -473,6 +473,8 @@ export default function CaptionWiseClient() {
             targetLanguages: selectedSongLanguages,
         };
         const songResult = await refineSongSuggestions(songInput);
+        
+        setRefinedSongSuggestions(null);
         const newRefinedSongs: MediaSuggestions = {};
         songResult.refinedLanguageSongEntries?.forEach((entry) => {
             if (entry.language && entry.refinedSongSuggestions?.length > 0) newRefinedSongs[entry.language] = entry.refinedSongSuggestions;
@@ -499,7 +501,6 @@ export default function CaptionWiseClient() {
       return;
     }
     setIsRefiningSongs(true);
-    setRefinedSongSuggestions(null);
 
     const initialSongEntries = selectedSongLanguages.map(lang => ({
         language: lang,
@@ -518,6 +519,7 @@ export default function CaptionWiseClient() {
       };
       const result = await refineSongSuggestions(input);
       
+      setRefinedSongSuggestions(null);
       const newRefinedSongs: MediaSuggestions = {};
       result.refinedLanguageSongEntries?.forEach((entry) => {
         if (entry.language && entry.refinedSongSuggestions?.length > 0) newRefinedSongs[entry.language] = entry.refinedSongSuggestions;
@@ -953,4 +955,6 @@ export default function CaptionWiseClient() {
   );
 }
     
+    
+
     
