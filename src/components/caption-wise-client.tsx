@@ -381,7 +381,7 @@ export default function CaptionWiseClient() {
 
   const prepareCaptionsForRefinement = useCallback((lang: string): string[] => {
     const placeholders = ["Please refine this caption.", "Consider this alternative.", "Add more detail here.", "How about this style?"];
-    // Correct logic: Use refined if available, otherwise fall back to initial suggestions.
+    // Use refined if available, otherwise fall back to initial suggestions.
     const sourceCaptions = (refinedCaptions && refinedCaptions[lang]) || (suggestedCaptions && suggestedCaptions[lang]);
     
     if (!sourceCaptions || sourceCaptions.length === 0) return placeholders;
@@ -393,7 +393,7 @@ export default function CaptionWiseClient() {
 
   const prepareSongsForRefinement = useCallback((lang: string): string[] => {
       const placeholders = ["Please suggest a song.", "Please suggest another song."];
-      // Correct logic: Use refined if available, otherwise fall back to initial suggestions.
+      // Use refined if available, otherwise fall back to initial suggestions.
       const sourceSongs = (refinedSongSuggestions && refinedSongSuggestions[lang]) || (suggestedSongs && suggestedSongs[lang]);
       
       if (!sourceSongs || sourceSongs.length === 0) return placeholders;
@@ -920,7 +920,7 @@ export default function CaptionWiseClient() {
                 handleRefineSongs={handleRefineSongs}
                 isRefiningCaptions={isRefiningCaptions}
                 isRefiningSongs={isRefiningSongs}
-                selectedLanguages={selectedSongLanguages} 
+                selectedLanguages={selectedSongLanguages} _
                 PREDEFINED_LANGUAGES={PREDEFINED_LANGUAGES}
                 SongSuggestionItemRenderer={SongSuggestionItemRenderer}
             />
@@ -952,6 +952,8 @@ export default function CaptionWiseClient() {
   );
 }
     
+    
+
     
 
     
