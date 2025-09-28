@@ -17,6 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'VibeWords',
   description: 'Generate wise captions and song vibes for your media.',
+  icons: null,
 };
 
 export default function RootLayout({

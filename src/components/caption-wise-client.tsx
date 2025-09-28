@@ -141,7 +141,7 @@ export default function CaptionWiseClient() {
   const [isAnalyzingVibe, setIsAnalyzingVibe] = useState<boolean>(false);
 
   const [isSuggesting, setIsSuggesting] = useState<boolean>(false);
-  const [isRefiningCaptions, setIsRefiningCaptions] = useState<boolean>(false);
+  const [isRefiningCaptions, setIsRefiningCaptions]_useState<boolean>(false);
   const [isRefiningSongs, setIsRefiningSongs] = useState<boolean>(false);
   
   const [userDetails, setUserDetails] = useState<StoredUserDetails | null>(null);
@@ -411,6 +411,7 @@ export default function CaptionWiseClient() {
       return;
     }
     setIsRefiningCaptions(true);
+    setRefinedCaptions(null);
 
     const initialCaptionEntries = selectedLanguages.map(lang => ({
         language: lang,
@@ -455,6 +456,7 @@ export default function CaptionWiseClient() {
         return; // Don't auto-refine if there's nothing to work with
     }
     setIsRefiningSongs(true);
+    setRefinedSongSuggestions(null);
     
     const initialSongEntries = selectedSongLanguages.map(lang => ({
         language: lang,
@@ -499,6 +501,7 @@ export default function CaptionWiseClient() {
       return;
     }
     setIsRefiningSongs(true);
+    setRefinedSongSuggestions(null);
 
     const initialSongEntries = selectedSongLanguages.map(lang => ({
         language: lang,
@@ -960,4 +963,5 @@ export default function CaptionWiseClient() {
 
     
 
+    
     
