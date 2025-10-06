@@ -311,7 +311,9 @@ export default function CaptionWiseClient() {
     try {
       const input: AnalyzeMediaVibeInput = { mediaDataUris: dataUris, mediaType: currentMediaType };
       const result = await analyzeMediaVibe(input);
-      setMediaVibe(result.vibe);
+      if (result?.vibe) {
+        setMediaVibe(result.vibe);
+      }
     } catch (error) {
       console.error("Error analyzing media vibe:", error);
       toast({ variant: "destructive", title: "Vibe Analysis Failed", description: "Could not analyze the media's vibe." });
@@ -968,4 +970,5 @@ export default function CaptionWiseClient() {
     
 
     
+
 
