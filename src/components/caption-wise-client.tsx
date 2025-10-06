@@ -330,7 +330,7 @@ export default function CaptionWiseClient() {
 
     try {
       const input: SuggestMediaCaptionsInput = { mediaDataUris: dataUris, mediaType: currentMediaType, targetLanguages: targetLanguagesForSuggestions };
-      const result: SuggestMediaCaptionsOutput = await suggestMediaCaptions(input);
+      const result: SuggestMediaCaptionsOutput = (await suggestMediaCaptions(input)) || {};
       
       const newSuggestedCaptions: MediaSuggestions = {};
       const newSuggestedSongs: MediaSuggestions = {};
@@ -426,7 +426,7 @@ export default function CaptionWiseClient() {
         tone: selectedTone === 'Default' ? undefined : selectedTone,
         targetLanguages: selectedLanguages,
       };
-      const captionResult = await refineMediaCaptions(captionInput) || {};
+      const captionResult = (await refineMediaCaptions(captionInput)) || {};
       const { refinedLanguageEntries } = captionResult;
 
       const newRefinedCaptions: MediaSuggestions = {};
@@ -472,7 +472,7 @@ export default function CaptionWiseClient() {
             artistPreference: artistPreference || undefined,
             targetLanguages: selectedSongLanguages,
         };
-        const songResult = await refineSongSuggestions(songInput) || {};
+        const songResult = (await refineSongSuggestions(songInput)) || {};
         const { refinedLanguageSongEntries } = songResult;
         
         const newRefinedSongs: MediaSuggestions = {};
@@ -518,7 +518,7 @@ export default function CaptionWiseClient() {
         artistPreference: artistPreference || undefined,
         targetLanguages: selectedSongLanguages,
       };
-      const result = await refineSongSuggestions(input) || {};
+      const result = (await refineSongSuggestions(input)) || {};
       const { refinedLanguageSongEntries } = result;
       
       const newRefinedSongs: MediaSuggestions = {};
@@ -924,7 +924,7 @@ export default function CaptionWiseClient() {
                 handleRefineSongs={handleRefineSongs}
                 isRefiningCaptions={isRefiningCaptions}
                 isRefiningSongs={isRefiningSongs}
-                selectedLanguages={selectedSongLanguages} _
+                selectedLanguages={selectedSongLanguages} 
                 PREDEFINED_LANGUAGES={PREDEFINED_LANGUAGES}
                 SongSuggestionItemRenderer={SongSuggestionItemRenderer}
             />
@@ -968,3 +968,4 @@ export default function CaptionWiseClient() {
     
 
     
+
