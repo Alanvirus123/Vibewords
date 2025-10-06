@@ -90,7 +90,7 @@ const prompt = ai.definePrompt({
   Each object in the 'languageEntries' array MUST contain ALL of the following fields:
   - 'language': A string with the name of the language (e.g., "English", "Spanish"). This MUST be one of the target languages.
   - 'captions': An array of EXACTLY four caption strings in that language.
-  - 'songSuggestions': An array containing EXACTLY two song title strings in that language.
+  - 'songSuggestions': An array of EXACTLY two song title strings in that language.
   - 'hashtags': An array of EXACTLY ten hashtag strings in that language.
 
   Ensure that every language listed in 'targetLanguages' has a corresponding entry in the 'languageEntries' array, and each entry is complete with all required fields.
