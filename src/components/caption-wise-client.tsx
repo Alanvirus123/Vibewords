@@ -1,31 +1,29 @@
 
+
 "use client";
 
 import React, { useState, type ChangeEvent, useCallback, useMemo, Suspense, useEffect } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, Edit3, ImagePlus, Images, LogOut, User, Text, Music, Hash, Feather, HelpCircle, History, Image as ImageIcon, Volume2 } from "lucide-react";
+import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, Edit3, ImagePlus, Images, Text, Music, Hash, Feather, HelpCircle, Image as ImageIcon, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { suggestMediaCaptions, type SuggestMediaCaptionsInput, type SuggestMediaCaptionsOutput, type LanguageSuggestionEntry } from "@/ai/flows/suggest-media-captions";
-import { refineMediaCaptions, type RefineMediaCaptionsInput, type RefineMediaCaptionsOutput, type RefinedLanguageCaptionEntry } from "@/ai/flows/refine-media-captions";
-import { refineSongSuggestions, type RefineSongSuggestionsInput, type RefineSongSuggestionsOutput, type RefinedLanguageSongEntry } from "@/ai/flows/refine-song-suggestions";
-import { analyzeMediaVibe, type AnalyzeMediaVibeInput, type AnalyzeMediaVibeOutput } from "@/ai/flows/analyze-media-vibe";
+import { refineMediaCaptions, type RefineMediaCaptionsInput, type RefinedLanguageCaptionEntry } from "@/ai/flows/refine-media-captions";
+import { refineSongSuggestions, type RefineSongSuggestionsInput, type RefinedLanguageSongEntry } from "@/ai/flows/refine-song-suggestions";
+import { analyzeMediaVibe, type AnalyzeMediaVibeInput } from "@/ai/flows/analyze-media-vibe";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { LanguageSelector } from './language-selector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { MediaSuggestions, LanguageOption, StoredUserDetails, GenerationHistoryItem } from '@/lib/types';
+import type { MediaSuggestions, LanguageOption } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { AiAssistant } from "@/components/ai-assistant";
 import { Textarea } from "./ui/textarea";
-import { saveUser, saveGeneration, getGenerations } from '@/services/firebase';
-import { HistoryDialog } from "@/components/history-dialog";
 
 const SuggestedCaptionsDisplay = React.lazy(() => import('@/components/suggested-captions-display'));
 const RefinedCaptionsDisplay = React.lazy(() => import('@/components/refined-captions-display'));
@@ -115,7 +113,6 @@ const LoadingFallback = () => (
 );
 
 export default function CaptionWiseClient() {
-  const router = useRouter();
   const { toast } = useToast();
   
   const [mediaFiles, setMediaFiles] = useState<File[] | null>(null);
@@ -144,45 +141,9 @@ export default function CaptionWiseClient() {
   const [isRefiningCaptions, setIsRefiningCaptions] = useState<boolean>(false);
   const [isRefiningSongs, setIsRefiningSongs] = useState<boolean>(false);
   
-  const [userDetails, setUserDetails] = useState<StoredUserDetails | null>(null);
-  
-  const [history, setHistory] = useState<GenerationHistoryItem[]>([]);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  
   const [activeAudio, setActiveAudio] = useState<HTMLAudioElement | null>(null);
   const [playingCaption, setPlayingCaption] = useState<string | null>(null);
 
-
-  useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem('caption-wise-user');
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        setUserDetails(parsedUser);
-        saveUser(parsedUser); // Save to Firestore on initial load
-      }
-    } catch (error) {
-      console.error("Could not parse data from localStorage:", error);
-    }
-  }, []);
-
-  const handleLogout = () => {
-    try {
-      localStorage.removeItem('caption-wise-user');
-      toast({
-        title: "Logged Out",
-        description: "You have been successfully logged out.",
-      });
-      router.replace('/login');
-    } catch (error) {
-      console.error("Could not access localStorage to log out:", error);
-      toast({
-        variant: "destructive",
-        title: "Logout Error",
-        description: "Could not log out. Please clear your site data manually.",
-      });
-    }
-  };
   
   const resetSuggestions = () => {
     setSuggestedCaptions(null);
@@ -349,22 +310,6 @@ export default function CaptionWiseClient() {
       setSuggestedCaptions(Object.keys(newSuggestedCaptions).length > 0 ? newSuggestedCaptions : null);
       setSuggestedSongs(Object.keys(newSuggestedSongs).length > 0 ? newSuggestedSongs : null);
       setSuggestedHashtags(Object.keys(newSuggestedHashtags).length > 0 ? newSuggestedHashtags : null);
-      
-      // Save to history
-      if (userDetails?.email && (Object.keys(newSuggestedCaptions).length > 0 || Object.keys(newSuggestedSongs).length > 0)) {
-        const historyItem: Omit<GenerationHistoryItem, 'id' | 'timestamp'> = {
-            userEmail: userDetails.email,
-            mediaSrcs: dataUris,
-            mediaType: currentMediaType,
-            vibe: mediaVibe,
-            suggestions: {
-                captions: newSuggestedCaptions,
-                songs: newSuggestedSongs,
-                hashtags: newSuggestedHashtags,
-            },
-        };
-        await saveGeneration(historyItem);
-      }
 
     } catch (error: any) {
       console.error("Error suggesting captions/songs:", error);
@@ -574,36 +519,6 @@ export default function CaptionWiseClient() {
         setPlayingCaption(null);
     }
   }
-  
-  const handleOpenHistory = async () => {
-    if (userDetails?.email) {
-      const userHistory = await getGenerations(userDetails.email);
-      setHistory(userHistory);
-      setIsHistoryOpen(true);
-    }
-  };
-
-  const handleLoadHistoryItem = (item: GenerationHistoryItem) => {
-    resetAll();
-    setMediaSrcs(item.mediaSrcs);
-    setMediaType(item.mediaType);
-    setMediaVibe(item.vibe);
-
-    const captions = item.suggestions.captions || null;
-    const songs = item.suggestions.songs || null;
-    const hashtags = item.suggestions.hashtags || null;
-    
-    setSuggestedCaptions(captions);
-    setSuggestedSongs(songs);
-    setSuggestedHashtags(hashtags);
-
-    if (captions) setSelectedLanguages(Object.keys(captions));
-    if (songs) setSelectedSongLanguages(Object.keys(songs));
-
-    setIsHistoryOpen(false);
-    toast({ title: "History Loaded", description: "Previous session has been restored." });
-  };
-
 
   const CaptionDisplayCardRenderer: React.FC<{ caption: string; language: string }> = ({ caption, language }) => (
     <div className="p-3 border rounded-md bg-card flex justify-between items-center gap-2 shadow-sm">
@@ -665,52 +580,6 @@ export default function CaptionWiseClient() {
               />
             </DialogContent>
           </Dialog>
-          <HistoryDialog
-            isOpen={isHistoryOpen}
-            onOpenChange={setIsHistoryOpen}
-            history={history}
-            onLoadHistory={handleLoadHistoryItem}
-            onOpen={handleOpenHistory}
-            PREDEFINED_LANGUAGES={PREDEFINED_LANGUAGES}
-          />
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="icon" aria-label="View user profile">
-                <User className="h-5 w-5" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>User Profile</DialogTitle>
-                <DialogDescription>
-                  This is the information you provided at login.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                {userDetails ? (
-                  <>
-                    <div className="flex flex-col space-y-1">
-                      <Label htmlFor="name" className="text-sm font-medium text-muted-foreground">Name</Label>
-                      <p id="name" className="text-lg font-semibold">{userDetails.name}</p>
-                    </div>
-                    <div className="flex flex-col space-y-1">
-                      <Label htmlFor="email" className="text-sm font-medium text-muted-foreground">Email</Label>
-                      <p id="email" className="text-lg font-semibold">{userDetails.email}</p>
-                    </div>
-                    <div className="flex flex-col space-y-1">
-                      <Label htmlFor="phone" className="text-sm font-medium text-muted-foreground">Phone</Label>
-                      <p id="phone" className="text-lg font-semibold">{userDetails.phone}</p>
-                    </div>
-                  </>
-                ) : (
-                  <p>Loading user data...</p>
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
-          <Button variant="outline" size="icon" onClick={handleLogout} aria-label="Log out">
-            <LogOut className="h-5 w-5" />
-          </Button>
         </div>
       </header>
 
@@ -957,18 +826,3 @@ export default function CaptionWiseClient() {
     </div>
   );
 }
-    
-    
-
-    
-
-    
-
-    
-
-    
-    
-
-    
-
-
