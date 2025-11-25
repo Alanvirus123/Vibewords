@@ -270,8 +270,7 @@ export default function CaptionWiseClient() {
     setIsAnalyzingVibe(true);
     setMediaVibe(null);
     try {
-      const input: AnalyzeMediaVibeInput = { mediaDataUris: dataUris, mediaType: currentMediaType };
-      const result = await analyzeMediaVibe(input);
+      const result = await analyzeMediaVibe({ mediaDataUris: dataUris, mediaType: currentMediaType });
       if (result?.vibe) {
         setMediaVibe(result.vibe);
       }
@@ -826,5 +825,3 @@ export default function CaptionWiseClient() {
     </div>
   );
 }
-
-    
