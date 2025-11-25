@@ -246,12 +246,23 @@ export default function CaptionWiseClient() {
     
     setMediaFiles(filesToProcess);
     setMediaType(currentMediaType);
+    
+    // Set loading states immediately
+    setIsAnalyzingVibe(true);
+    setIsSuggesting(true);
+    setMediaVibe(null);
+    resetSuggestions();
 
     try {
       const dataUris = await Promise.all(filesToProcess.map(file => fileToDataUri(file)));
       setMediaSrcs(dataUris);
-      handleVibeAnalysis(dataUris, currentMediaType); // Call vibe analysis first
-      await handleSuggestCaptionsAndSongs(dataUris, currentMediaType, [...new Set([...selectedLanguages, ...selectedSongLanguages])]);
+
+      // Now that dataUris are ready, call the AI functions
+      const vibePromise = handleVibeAnalysis(dataUris, currentMediaType);
+      const suggestionsPromise = handleSuggestCaptionsAndSongs(dataUris, currentMediaType, [...new Set([...selectedLanguages, ...selectedSongLanguages])]);
+      
+      await Promise.all([vibePromise, suggestionsPromise]);
+
     } catch (error: any) {
       console.error("Error during media processing or initial AI suggestion phase:", error);
       let description = "Could not process the uploaded files.";
@@ -263,12 +274,14 @@ export default function CaptionWiseClient() {
       toast({ variant: "destructive", title: "File Processing Error", description });
       resetAll();
       if (event.target) event.target.value = '';
+    } finally {
+      // Reset loading states after all async operations are done
+      setIsAnalyzingVibe(false);
+      setIsSuggesting(false);
     }
   };
 
   const handleVibeAnalysis = async (dataUris: string[], currentMediaType: AppMediaType) => {
-    setIsAnalyzingVibe(true);
-    setMediaVibe(null);
     try {
       const result = await analyzeMediaVibe({ mediaDataUris: dataUris, mediaType: currentMediaType });
       if (result?.vibe) {
@@ -277,8 +290,6 @@ export default function CaptionWiseClient() {
     } catch (error) {
       console.error("Error analyzing media vibe:", error);
       toast({ variant: "destructive", title: "Vibe Analysis Failed", description: "Could not analyze the media's vibe." });
-    } finally {
-      setIsAnalyzingVibe(false);
     }
   };
 
@@ -287,8 +298,6 @@ export default function CaptionWiseClient() {
       toast({ variant: "destructive", title: "Language Missing", description: "Please select languages for suggestions." });
       return;
     }
-    setIsSuggesting(true);
-    resetSuggestions();
 
     try {
       const input: SuggestMediaCaptionsInput = { mediaDataUris: dataUris, mediaType: currentMediaType, targetLanguages: targetLanguagesForSuggestions };
@@ -313,8 +322,6 @@ export default function CaptionWiseClient() {
     } catch (error: any) {
       console.error("Error suggesting captions/songs:", error);
       toast({ variant: "destructive", title: "Suggestion Error", description: `Failed to get suggestions. ${error.message}` });
-    } finally {
-      setIsSuggesting(false);
     }
   };
 
@@ -825,3 +832,5 @@ export default function CaptionWiseClient() {
     </div>
   );
 }
+
+    
