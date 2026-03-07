@@ -2,7 +2,6 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -17,11 +16,22 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'picsum.photos',
+        port: '',
+        pathname: '/**',
+      }
     ],
   },
   experimental: {
     allowedDevOrigins: [
-      'https://6000-firebase-studio-1747666201877.cluster-iktsryn7xnhpexlu6255bftka4.cloudworkstations.dev',
+      '*.cloudworkstations.dev',
+      '*.idx.google.com',
+      'localhost:9002',
+      '*.google.com',
+      '*.firebaseapp.com',
+      '*.web.app'
     ],
     serverActions: {
       bodySizeLimit: '10mb',

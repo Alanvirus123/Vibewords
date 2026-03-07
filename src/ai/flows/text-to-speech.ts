@@ -2,7 +2,7 @@
 'use server';
 
 /**
- * @fileOverview A flow to convert text to speech.
+ * @fileOverview A flow to convert text to speech using Genkit.
  *
  * This file exports:
  * - `textToSpeech`: An async function that converts text to an audio data URI.
@@ -13,7 +13,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
-import { googleAI } from '@genkit-ai/googleai';
+import { googleAI } from '@genkit-ai/google-genai';
 
 const TextToSpeechInputSchema = z.object({
   text: z.string().describe('The text to convert to speech.'),
