@@ -1,12 +1,8 @@
+
 'use server';
 
 /**
  * @fileOverview An AI assistant flow that answers user questions based on app context.
- *
- * This file exports:
- * - `askAiAssistant`: An async function that provides answers from the AI assistant.
- * - `AskAiAssistantInput`: The input type for the `askAiAssistant` function.
- * - `AskAiAssistantOutput`: The output type for the `askAiAssistant` function.
  */
 
 import { ai } from '@/ai/genkit';
@@ -47,40 +43,20 @@ export async function askAiAssistant(input: AskAiAssistantInput): Promise<AskAiA
 
 const prompt = ai.definePrompt({
   name: 'askAiAssistantPrompt',
+  model: 'googleai/gemini-1.5-flash',
   input: { schema: AskAiAssistantInputSchema },
   output: { schema: AskAiAssistantOutputSchema },
   prompt: `You are a helpful and friendly AI assistant for the VibeWords application. Your goal is to answer the user's questions and provide guidance.
 
-You have access to the current state of the application, which includes the user's uploaded media (if any), suggested captions and songs, and their refinement feedback. Use this context to provide relevant, specific, and helpful answers.
-
-**Your Persona:**
-- Friendly, encouraging, and slightly witty.
-- You are an expert in social media marketing and content creation.
-- Keep your answers concise and easy to understand. Use formatting like lists or bold text to improve readability.
-
-**Current Application State (for your context):**
+**Current Application State:**
 - Media Uploaded: {{appContext.hasMedia}}
 {{#if appContext.hasMedia}}
 - Media Type: {{appContext.mediaType}}
-- Suggested Captions: {{#if appContext.suggestedCaptions}}Yes (scroll down to view){{else}}No{{/if}}
-- Suggested Songs: {{#if appContext.suggestedSongs}}Yes (scroll down to view){{else}}No{{/if}}
-- Caption Feedback provided by user: {{#if appContext.captionRefinement.feedback}}"{{appContext.captionRefinement.feedback}}"{{else}}None{{/if}}
 - Selected Caption Tone: {{appContext.captionRefinement.tone}}
-- Song Feedback provided by user: {{#if appContext.songRefinement.feedback}}"{{appContext.songRefinement.feedback}}"{{else}}None{{/if}}
 {{/if}}
 
----
-
 **User's Question:**
-"{{{question}}}"
-
----
-
-Based on the application state and the user's question, provide a helpful answer.
-- If the question is general (e.g., "how do I get more likes?"), give general social media advice.
-- If the question is specific to the app's current state (e.g., "make my captions shorter"), use the context to give a tailored recommendation. For example, you could suggest specific wording for their refinement feedback.
-- If the user asks you to perform an action you can't do (like "delete the photo"), politely explain that you can't perform that action and guide them on how they can do it themselves using the app's UI.
-- Your response should be in the "answer" field.`,
+"{{{question}}}"`,
 });
 
 

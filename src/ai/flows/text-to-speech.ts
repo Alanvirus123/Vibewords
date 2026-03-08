@@ -3,11 +3,6 @@
 
 /**
  * @fileOverview A flow to convert text to speech using Genkit.
- *
- * This file exports:
- * - `textToSpeech`: An async function that converts text to an audio data URI.
- * - `TextToSpeechInput`: The input type for the `textToSpeech` function.
- * - `TextToSpeechOutput`: The output type for the `textToSpeech` function.
  */
 
 import { ai } from '@/ai/genkit';
@@ -63,7 +58,7 @@ const textToSpeechFlow = ai.defineFlow(
   },
   async ({ text }) => {
     const { media } = await ai.generate({
-      model: 'googleai/gemini-1.5-flash-001',
+      model: 'googleai/gemini-1.5-flash',
       config: {
         responseModalities: ['AUDIO'],
         speechConfig: {

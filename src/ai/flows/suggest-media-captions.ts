@@ -6,11 +6,6 @@
  * Allows users to specify target languages for generation.
  * Outputs suggestions as an array of language-specific entries.
  * Handles single images, single videos, or a collection of up to 50 images.
- *
- * This file exports:
- * - `suggestMediaCaptions`: A function that handles the media caption and song suggestion process.
- * - `SuggestMediaCaptionsInput`: The input type for the `suggestMediaCaptions` function.
- * - `SuggestMediaCaptionsOutput`: The output type for the `suggestMediaCaptions` function.
  */
 
 import {ai} from '@/ai/genkit';
@@ -36,21 +31,21 @@ const SuggestMediaCaptionsPromptInputSchema = SuggestMediaCaptionsInputSchema.ex
 });
 
 const LanguageSuggestionEntrySchema = z.object({
-  language: z.string().describe("The name of the language for these suggestions (e.g., 'English', 'Spanish'). This field is MANDATORY."),
+  language: z.string().describe("The name of the language for these suggestions (e.g., 'English', 'Spanish')."),
   captions: z.array(z.string().min(1))
     .length(4)
-    .describe("An array of EXACTLY four suggested captions in this language. This field is MANDATORY."),
+    .describe("An array of EXACTLY four suggested captions in this language."),
   songSuggestions: z.array(z.string().min(1))
     .length(2)
-    .describe("An array containing EXACTLY two suggested song titles in this language. This field is MANDATORY."),
+    .describe("An array containing EXACTLY two suggested song titles in this language."),
   hashtags: z.array(z.string().min(1))
     .length(10)
-    .describe("An array of EXACTLY ten relevant hashtags in this language. This field is MANDATORY."),
+    .describe("An array of EXACTLY ten relevant hashtags in this language."),
 });
 
 const SuggestMediaCaptionsOutputSchema = z.object({
   languageEntries: z.array(LanguageSuggestionEntrySchema)
-    .describe("An array of suggestion entries, one for each target language specified in the input. Each entry MUST conform to the LanguageSuggestionEntrySchema."),
+    .describe("An array of suggestion entries, one for each target language specified in the input."),
 });
 export type SuggestMediaCaptionsOutput = z.infer<typeof SuggestMediaCaptionsOutputSchema>;
 
@@ -62,15 +57,16 @@ export async function suggestMediaCaptions(
 
 const prompt = ai.definePrompt({
   name: 'suggestMediaCaptionsPrompt',
+  model: 'googleai/gemini-1.5-flash',
   input: {schema: SuggestMediaCaptionsPromptInputSchema},
   output: {schema: SuggestMediaCaptionsOutputSchema},
   prompt: `You are an expert social media manager. You will analyze the provided media.
   Your task is to generate content for ALL of the following languages: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
 
   For EACH of these target languages, you MUST generate:
-  1. EXACTLY four engaging captions. The captions should be relevant to the media's content and appropriate for a general audience. If multiple images are provided (mediaType 'image_collection'), the captions should be relevant to the entire set of images.
-  2. EXACTLY two song titles that would fit the mood or theme of the media. If multiple images are provided, the song suggestions should reflect the overall vibe of the collection.
-  3. EXACTLY ten relevant hashtags. The hashtags should be relevant to the media and useful for social media platforms.
+  1. EXACTLY four engaging captions. The captions should be relevant to the media's content and appropriate for a general audience.
+  2. EXACTLY two song titles that would fit the mood or theme of the media.
+  3. EXACTLY ten relevant hashtags.
 
   Provided Media:
   {{#if isImageCollection}}
@@ -86,30 +82,7 @@ const prompt = ai.definePrompt({
     Video: {{media url=mediaDataUris.[0]}}
   {{/if}}
 
-  Return your output as an array in the 'languageEntries' field. Each element in this array MUST be an object corresponding to one of the target languages.
-  Each object in the 'languageEntries' array MUST contain ALL of the following fields:
-  - 'language': A string with the name of the language (e.g., "English", "Spanish"). This MUST be one of the target languages.
-  - 'captions': An array of EXACTLY four caption strings in that language.
-  - 'songSuggestions': An array of EXACTLY two song title strings in that language.
-  - 'hashtags': An array of EXACTLY ten hashtag strings in that language.
-
-  Ensure that every language listed in 'targetLanguages' has a corresponding entry in the 'languageEntries' array, and each entry is complete with all required fields.
-
-  Example for 'languageEntries' if targetLanguages were ["English", "Spanish"]:
-  "languageEntries": [
-    {
-      "language": "English",
-      "captions": ["English Caption 1", "English Caption 2", "English Caption 3", "English Caption 4"],
-      "songSuggestions": ["Example English Song Title 1", "Example English Song Title 2"],
-      "hashtags": ["#englishhashtag1", "#englishhashtag2", "#englishhashtag3", "#englishhashtag4", "#englishhashtag5", "#englishhashtag6", "#englishhashtag7", "#englishhashtag8", "#englishhashtag9", "#englishhashtag10"]
-    },
-    {
-      "language": "Spanish",
-      "captions": ["Leyenda en Español 1", "Leyenda en Español 2", "Leyenda en Español 3", "Leyenda en Español 4"],
-      "songSuggestions": ["Título de Canción en Español de Ejemplo 1", "Título de Canción en Español de Ejemplo 2"],
-      "hashtags": ["#hashtagEspañol1", "#hashtagEspañol2", "#hashtagEspañol3", "#hashtagEspañol4", "#hashtagEspañol5", "#hashtagEspañol6", "#hashtagEspañol7", "#hashtagEspañol8", "#hashtagEspañol9", "#hashtagEspañol10"]
-    }
-  ]`,
+  Return your output as an array in the 'languageEntries' field. Each element in this array MUST be an object corresponding to one of the target languages.`,
 });
 
 const suggestMediaCaptionsFlow = ai.defineFlow(
