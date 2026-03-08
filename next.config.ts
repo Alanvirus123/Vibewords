@@ -1,4 +1,3 @@
-
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -28,6 +27,7 @@ const nextConfig: NextConfig = {
     allowedDevOrigins: [
       '*.cloudworkstations.dev',
       '*.idx.google.com',
+      'localhost:3000',
       'localhost:9002',
       '*.google.com',
       '*.firebaseapp.com',
