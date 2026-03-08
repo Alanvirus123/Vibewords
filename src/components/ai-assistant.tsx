@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -12,6 +13,7 @@ import type { MediaSuggestions } from "@/lib/types";
 
 interface AiAssistantProps {
   mediaType: 'image' | 'video' | 'image_collection' | null;
+  vibe: string | null;
   suggestedCaptions: MediaSuggestions | null;
   suggestedSongs: MediaSuggestions | null;
   captionFeedback: string;
@@ -26,6 +28,7 @@ interface ChatMessage {
 
 export const AiAssistant: React.FC<AiAssistantProps> = ({
   mediaType,
+  vibe,
   suggestedCaptions,
   suggestedSongs,
   captionFeedback,
@@ -63,6 +66,7 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
         appContext: {
           hasMedia: !!mediaType,
           mediaType: mediaType,
+          vibe: vibe,
           suggestedCaptions: suggestedCaptions,
           suggestedSongs: suggestedSongs,
           captionRefinement: {
@@ -86,7 +90,6 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
         title: "Assistant Error",
         description: "Could not get a response from the AI assistant. " + (error.message || ""),
       });
-      // Optionally remove the user message on error or add an error message to the chat
       setMessages(prev => [...prev, {role: 'assistant', content: "Sorry, I encountered an error. Please try again."}]);
     } finally {
       setIsLoading(false);

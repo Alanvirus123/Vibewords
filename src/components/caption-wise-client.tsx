@@ -1,8 +1,9 @@
+
 "use client";
 
-import React, { useState, type ChangeEvent, useCallback, useMemo, Suspense, useEffect } from "react";
+import React, { useState, type ChangeEvent, useCallback, useMemo, Suspense } from "react";
 import Image from "next/image";
-import { UploadCloud, Copy, RefreshCw, Loader2, Film, Music2, Sparkles as SparklesLucideIcon, LanguagesIcon, Edit3, ImagePlus, Images, Text, Music, Hash, Feather, HelpCircle, Image as ImageIcon, Volume2 } from "lucide-react";
+import { UploadCloud, Copy, RefreshCw, Loader2, Images, Text, Music, Hash, HelpCircle, Volume2, Sparkles, LanguagesIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,8 +11,9 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { suggestMediaCaptions, type SuggestMediaCaptionsInput, type SuggestMediaCaptionsOutput, type LanguageSuggestionEntry } from "@/ai/flows/suggest-media-captions";
 import { refineMediaCaptions, type RefineMediaCaptionsInput, type RefinedLanguageCaptionEntry } from "@/ai/flows/refine-media-captions";
-import { refineSongSuggestions, type RefineSongSuggestionsInput, type RefinedLanguageSongEntry } from "@/ai/flows/refine-song-suggestions";
+import { refineSongSuggestions, type RefineSongSuggestionsInput } from "@/ai/flows/refine-song-suggestions";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
+import { analyzeMediaVibe, type AnalyzeMediaVibeInput } from "@/ai/flows/analyze-media-vibe";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { LanguageSelector } from './language-selector';
@@ -75,7 +77,7 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "Slovak", label: "Slovenčina (Slovak)" },
   { value: "Spanish", label: "Español (Spanish)" },
   { value: "Swahili", label: "Kiswahili (Swahili)" },
-  { value: "Swedish", "label": "Svenska (Swedish)" },
+  { value: "Swedish", label: "Svenska (Swedish)" },
   { value: "Tamil", label: "தமிழ் (Tamil)" },
   { value: "Telugu", label: "తెలుగు (Telugu)" },
   { value: "Thai", label: "ไทย (Thai)" },
@@ -115,6 +117,7 @@ export default function CaptionWiseClient() {
   const [mediaFiles, setMediaFiles] = useState<File[] | null>(null);
   const [mediaSrcs, setMediaSrcs] = useState<string[] | null>(null);
   const [mediaType, setMediaType] = useState<AppMediaType | null>(null);
+  const [vibe, setVibe] = useState<string | null>(null);
   
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["English"]);
   const [selectedSongLanguages, setSelectedSongLanguages] = useState<string[]>(["English"]);
@@ -149,6 +152,7 @@ export default function CaptionWiseClient() {
     setArtistPreference("");
     setSuggestedHashtags(null);
     setSelectedTone("Default");
+    setVibe(null);
   }
 
   const resetMedia = () => {
@@ -247,6 +251,10 @@ export default function CaptionWiseClient() {
       const dataUris = await Promise.all(filesToProcess.map(file => fileToDataUri(file)));
       setMediaSrcs(dataUris);
 
+      // Analyze Vibe
+      handleAnalyzeVibe(dataUris, currentMediaType);
+
+      // Suggest Captions and Songs
       await handleSuggestCaptionsAndSongs(dataUris, currentMediaType, [...new Set([...selectedLanguages, ...selectedSongLanguages])]);
 
     } catch (error: any) {
@@ -264,6 +272,17 @@ export default function CaptionWiseClient() {
       setIsSuggesting(false);
     }
   };
+
+  const handleAnalyzeVibe = async (dataUris: string[], currentMediaType: AppMediaType) => {
+    try {
+      const vibeInput: AnalyzeMediaVibeInput = { mediaDataUris: dataUris, mediaType: currentMediaType };
+      const vibeResult = await analyzeMediaVibe(vibeInput);
+      setVibe(vibeResult.vibe);
+    } catch (error: any) {
+      console.error("Error analyzing vibe:", error);
+      // We don't toast for vibe errors to keep the flow smooth, just log it.
+    }
+  }
 
   const handleSuggestCaptionsAndSongs = async (dataUris: string[], currentMediaType: AppMediaType, targetLanguagesForSuggestions: string[]) => {
     if (targetLanguagesForSuggestions.length === 0) {
@@ -298,11 +317,11 @@ export default function CaptionWiseClient() {
   };
 
   const getMediaDescriptionForRefinementFlow = useCallback((): string => {
-    if (mediaType === 'image_collection') return "A collection of user-uploaded images.";
-    if (mediaType === 'image') return "A user-uploaded image.";
-    if (mediaType === 'video') return "A user-uploaded video.";
+    if (mediaType === 'image_collection') return `A collection of user-uploaded images. Detected vibe: ${vibe || 'Unknown'}`;
+    if (mediaType === 'image') return `A user-uploaded image. Detected vibe: ${vibe || 'Unknown'}`;
+    if (mediaType === 'video') return `A user-uploaded video. Detected vibe: ${vibe || 'Unknown'}`;
     return "User-uploaded media.";
-  }, [mediaType]);
+  }, [mediaType, vibe]);
 
   const prepareCaptionsForRefinement = useCallback((lang: string): string[] => {
     const placeholders = ["Please refine this caption.", "Consider this alternative.", "Add more detail here.", "How about this style?"];
@@ -377,7 +396,7 @@ export default function CaptionWiseClient() {
   const handleAutoRefineSongs = async () => {
     const hasSongs = (suggestedSongs && Object.keys(suggestedSongs).length > 0) || (refinedSongSuggestions && Object.keys(refinedSongSuggestions).length > 0);
     if (!mediaSrcs || !mediaType || !hasSongs || selectedSongLanguages.length === 0) {
-        return; // Don't auto-refine if there's nothing to work with
+        return; 
     }
     setIsRefiningSongs(true);
     
@@ -472,14 +491,14 @@ export default function CaptionWiseClient() {
       .catch(() => toast({ variant: "destructive", title: "Error", description: `Failed to copy ${type}.` }));
   };
   
-  const handlePlayAudio = async (caption: string, language: string) => {
+  const handlePlayAudio = async (caption: string) => {
     if (playingCaption === caption) {
         activeAudio?.pause();
         setPlayingCaption(null);
         return;
     }
     
-    setPlayingCaption(caption); // Indicate loading
+    setPlayingCaption(caption); 
     if (activeAudio) activeAudio.pause();
 
     try {
@@ -505,7 +524,7 @@ export default function CaptionWiseClient() {
         <p className="text-sm text-card-foreground">{caption}</p>
       </div>
       <div className="flex items-center">
-        <Button variant="ghost" size="icon" onClick={() => handlePlayAudio(caption, language)} aria-label={`Listen to ${language} caption`} disabled={playingCaption === caption}>
+        <Button variant="ghost" size="icon" onClick={() => handlePlayAudio(caption)} aria-label={`Listen to ${language} caption`} disabled={playingCaption === caption}>
             {playingCaption === caption ? <Loader2 className="h-4 w-4 animate-spin" /> : <Volume2 className="h-4 w-4" />}
         </Button>
         <Button variant="ghost" size="icon" onClick={() => handleCopyText(caption, `${language} Caption`)} aria-label={`Copy ${language} caption`}>
@@ -549,6 +568,7 @@ export default function CaptionWiseClient() {
             <DialogContent className="sm:max-w-2xl">
               <AiAssistant
                 mediaType={mediaType}
+                vibe={vibe}
                 suggestedCaptions={suggestedCaptions}
                 suggestedSongs={suggestedSongs}
                 captionFeedback={captionFeedback}
@@ -630,8 +650,18 @@ export default function CaptionWiseClient() {
                 <CardDescription>This is the content the AI will generate suggestions for.</CardDescription>
               </CardHeader>
               <CardContent>
+                {vibe && (
+                  <div className="mb-4 p-4 bg-primary/10 border border-primary/20 rounded-lg animate-in fade-in slide-in-from-top-2 duration-500">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-semibold uppercase tracking-wider text-primary">Detected Vibe</span>
+                    </div>
+                    <p className="text-foreground italic">{vibe}</p>
+                  </div>
+                )}
+
                 {mediaSrcs && mediaSrcs.length > 0 && (
-                  <div className="mt-6 border rounded-lg overflow-hidden shadow-md bg-muted/20">
+                  <div className="mt-2 border rounded-lg overflow-hidden shadow-md bg-muted/20">
                     {mediaSrcs.length > 1 && mediaType === 'image_collection' ? (
                       <div className="flex space-x-2 overflow-x-auto p-2">
                         {mediaSrcs.map((src, index) => (

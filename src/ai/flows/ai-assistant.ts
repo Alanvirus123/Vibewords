@@ -13,6 +13,7 @@ const MediaSuggestionsSchema = z.record(z.array(z.string()));
 const AppContextSchema = z.object({
   hasMedia: z.boolean().describe("Whether media has been uploaded by the user."),
   mediaType: z.enum(['image', 'video', 'image_collection']).nullable().describe("The type of media uploaded."),
+  vibe: z.string().nullable().describe("The detected vibe of the media."),
   suggestedCaptions: MediaSuggestionsSchema.nullable().describe("The currently suggested captions, mapped by language."),
   suggestedSongs: MediaSuggestionsSchema.nullable().describe("The currently suggested songs, mapped by language."),
   captionRefinement: z.object({
@@ -51,6 +52,7 @@ const prompt = ai.definePrompt({
 - Media Uploaded: {{appContext.hasMedia}}
 {{#if appContext.hasMedia}}
 - Media Type: {{appContext.mediaType}}
+- Detected Vibe: {{appContext.vibe}}
 - Selected Caption Tone: {{appContext.captionRefinement.tone}}
 {{/if}}
 
