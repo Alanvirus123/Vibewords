@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -13,7 +12,6 @@ import type { MediaSuggestions } from "@/lib/types";
 
 interface AiAssistantProps {
   mediaType: 'image' | 'video' | 'image_collection' | null;
-  mediaVibe: string | null;
   suggestedCaptions: MediaSuggestions | null;
   suggestedSongs: MediaSuggestions | null;
   captionFeedback: string;
@@ -28,7 +26,6 @@ interface ChatMessage {
 
 export const AiAssistant: React.FC<AiAssistantProps> = ({
   mediaType,
-  mediaVibe,
   suggestedCaptions,
   suggestedSongs,
   captionFeedback,
@@ -66,7 +63,6 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({
         appContext: {
           hasMedia: !!mediaType,
           mediaType: mediaType,
-          mediaVibe: mediaVibe,
           suggestedCaptions: suggestedCaptions,
           suggestedSongs: suggestedSongs,
           captionRefinement: {

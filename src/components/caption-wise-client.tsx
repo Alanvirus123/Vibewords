@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import React, { useState, type ChangeEvent, useCallback, useMemo, Suspense, useEffect } from "react";
@@ -13,7 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 import { suggestMediaCaptions, type SuggestMediaCaptionsInput, type SuggestMediaCaptionsOutput, type LanguageSuggestionEntry } from "@/ai/flows/suggest-media-captions";
 import { refineMediaCaptions, type RefineMediaCaptionsInput, type RefinedLanguageCaptionEntry } from "@/ai/flows/refine-media-captions";
 import { refineSongSuggestions, type RefineSongSuggestionsInput, type RefinedLanguageSongEntry } from "@/ai/flows/refine-song-suggestions";
-import { analyzeMediaVibe, type AnalyzeMediaVibeInput } from "@/ai/flows/analyze-media-vibe";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -134,9 +131,6 @@ export default function CaptionWiseClient() {
 
   const [suggestedHashtags, setSuggestedHashtags] = useState<MediaSuggestions | null>(null);
 
-  const [mediaVibe, setMediaVibe] = useState<string | null>(null);
-  const [isAnalyzingVibe, setIsAnalyzingVibe] = useState<boolean>(false);
-
   const [isSuggesting, setIsSuggesting] = useState<boolean>(false);
   const [isRefiningCaptions, setIsRefiningCaptions] = useState<boolean>(false);
   const [isRefiningSongs, setIsRefiningSongs] = useState<boolean>(false);
@@ -153,7 +147,6 @@ export default function CaptionWiseClient() {
     setRefinedSongSuggestions(null);
     setSongFeedback("");
     setArtistPreference("");
-    setMediaVibe(null);
     setSuggestedHashtags(null);
     setSelectedTone("Default");
   }
@@ -247,21 +240,14 @@ export default function CaptionWiseClient() {
     setMediaFiles(filesToProcess);
     setMediaType(currentMediaType);
     
-    // Set loading states immediately
-    setIsAnalyzingVibe(true);
     setIsSuggesting(true);
-    setMediaVibe(null);
     resetSuggestions();
 
     try {
       const dataUris = await Promise.all(filesToProcess.map(file => fileToDataUri(file)));
       setMediaSrcs(dataUris);
 
-      // Now that dataUris are ready, call the AI functions
-      const vibePromise = handleVibeAnalysis(dataUris, currentMediaType);
-      const suggestionsPromise = handleSuggestCaptionsAndSongs(dataUris, currentMediaType, [...new Set([...selectedLanguages, ...selectedSongLanguages])]);
-      
-      await Promise.all([vibePromise, suggestionsPromise]);
+      await handleSuggestCaptionsAndSongs(dataUris, currentMediaType, [...new Set([...selectedLanguages, ...selectedSongLanguages])]);
 
     } catch (error: any) {
       console.error("Error during media processing or initial AI suggestion phase:", error);
@@ -275,21 +261,7 @@ export default function CaptionWiseClient() {
       resetAll();
       if (event.target) event.target.value = '';
     } finally {
-      // Reset loading states after all async operations are done
-      setIsAnalyzingVibe(false);
       setIsSuggesting(false);
-    }
-  };
-
-  const handleVibeAnalysis = async (dataUris: string[], currentMediaType: AppMediaType) => {
-    try {
-      const result = await analyzeMediaVibe({ mediaDataUris: dataUris, mediaType: currentMediaType });
-      if (result?.vibe) {
-        setMediaVibe(result.vibe);
-      }
-    } catch (error) {
-      console.error("Error analyzing media vibe:", error);
-      toast({ variant: "destructive", title: "Vibe Analysis Failed", description: "Could not analyze the media's vibe." });
     }
   };
 
@@ -577,7 +549,6 @@ export default function CaptionWiseClient() {
             <DialogContent className="sm:max-w-2xl">
               <AiAssistant
                 mediaType={mediaType}
-                mediaVibe={mediaVibe}
                 suggestedCaptions={suggestedCaptions}
                 suggestedSongs={suggestedSongs}
                 captionFeedback={captionFeedback}
@@ -654,7 +625,7 @@ export default function CaptionWiseClient() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
                     <Images className="h-6 w-6 text-primary" />
-                    3. Your Media & Vibe
+                    3. Your Media
                 </CardTitle>
                 <CardDescription>This is the content the AI will generate suggestions for.</CardDescription>
               </CardHeader>
@@ -686,25 +657,6 @@ export default function CaptionWiseClient() {
                           </video>
                         )}
                       </>
-                    )}
-                     {(isAnalyzingVibe || mediaVibe) && (
-                      <div className="p-4 bg-background border-t">
-                        {isAnalyzingVibe && (
-                           <div className="flex items-center text-sm text-muted-foreground">
-                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                             Analyzing vibe...
-                           </div>
-                        )}
-                        {mediaVibe && !isAnalyzingVibe && (
-                          <div className="flex items-start text-sm">
-                            <Feather className="h-5 w-5 mr-3 mt-0.5 text-primary"/>
-                            <div>
-                              <p className="font-semibold text-foreground">The Vibe</p>
-                              <p className="text-muted-foreground">{mediaVibe}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
                     )}
                   </div>
                 )}
@@ -832,5 +784,3 @@ export default function CaptionWiseClient() {
     </div>
   );
 }
-
-    

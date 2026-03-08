@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -18,7 +17,6 @@ const MediaSuggestionsSchema = z.record(z.array(z.string()));
 const AppContextSchema = z.object({
   hasMedia: z.boolean().describe("Whether media has been uploaded by the user."),
   mediaType: z.enum(['image', 'video', 'image_collection']).nullable().describe("The type of media uploaded."),
-  mediaVibe: z.string().nullable().describe("The AI-analyzed vibe of the media."),
   suggestedCaptions: MediaSuggestionsSchema.nullable().describe("The currently suggested captions, mapped by language."),
   suggestedSongs: MediaSuggestionsSchema.nullable().describe("The currently suggested songs, mapped by language."),
   captionRefinement: z.object({
@@ -64,7 +62,6 @@ You have access to the current state of the application, which includes the user
 - Media Uploaded: {{appContext.hasMedia}}
 {{#if appContext.hasMedia}}
 - Media Type: {{appContext.mediaType}}
-- Media's Vibe: {{#if appContext.mediaVibe}}"{{appContext.mediaVibe}}"{{else}}Not analyzed yet.{{/if}}
 - Suggested Captions: {{#if appContext.suggestedCaptions}}Yes (scroll down to view){{else}}No{{/if}}
 - Suggested Songs: {{#if appContext.suggestedSongs}}Yes (scroll down to view){{else}}No{{/if}}
 - Caption Feedback provided by user: {{#if appContext.captionRefinement.feedback}}"{{appContext.captionRefinement.feedback}}"{{else}}None{{/if}}
