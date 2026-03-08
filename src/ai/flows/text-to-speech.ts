@@ -62,7 +62,7 @@ const textToSpeechFlow = ai.defineFlow(
     outputSchema: TextToSpeechOutputSchema,
   },
   async ({ text }) => {
-    // Using a stable multimodal model for audio generation
+    // Using gemini-1.5-flash as it supports audio modality and is standard
     const { media } = await ai.generate({
       model: 'googleai/gemini-1.5-flash',
       config: {
