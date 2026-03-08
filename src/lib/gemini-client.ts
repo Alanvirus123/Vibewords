@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview A direct client for the Gemini API with model resolution and retry logic.
  */
@@ -15,7 +14,7 @@ export interface GeminiModel {
 }
 
 // Feature flag: inject preferred model from env, fall back to stable
-const PREFERRED_MODEL = process.env.GEMINI_MODEL ?? "gemini-1.5-flash";
+const PREFERRED_MODEL = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
 
 /**
  * Fetches a resource with exponential backoff retry logic.
