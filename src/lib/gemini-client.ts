@@ -1,19 +1,21 @@
+
 /**
  * @fileOverview A direct client for the Gemini API with model resolution and retry logic.
  */
 
 import { GeminiError } from "./gemini-error";
+import { kv } from "@vercel/kv";
 
 const BASE_URL = "https://generativelanguage.googleapis.com";
 const API_VERSION = "v1";
 
-interface GeminiModel {
+export interface GeminiModel {
   name: string;
   supportedGenerationMethods: string[];
 }
 
-// Cache model metadata for the process lifetime
-let modelCache: GeminiModel[] | null = null;
+// Feature flag: inject preferred model from env, fall back to stable
+const PREFERRED_MODEL = process.env.GEMINI_MODEL ?? "gemini-1.5-flash";
 
 /**
  * Fetches a resource with exponential backoff retry logic.
@@ -23,7 +25,6 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 3): P
   for (let i = 0; i < retries; i++) {
     try {
       const response = await fetch(url, options);
-      // Only retry on 5xx errors or rate limits (429)
       if (response.ok || (response.status < 500 && response.status !== 429)) return response;
       
       console.warn(`Gemini API attempt ${i + 1} failed with status ${response.status}. Retrying...`);
@@ -31,21 +32,24 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 3): P
       lastError = err;
       console.warn(`Gemini API attempt ${i + 1} encountered an error:`, err);
     }
-    // Exponential backoff
     await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
   }
   throw lastError || new Error('Fetch failed after retries');
 }
 
 /**
- * Lists available models from the Gemini API.
+ * Lists available models from the Gemini API with Redis caching.
  */
 export async function listModels(): Promise<GeminiModel[]> {
-  if (modelCache) return modelCache;
+  try {
+    const cached = await kv.get<GeminiModel[]>("gemini:models");
+    if (cached) return cached;
+  } catch (e) {
+    console.warn("KV cache unavailable, falling back to direct fetch");
+  }
 
-  const res = await fetch(
-    `${BASE_URL}/${API_VERSION}/models?key=${process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY}`
-  );
+  const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+  const res = await fetch(`${BASE_URL}/${API_VERSION}/models?key=${apiKey}`);
 
   if (!res.ok) {
     throw new GeminiError(
@@ -56,8 +60,15 @@ export async function listModels(): Promise<GeminiModel[]> {
   }
 
   const data = await res.json();
-  modelCache = data.models ?? [];
-  return modelCache!;
+  const models: GeminiModel[] = data.models ?? [];
+  
+  try {
+    await kv.set("gemini:models", models, { ex: 3600 });
+  } catch (e) {
+    console.warn("Failed to update KV cache");
+  }
+
+  return models;
 }
 
 /**
@@ -66,7 +77,6 @@ export async function listModels(): Promise<GeminiModel[]> {
 export async function resolveModel(preferred: string): Promise<string> {
   const models = await listModels();
 
-  // Try exact match first, then prefix match (handles versioned suffixes)
   const match =
     models.find(
       (m) =>
@@ -89,7 +99,6 @@ export async function resolveModel(preferred: string): Promise<string> {
     );
   }
 
-  // Return just the model ID (strip "models/" prefix)
   return match.name.replace("models/", "");
 }
 
@@ -98,11 +107,12 @@ export async function resolveModel(preferred: string): Promise<string> {
  */
 export async function generateContent(
   prompt: string,
-  preferredModel = "gemini-1.5-flash"
+  preferredModel = PREFERRED_MODEL
 ): Promise<string> {
   const modelId = await resolveModel(preferredModel);
+  const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
-  const url = `${BASE_URL}/${API_VERSION}/models/${modelId}:generateContent?key=${process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY}`;
+  const url = `${BASE_URL}/${API_VERSION}/models/${modelId}:generateContent?key=${apiKey}`;
 
   const body = {
     contents: [{ role: "user", parts: [{ text: prompt }] }],
