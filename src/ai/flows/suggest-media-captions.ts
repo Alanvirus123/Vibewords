@@ -57,7 +57,6 @@ export async function suggestMediaCaptions(
 
 const prompt = ai.definePrompt({
   name: 'suggestMediaCaptionsPrompt',
-  model: 'googleai/gemini-1.5-flash',
   input: {schema: SuggestMediaCaptionsPromptInputSchema},
   output: {schema: SuggestMediaCaptionsOutputSchema},
   prompt: `You are an expert social media manager. You will analyze the provided media.

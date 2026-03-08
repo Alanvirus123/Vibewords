@@ -43,7 +43,6 @@ export async function askAiAssistant(input: AskAiAssistantInput): Promise<AskAiA
 
 const prompt = ai.definePrompt({
   name: 'askAiAssistantPrompt',
-  model: 'googleai/gemini-1.5-flash',
   input: { schema: AskAiAssistantInputSchema },
   output: { schema: AskAiAssistantOutputSchema },
   prompt: `You are a helpful and friendly AI assistant for the VibeWords application. Your goal is to answer the user's questions and provide guidance.
