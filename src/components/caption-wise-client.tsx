@@ -1,22 +1,22 @@
 
 "use client";
 
-import React, { useState, type ChangeEvent, useCallback, useMemo, Suspense } from "react";
-import Image from "next/image";
-import { UploadCloud, Copy, RefreshCw, Loader2, Images, Text, Music, Hash, HelpCircle, Volume2, Sparkles, LanguagesIcon, Share2, Music2 } from "lucide-react";
+import React, { useState, type ChangeEvent, useMemo, Suspense } from "react";
+import { UploadCloud, Copy, Loader2, Sparkles, Share2, HelpCircle, Music2, Hash, Text, Volume2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { suggestMediaCaptions, type SuggestMediaCaptionsInput, type SuggestMediaCaptionsOutput, type LanguageSuggestionEntry } from "@/ai/flows/suggest-media-captions";
-import { refineMediaCaptions, type RefineMediaCaptionsInput, type RefinedLanguageCaptionEntry } from "@/ai/flows/refine-media-captions";
+import { suggestMediaCaptions, type SuggestMediaCaptionsInput } from "@/ai/flows/suggest-media-captions";
+import { refineMediaCaptions, type RefineMediaCaptionsInput } from "@/ai/flows/refine-media-captions";
 import { refineSongSuggestions, type RefineSongSuggestionsInput } from "@/ai/flows/refine-song-suggestions";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
-import { analyzeMediaVibe, type AnalyzeMediaVibeInput } from "@/ai/flows/analyze-media-vibe";
+import { analyzeMediaVibe } from "@/ai/flows/analyze-media-vibe";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { LanguageSelector } from './language-selector';
+import { PlatformSelector } from './platform-selector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { MediaSuggestions, LanguageOption, SocialPlatform } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -81,7 +81,7 @@ export default function CaptionWiseClient() {
   
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["English"]);
   const [selectedSongLanguages, setSelectedSongLanguages] = useState<string[]>(["English"]);
-  const [selectedPlatform, setSelectedPlatform] = useState<SocialPlatform>("Instagram");
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["Instagram"]);
 
   const [suggestedCaptions, setSuggestedCaptions] = useState<MediaSuggestions | null>(null);
   const [refinedCaptions, setRefinedCaptions] = useState<MediaSuggestions | null>(null);
@@ -147,6 +147,19 @@ export default function CaptionWiseClient() {
     });
   };
 
+  const handlePlatformChange = (platformValue: string) => {
+    setSelectedPlatforms(prev => {
+      const newSelection = prev.includes(platformValue)
+        ? prev.filter(p => p !== platformValue)
+        : [...prev, platformValue];
+      if (newSelection.length === 0) {
+        toast({ variant: "destructive", title: "Selection Error", description: "At least one platform must be selected." });
+        return prev;
+      }
+      return newSelection;
+    });
+  }
+
   const handleMediaUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -171,17 +184,15 @@ export default function CaptionWiseClient() {
       const dataUris = await Promise.all(uploadedFiles.map(file => fileToDataUri(file)));
       setMediaSrcs(dataUris);
 
-      // Analyze Vibe
       const vibeResult = await analyzeMediaVibe({ mediaDataUris: dataUris, mediaType: currentMediaType });
       setVibe(vibeResult.vibe);
 
-      // Suggest Captions and Songs
       const targetLanguagesForSuggestions = [...new Set([...selectedLanguages, ...selectedSongLanguages])];
       const input: SuggestMediaCaptionsInput = { 
         mediaDataUris: dataUris, 
         mediaType: currentMediaType, 
         targetLanguages: targetLanguagesForSuggestions,
-        targetPlatform: selectedPlatform
+        targetPlatforms: selectedPlatforms
       };
       const result = await suggestMediaCaptions(input);
       
@@ -228,7 +239,7 @@ export default function CaptionWiseClient() {
         userFeedback: captionFeedback,
         tone: selectedTone === 'Default' ? undefined : selectedTone,
         targetLanguages: selectedLanguages,
-        targetPlatform: selectedPlatform,
+        targetPlatforms: selectedPlatforms,
       };
       const result = await refineMediaCaptions(captionInput);
       
@@ -368,19 +379,16 @@ export default function CaptionWiseClient() {
               <Share2 className="h-6 w-6 text-primary" />
               1. Choose Your Target
             </CardTitle>
-            <CardDescription>Select the platform and languages for your post.</CardDescription>
+            <CardDescription>Select the platforms and languages for your post.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
-              <Label>Target Social Platform</Label>
-              <Select value={selectedPlatform} onValueChange={(val) => setSelectedPlatform(val as SocialPlatform)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select Platform" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SOCIAL_PLATFORMS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <PlatformSelector
+                allPlatforms={SOCIAL_PLATFORMS}
+                selectedPlatforms={selectedPlatforms}
+                onPlatformChange={handlePlatformChange}
+                description="Choose one or more platforms to optimize for."
+              />
             </div>
             
             <Tabs defaultValue="captions">
@@ -430,7 +438,7 @@ export default function CaptionWiseClient() {
         {isSuggesting && (
           <div className="flex flex-col items-center gap-2 py-8">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <p>Tailoring for {selectedPlatform}...</p>
+            <p>Tailoring for {selectedPlatforms.join(' & ')}...</p>
           </div>
         )}
 
@@ -467,7 +475,7 @@ export default function CaptionWiseClient() {
 
         {!isSuggesting && suggestedHashtags && (
           <Card className="shadow-lg">
-            <CardHeader><CardTitle className="flex items-center gap-2"><Hash className="h-5 w-5 text-primary" /> Hashtags for {selectedPlatform}</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="flex items-center gap-2"><Hash className="h-5 w-5 text-primary" /> Hashtags for {selectedPlatforms.join(', ')}</CardTitle></CardHeader>
             <CardContent className="flex flex-wrap gap-2">
               {Object.values(suggestedHashtags).flat().map((tag, i) => (
                 <Badge key={i} variant="secondary" className="cursor-pointer" onClick={() => handleCopyText(tag, 'Hashtag')}>{tag}</Badge>

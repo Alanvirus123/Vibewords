@@ -3,7 +3,7 @@
 
 /**
  * @fileOverview A flow to refine media caption suggestions using Genkit.
- * Handles platform-specific refinement based on user feedback and target platform.
+ * Handles platform-specific refinement based on user feedback and target platforms.
  */
 
 import {ai} from '@/ai/genkit';
@@ -28,7 +28,7 @@ const RefineMediaCaptionsInputSchema = z.object({
   userFeedback: z.string().describe('The user feedback on the initial captions.'),
   tone: z.string().optional().describe('An optional tone to apply.'),
   targetLanguages: z.array(z.string()).min(1).describe('Array of language names.'),
-  targetPlatform: z.string().describe('The target social media platform.'),
+  targetPlatforms: z.array(z.string()).min(1).describe('The target social media platforms.'),
 });
 
 export type RefineMediaCaptionsInput = z.infer<typeof RefineMediaCaptionsInputSchema>;
@@ -58,10 +58,10 @@ const refineMediaCaptionsPrompt = ai.definePrompt({
   name: 'refineMediaCaptionsPrompt',
   input: {schema: RefineMediaCaptionsPromptInputSchema},
   output: {schema: RefineMediaCaptionsOutputSchema},
-  prompt: `You are an expert social media manager. Refine the provided captions for the **{{{targetPlatform}}}** platform.
+  prompt: `You are an expert social media manager. Refine the provided captions for the following platforms: {{#each targetPlatforms}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
 
-  Ensure the refinement respects the platform's style:
-  - Platform: {{{targetPlatform}}}
+  Ensure the refinement respects the platform styles:
+  Platforms: {{#each targetPlatforms}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
   {{#if tone}}
   - Requested Tone: **{{{tone}}}**
   {{/if}}

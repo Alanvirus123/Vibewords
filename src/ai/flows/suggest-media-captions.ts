@@ -3,7 +3,7 @@
 
 /**
  * @fileOverview Media (image/video/image_collection) caption, song, and hashtag suggestion AI agent.
- * Allows users to specify target languages and the target social media platform for generation.
+ * Allows users to specify target languages and target social media platforms for generation.
  * Outputs suggestions as an array of language-specific entries.
  */
 
@@ -20,7 +20,7 @@ const SuggestMediaCaptionsInputSchema = z.object({
     ),
   mediaType: z.enum(['image', 'video', 'image_collection']).describe('The type of the media provided (image, video, or image_collection for multiple images).'),
   targetLanguages: z.array(z.string()).min(1).describe('An array of language names (e.g., "English", "Spanish") for which to generate captions and song suggestions.'),
-  targetPlatform: z.string().describe('The target social media platform (e.g., "Instagram", "LinkedIn", "TikTok").'),
+  targetPlatforms: z.array(z.string()).min(1).describe('The target social media platforms (e.g., ["Instagram", "LinkedIn"]).'),
 });
 export type SuggestMediaCaptionsInput = z.infer<typeof SuggestMediaCaptionsInputSchema>;
 
@@ -60,9 +60,9 @@ const prompt = ai.definePrompt({
   input: {schema: SuggestMediaCaptionsPromptInputSchema},
   output: {schema: SuggestMediaCaptionsOutputSchema},
   prompt: `You are an expert social media manager. You will analyze the provided media.
-  Your task is to generate content tailored for the **{{{targetPlatform}}}** platform.
+  Your task is to generate content tailored for the following platforms: {{#each targetPlatforms}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
 
-  Platform-Specific Guidance:
+  Platform-Specific Guidance (Apply balance across selected platforms):
   - **Instagram**: Use engaging hooks, emojis, and a mix of descriptive and punchy styles.
   - **TikTok**: Be trendy, energetic, and use hooks that grab attention quickly.
   - **LinkedIn**: Be professional, insightful, and thought-provoking. Focus on value or career stories.
@@ -75,9 +75,9 @@ const prompt = ai.definePrompt({
   Generate suggestions for ALL of the following languages: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
 
   For EACH of these target languages, you MUST generate:
-  1. EXACTLY four engaging captions suitable for {{{targetPlatform}}}.
+  1. EXACTLY four engaging captions suitable for the selected platforms.
   2. EXACTLY two song titles that would fit the mood or theme of the media.
-  3. EXACTLY ten relevant hashtags appropriate for {{{targetPlatform}}}.
+  3. EXACTLY ten relevant hashtags appropriate for the selected platforms.
 
   Provided Media:
   {{#if isImageCollection}}
