@@ -62,13 +62,16 @@ const prompt = ai.definePrompt({
   Target Languages: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
   
   For EACH language, provide:
-  1. EXACTLY four captions.
+  1. EXACTLY four unique captions.
   2. EXACTLY three song suggestions (title, artist, description).
      STRICT Cultural Authenticity:
      - Hindi: Suggest Bollywood/Hindi Pop/Indie.
      - Bengali: Suggest Rabindra Sangeet/Bengali Film/Baul/Bengali Pop.
      - No English songs for non-English languages unless explicitly fitting.
-  3. EXACTLY ten hashtags.
+  3. EXACTLY ten hashtags as a list of 10 individual, non-empty strings. 
+     - Do NOT combine multiple hashtags into one string.
+     - Do NOT return empty strings ("").
+     - Ensure every array element contains a meaningful hashtag.
 
   Media:
   {{#if isImageCollection}}Collection of {{mediaDataUris.length}} images.{{/if}}
