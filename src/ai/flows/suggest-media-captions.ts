@@ -37,7 +37,7 @@ const LanguageSuggestionEntrySchema = z.object({
     .describe("An array of EXACTLY four suggested captions in this language."),
   songSuggestions: z.array(z.string().min(1))
     .length(2)
-    .describe("An array containing EXACTLY two suggested song titles. These should be culturally relevant or in the specified language."),
+    .describe("An array containing EXACTLY two suggested song titles. These MUST be culturally and linguistically authentic to the specified language (e.g., Bollywood for Hindi, J-Pop for Japanese)."),
   hashtags: z.array(z.string().min(1))
     .length(10)
     .describe("An array of EXACTLY ten relevant hashtags in this language."),
@@ -59,26 +59,19 @@ const prompt = ai.definePrompt({
   name: 'suggestMediaCaptionsPrompt',
   input: {schema: SuggestMediaCaptionsPromptInputSchema},
   output: {schema: SuggestMediaCaptionsOutputSchema},
-  prompt: `You are an expert social media manager and music curator. You will analyze the provided media and generate platform-optimized content.
+  prompt: `You are an expert social media manager and global music curator. You will analyze the provided media and generate platform-optimized content.
 
   Your task is to generate content tailored for the following platforms: {{#each targetPlatforms}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
-
-  **Platform-Specific Guidance:**
-  - **Instagram**: Engaging hooks, emojis, punchy styles.
-  - **TikTok**: Trendy, energetic, attention-grabbing.
-  - **LinkedIn**: Professional, insightful, value-focused.
-  - **X (Twitter)**: Concise, witty, timely.
-  - **Facebook**: Conversational, community-oriented.
-  - **Threads**: Casual, engagement-focused.
-  - **Pinterest**: Inspirational, descriptive.
-  - **YouTube**: Titles and descriptions optimized for discovery.
 
   **Linguistic and Cultural Song Selection:**
   Generate suggestions for ALL of the following languages: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
   
   For EACH target language, you MUST provide:
-  1. EXACTLY four captions in that language.
-  2. EXACTLY two song suggestions. **Crucially**, these songs should be relevant to the linguistic and cultural context of the language. For example, if the language is "Hindi", suggest popular Hindi or Bollywood tracks. If "French", suggest French tracks or tracks popular in the Francophone world.
+  1. EXACTLY four captions in that language, optimized for the chosen platforms.
+  2. EXACTLY two song suggestions. **Crucially**, these songs MUST be culturally and linguistically relevant to the specified language. 
+     - For Indian languages (Hindi, Marathi, Tamil, etc.), suggest popular regional or Bollywood/Tollywood/Kollywood hits.
+     - For East Asian languages, suggest K-Pop, J-Pop, or C-Pop as appropriate.
+     - For European languages, suggest tracks popular in those specific cultural regions.
   3. EXACTLY ten hashtags in that language.
 
   Provided Media:

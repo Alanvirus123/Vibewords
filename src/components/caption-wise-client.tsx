@@ -76,7 +76,7 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "Konkani", label: "कोंकणी (Konkani)" },
   { value: "Korean", label: "한국어 (Korean)" },
   { value: "Kyrgyz", label: "Кыргызча (Kyrgyz)" },
-  { value: "Lao", label: "ខ្មែរ (Lao)" },
+  { value: "Lao", label: "ລາວ (Lao)" },
   { value: "Latvian", label: "Latviešu (Latvian)" },
   { value: "Lithuanian", label: "Lietuvių (Lithuanian)" },
   { value: "Macedonian", label: "Македонски (Macedonian)" },
@@ -492,6 +492,7 @@ export default function CaptionWiseClient() {
                   allLanguages={PREDEFINED_LANGUAGES}
                   selectedLanguages={selectedLanguages}
                   onLanguageChange={handleLanguageChange}
+                  onBulkSelect={setSelectedLanguages}
                   description="Choose languages for your platform captions."
                 />
               </TabsContent>
@@ -500,6 +501,7 @@ export default function CaptionWiseClient() {
                   allLanguages={PREDEFINED_LANGUAGES}
                   selectedLanguages={selectedSongLanguages}
                   onLanguageChange={handleSongLanguageChange}
+                  onBulkSelect={setSelectedSongLanguages}
                   description="Choose languages for your culturally-aware song ideas."
                 />
               </TabsContent>
