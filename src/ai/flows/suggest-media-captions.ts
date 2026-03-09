@@ -69,7 +69,11 @@ const prompt = ai.definePrompt({
   
   For EACH target language, you MUST provide:
   1. EXACTLY four captions in that language, optimized for the chosen platforms.
-  2. EXACTLY two song suggestions. These songs MUST be culturally and linguistically relevant to the specified language (e.g. Bollywood for Hindi, J-Pop for Japanese).
+  2. EXACTLY two song suggestions. These songs MUST be culturally and linguistically authentic to the specified language. 
+     - For example, if the language is Hindi, suggest popular Bollywood tracks, Sufi, or Indian Pop.
+     - If it's Bengali, suggest famous Rabindra Sangeet, Bengali Film songs, or Baul music.
+     - If it's Japanese, suggest J-Pop or Anime themes.
+     - DO NOT suggest English songs for non-English languages unless the media vibe specifically demands a global pop hit.
   3. EXACTLY ten hashtags in that language.
 
   Provided Media:

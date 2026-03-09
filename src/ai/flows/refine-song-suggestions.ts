@@ -79,6 +79,13 @@ const refineSongSuggestionsPrompt = ai.definePrompt({
 
   Target Languages for Refinement: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
 
+  **STRICT Cultural and Linguistic Authenticity:**
+  For each language, the refined suggestions MUST be in that specific language/culture.
+  - If the language is Bengali, provide Bengali songs.
+  - If the language is Hindi, provide Hindi songs.
+  - If the language is Spanish, provide Spanish/Latin tracks.
+  - DO NOT provide English songs for non-English target languages unless explicitly requested by the user's feedback.
+
   Provided Media:
   {{#if isImageCollection}}
     A collection of {{mediaDataUris.length}} images.
