@@ -37,7 +37,7 @@ const LanguageSuggestionEntrySchema = z.object({
     .describe("An array of EXACTLY four suggested captions in this language."),
   songSuggestions: z.array(z.string().min(1))
     .length(2)
-    .describe("An array containing EXACTLY two suggested song titles in this language."),
+    .describe("An array containing EXACTLY two suggested song titles. These should be culturally relevant or in the specified language."),
   hashtags: z.array(z.string().min(1))
     .length(10)
     .describe("An array of EXACTLY ten relevant hashtags in this language."),
@@ -59,25 +59,27 @@ const prompt = ai.definePrompt({
   name: 'suggestMediaCaptionsPrompt',
   input: {schema: SuggestMediaCaptionsPromptInputSchema},
   output: {schema: SuggestMediaCaptionsOutputSchema},
-  prompt: `You are an expert social media manager. You will analyze the provided media.
+  prompt: `You are an expert social media manager and music curator. You will analyze the provided media and generate platform-optimized content.
+
   Your task is to generate content tailored for the following platforms: {{#each targetPlatforms}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
 
-  Platform-Specific Guidance (Apply balance across selected platforms):
-  - **Instagram**: Use engaging hooks, emojis, and a mix of descriptive and punchy styles.
-  - **TikTok**: Be trendy, energetic, and use hooks that grab attention quickly.
-  - **LinkedIn**: Be professional, insightful, and thought-provoking. Focus on value or career stories.
-  - **X (Twitter)**: Be concise, witty, and timely.
-  - **Facebook**: Be conversational, community-oriented, and slightly longer if needed.
-  - **Threads**: Be casual, text-focused, and encourage engagement.
-  - **Pinterest**: Be inspirational, descriptive, and use keywords effectively.
-  - **YouTube**: Focus on titles and descriptions that work well for video content.
+  **Platform-Specific Guidance:**
+  - **Instagram**: Engaging hooks, emojis, punchy styles.
+  - **TikTok**: Trendy, energetic, attention-grabbing.
+  - **LinkedIn**: Professional, insightful, value-focused.
+  - **X (Twitter)**: Concise, witty, timely.
+  - **Facebook**: Conversational, community-oriented.
+  - **Threads**: Casual, engagement-focused.
+  - **Pinterest**: Inspirational, descriptive.
+  - **YouTube**: Titles and descriptions optimized for discovery.
 
+  **Linguistic and Cultural Song Selection:**
   Generate suggestions for ALL of the following languages: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
-
-  For EACH of these target languages, you MUST generate:
-  1. EXACTLY four engaging captions suitable for the selected platforms.
-  2. EXACTLY two song titles that would fit the mood or theme of the media.
-  3. EXACTLY ten relevant hashtags appropriate for the selected platforms.
+  
+  For EACH target language, you MUST provide:
+  1. EXACTLY four captions in that language.
+  2. EXACTLY two song suggestions. **Crucially**, these songs should be relevant to the linguistic and cultural context of the language. For example, if the language is "Hindi", suggest popular Hindi or Bollywood tracks. If "French", suggest French tracks or tracks popular in the Francophone world.
+  3. EXACTLY ten hashtags in that language.
 
   Provided Media:
   {{#if isImageCollection}}

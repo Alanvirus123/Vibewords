@@ -76,7 +76,7 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "Konkani", label: "कोंकणी (Konkani)" },
   { value: "Korean", label: "한국어 (Korean)" },
   { value: "Kyrgyz", label: "Кыргызча (Kyrgyz)" },
-  { value: "Lao", label: "ລາວ (Lao)" },
+  { value: "Lao", label: "ខ្មែរ (Lao)" },
   { value: "Latvian", label: "Latviešu (Latvian)" },
   { value: "Lithuanian", label: "Lietuvių (Lithuanian)" },
   { value: "Macedonian", label: "Македонски (Macedonian)" },
@@ -224,6 +224,19 @@ export default function CaptionWiseClient() {
       return newSelection;
     });
   };
+
+  const handleSongLanguageChange = (languageValue: string) => {
+    setSelectedSongLanguages(prev => {
+      const newSelection = prev.includes(languageValue)
+        ? prev.filter(lang => lang !== languageValue)
+        : [...prev, languageValue];
+      if (newSelection.length === 0) {
+        toast({ variant: "destructive", title: "Selection Error", description: "At least one song language must be selected." });
+        return prev;
+      }
+      return newSelection;
+    });
+  }
 
   const handlePlatformChange = (platformValue: string) => {
     setSelectedPlatforms(prev => {
@@ -457,7 +470,7 @@ export default function CaptionWiseClient() {
               <Share2 className="h-6 w-6 text-primary" />
               1. Choose Your Target
             </CardTitle>
-            <CardDescription>Select the platforms and languages for your post.</CardDescription>
+            <CardDescription>Select the platforms and languages for your post content.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
@@ -486,8 +499,8 @@ export default function CaptionWiseClient() {
                  <LanguageSelector
                   allLanguages={PREDEFINED_LANGUAGES}
                   selectedLanguages={selectedSongLanguages}
-                  onLanguageChange={(val) => setSelectedSongLanguages(prev => prev.includes(val) ? prev.filter(l => l !== val) : [...prev, val])}
-                  description="Choose languages for your song ideas."
+                  onLanguageChange={handleSongLanguageChange}
+                  description="Choose languages for your culturally-aware song ideas."
                 />
               </TabsContent>
             </Tabs>
