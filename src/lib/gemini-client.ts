@@ -13,8 +13,8 @@ export interface GeminiModel {
   supportedGenerationMethods: string[];
 }
 
-// Feature flag: inject preferred model from env, fall back to stable
-const PREFERRED_MODEL = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+// Feature flag: inject preferred model from env, fall back to stable 1.5-flash
+const PREFERRED_MODEL = process.env.GEMINI_MODEL ?? "gemini-1.5-flash";
 
 /**
  * Fetches a resource with exponential backoff retry logic.
