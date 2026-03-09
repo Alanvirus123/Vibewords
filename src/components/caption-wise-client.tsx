@@ -1,7 +1,8 @@
+
 "use client";
 
 import React, { useState, type ChangeEvent, useMemo, Suspense } from "react";
-import { UploadCloud, Copy, Loader2, Sparkles, Share2, HelpCircle, Music2, Hash, Text, Volume2, RefreshCw, AlertTriangle } from "lucide-react";
+import { UploadCloud, Copy, Loader2, Sparkles, Share2, HelpCircle, Music2, Hash, Text, Volume2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { LanguageSelector } from './language-selector';
 import { PlatformSelector } from './platform-selector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { MediaSuggestions, LanguageOption, SocialPlatform } from '@/lib/types';
+import type { MediaSuggestions, LanguageOption, SocialPlatform, SongSuggestion, SongSuggestionsMap } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { AiAssistant } from "@/components/ai-assistant";
@@ -166,8 +167,8 @@ export default function CaptionWiseClient() {
   const [captionFeedback, setCaptionFeedback] = useState<string>("");
   const [selectedTone, setSelectedTone] = useState<string>("Default");
 
-  const [suggestedSongs, setSuggestedSongs] = useState<MediaSuggestions | null>(null);
-  const [refinedSongSuggestions, setRefinedSongSuggestions] = useState<MediaSuggestions | null>(null);
+  const [suggestedSongs, setSuggestedSongs] = useState<SongSuggestionsMap | null>(null);
+  const [refinedSongSuggestions, setRefinedSongSuggestions] = useState<SongSuggestionsMap | null>(null);
   const [songFeedback, setSongFeedback] = useState<string>("");
   const [artistPreference, setArtistPreference] = useState<string>("");
 
@@ -280,14 +281,6 @@ export default function CaptionWiseClient() {
 
       const targetLanguagesForSuggestions = [...new Set([...selectedLanguages, ...selectedSongLanguages])];
       
-      if (targetLanguagesForSuggestions.length > MAX_LANGUAGES_PER_REQUEST) {
-        toast({
-          variant: "destructive",
-          title: "Too Many Languages",
-          description: `Processing all languages at once might time out. Limiting to the first ${MAX_LANGUAGES_PER_REQUEST} for better reliability.`
-        });
-      }
-
       const input: SuggestMediaCaptionsInput = { 
         mediaDataUris: dataUris, 
         mediaType: currentMediaType, 
@@ -298,7 +291,7 @@ export default function CaptionWiseClient() {
       const result = await suggestMediaCaptions(input);
       
       const newSuggestedCaptions: MediaSuggestions = {};
-      const newSuggestedSongs: MediaSuggestions = {};
+      const newSuggestedSongs: SongSuggestionsMap = {};
       const newSuggestedHashtags: MediaSuggestions = {};
       
       result.languageEntries?.forEach((entry) => {
@@ -318,7 +311,7 @@ export default function CaptionWiseClient() {
       toast({ 
         variant: "destructive", 
         title: "Processing Error", 
-        description: error.message || "An unexpected response was received from the server. Try selecting fewer languages."
+        description: error.message || "An unexpected response was received."
       });
       resetAll();
     } finally {
@@ -357,11 +350,7 @@ export default function CaptionWiseClient() {
       setRefinedCaptions(newRefinedCaptions);
       toast({ title: "Captions Refined!" });
     } catch (error: any) {
-      toast({ 
-        variant: "destructive", 
-        title: "Refinement Error", 
-        description: error.message || "Could not refine captions. Try providing simpler feedback."
-      });
+      toast({ variant: "destructive", title: "Refinement Error", description: error.message });
     } finally {
       setIsRefiningCaptions(false);
     }
@@ -389,7 +378,7 @@ export default function CaptionWiseClient() {
       };
       const result = await refineSongSuggestions(songInput);
 
-      const newRefinedSongs: MediaSuggestions = { ...refinedSongSuggestions };
+      const newRefinedSongs: SongSuggestionsMap = { ...refinedSongSuggestions };
       result.refinedLanguageSongEntries?.forEach((entry) => {
         if (entry.language && entry.refinedSongSuggestions?.length > 0) {
           newRefinedSongs[entry.language] = entry.refinedSongSuggestions;
@@ -399,11 +388,7 @@ export default function CaptionWiseClient() {
       setRefinedSongSuggestions(newRefinedSongs);
       toast({ title: "Songs Refined!" });
     } catch (error: any) {
-      toast({ 
-        variant: "destructive", 
-        title: "Refinement Error", 
-        description: error.message || "Could not refine songs. Try selecting fewer song languages."
-      });
+      toast({ variant: "destructive", title: "Refinement Error", description: error.message });
     } finally {
       setIsRefiningSongs(false);
     }
@@ -450,13 +435,14 @@ export default function CaptionWiseClient() {
     </div>
   );
 
-  const SongSuggestionItemRenderer = ({ title, language }: { title: string; language: string }) => (
+  const SongSuggestionItemRenderer = ({ song, language }: { song: SongSuggestion; language: string }) => (
     <div className="p-3 border rounded-md bg-card flex justify-between items-center gap-2 shadow-sm">
       <div className="flex-grow">
         <p className="text-xs text-muted-foreground">{language}</p>
-        <p className="text-sm text-card-foreground">{title}</p>
+        <p className="text-sm font-bold text-card-foreground">{song.title} <span className="font-normal text-muted-foreground">by {song.artist}</span></p>
+        <p className="text-xs text-muted-foreground mt-1 italic">{song.description}</p>
       </div>
-      <Button variant="ghost" size="icon" onClick={() => handleCopyText(title, `Song`)}>
+      <Button variant="ghost" size="icon" onClick={() => handleCopyText(`${song.title} by ${song.artist}`, `Song`)}>
         <Copy className="h-4 w-4" />
       </Button>
     </div>
@@ -477,7 +463,7 @@ export default function CaptionWiseClient() {
                 mediaType={mediaType}
                 vibe={vibe}
                 suggestedCaptions={suggestedCaptions}
-                suggestedSongs={suggestedSongs}
+                suggestedSongs={null}
                 captionFeedback={captionFeedback}
                 songFeedback={songFeedback}
                 selectedTone={selectedTone}
@@ -494,17 +480,14 @@ export default function CaptionWiseClient() {
               <Share2 className="h-6 w-6 text-primary" />
               1. Choose Your Target
             </CardTitle>
-            <CardDescription>Select the platforms and languages for your post content.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <PlatformSelector
-                allPlatforms={SOCIAL_PLATFORMS}
-                selectedPlatforms={selectedPlatforms}
-                onPlatformChange={handlePlatformChange}
-                description="Choose one or more platforms to optimize for."
-              />
-            </div>
+            <PlatformSelector
+              allPlatforms={SOCIAL_PLATFORMS}
+              selectedPlatforms={selectedPlatforms}
+              onPlatformChange={handlePlatformChange}
+              description="Choose target platforms for optimization."
+            />
             
             <Tabs defaultValue="captions">
               <TabsList className="grid w-full grid-cols-2">
@@ -517,7 +500,7 @@ export default function CaptionWiseClient() {
                   selectedLanguages={selectedLanguages}
                   onLanguageChange={handleLanguageChange}
                   onBulkSelect={setSelectedLanguages}
-                  description={`Choose languages for your platform captions (Max ${MAX_LANGUAGES_PER_REQUEST} for AI stability).`}
+                  description={`Choose languages for your platform captions.`}
                 />
               </TabsContent>
               <TabsContent value="songs" className="pt-4">
@@ -526,7 +509,7 @@ export default function CaptionWiseClient() {
                   selectedLanguages={selectedSongLanguages}
                   onLanguageChange={handleSongLanguageChange}
                   onBulkSelect={setSelectedSongLanguages}
-                  description={`Choose languages for song ideas (Max ${MAX_LANGUAGES_PER_REQUEST} for AI stability).`}
+                  description={`Choose languages for song ideas.`}
                 />
               </TabsContent>
             </Tabs>
@@ -546,12 +529,9 @@ export default function CaptionWiseClient() {
         </Card>
 
         {isSuggesting && (
-          <div className="flex flex-col items-center gap-4 py-8 bg-muted/20 rounded-xl border border-dashed animate-pulse">
+          <div className="flex flex-col items-center gap-4 py-8 animate-pulse">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <div className="text-center">
-              <p className="font-semibold">Tailoring for {selectedPlatforms.join(' & ')}...</p>
-              <p className="text-sm text-muted-foreground">Generating {selectedLanguages.length} linguistic variations. This might take a minute.</p>
-            </div>
+            <p>Processing for {selectedPlatforms.join(' & ')}...</p>
           </div>
         )}
 
@@ -591,17 +571,6 @@ export default function CaptionWiseClient() {
                 CaptionDisplayCardRenderer={CaptionDisplayCardRenderer}
             />
           </Suspense>
-        )}
-
-        {!isSuggesting && suggestedHashtags && (
-          <Card className="shadow-lg">
-            <CardHeader><CardTitle className="flex items-center gap-2"><Hash className="h-5 w-5 text-primary" /> Hashtags for {selectedPlatforms.join(', ')}</CardTitle></CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
-              {Object.values(suggestedHashtags).flat().slice(0, 30).map((tag, i) => (
-                <Badge key={i} variant="secondary" className="cursor-pointer" onClick={() => handleCopyText(tag, 'Hashtag')}>{tag}</Badge>
-              ))}
-            </CardContent>
-          </Card>
         )}
 
         {!isSuggesting && suggestedSongs && (

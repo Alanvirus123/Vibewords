@@ -4,19 +4,18 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Sparkles as SparklesLucideIcon } from "lucide-react";
-import type { MediaSuggestions, LanguageOption } from '@/lib/types';
+import type { SongSuggestionsMap, LanguageOption, SongSuggestion } from '@/lib/types';
 
 interface RefinedSongsDisplayProps {
-  refinedSongSuggestions: MediaSuggestions | null; // Contains refined songs for selected SONG languages
-  selectedLanguages: string[]; // These are the SONG-specific languages
+  refinedSongSuggestions: SongSuggestionsMap | null;
+  selectedLanguages: string[];
   PREDEFINED_LANGUAGES: LanguageOption[];
-  SongSuggestionItemRenderer: React.FC<{ title: string; language: string }>;
+  SongSuggestionItemRenderer: React.FC<{ song: SongSuggestion; language: string }>;
 }
 
 const RefinedSongsDisplay: React.FC<RefinedSongsDisplayProps> = ({
   refinedSongSuggestions,
-  selectedLanguages, // This prop now represents selected SONG languages
-  PREDEFINED_LANGUAGES,
+  selectedLanguages,
   SongSuggestionItemRenderer,
 }) => {
   return (
@@ -26,16 +25,14 @@ const RefinedSongsDisplay: React.FC<RefinedSongsDisplayProps> = ({
           <SparklesLucideIcon className="h-6 w-6 text-primary" />
           Refined Song Suggestions
         </CardTitle>
-        <CardDescription>Refined song suggestions based on your feedback, for your selected song languages.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Iterate over selected SONG languages to display relevant refined songs */}
         {refinedSongSuggestions && selectedLanguages.map(language => (
-          refinedSongSuggestions[language] && refinedSongSuggestions[language].length > 0 && (
-            <div key={`refined-song-${language}-section`} className="space-y-2">
-              <h4 className="font-semibold text-md text-foreground">{PREDEFINED_LANGUAGES.find(l => l.value === language)?.label || language}</h4>
-              {refinedSongSuggestions[language].map((title, index) => title && (
-                <SongSuggestionItemRenderer key={`refined-song-${language}-${index}`} title={title} language={language} />
+          refinedSongSuggestions[language] && (
+            <div key={`refined-song-${language}`} className="space-y-2">
+              <h4 className="font-semibold text-md text-foreground">{language}</h4>
+              {refinedSongSuggestions[language].map((song, index) => (
+                <SongSuggestionItemRenderer key={`ref-${language}-${index}`} song={song} language={language} />
               ))}
             </div>
           )
@@ -46,5 +43,3 @@ const RefinedSongsDisplay: React.FC<RefinedSongsDisplayProps> = ({
 };
 
 export default RefinedSongsDisplay;
-
-    

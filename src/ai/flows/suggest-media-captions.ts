@@ -1,15 +1,13 @@
+
 'use server';
 
 /**
  * @fileOverview Media (image/video/image_collection) caption, song, and hashtag suggestion AI agent.
- * Allows users to specify target languages and target social media platforms for generation.
- * Outputs suggestions as an array of language-specific entries.
+ * Outputs detailed song metadata (title, artist, description).
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-
-const maxDuration = 120;
 
 const SuggestMediaCaptionsInputSchema = z.object({
   mediaDataUris: z
@@ -17,11 +15,11 @@ const SuggestMediaCaptionsInputSchema = z.object({
     .min(1)
     .max(50)
     .describe(
-      "An array of media items (1 to 50 images if mediaType is 'image_collection', or 1 image/video otherwise), each as a data URI. Data URI must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "An array of media items as data URIs."
     ),
-  mediaType: z.enum(['image', 'video', 'image_collection']).describe('The type of the media provided (image, video, or image_collection for multiple images).'),
-  targetLanguages: z.array(z.string()).min(1).describe('An array of language names (e.g., "English", "Spanish") for which to generate captions and song suggestions.'),
-  targetPlatforms: z.array(z.string()).min(1).describe('The target social media platforms (e.g., ["Instagram", "LinkedIn"]).'),
+  mediaType: z.enum(['image', 'video', 'image_collection']).describe('The type of the media provided.'),
+  targetLanguages: z.array(z.string()).min(1).describe('An array of language names.'),
+  targetPlatforms: z.array(z.string()).min(1).describe('The target social media platforms.'),
 });
 export type SuggestMediaCaptionsInput = z.infer<typeof SuggestMediaCaptionsInputSchema>;
 
@@ -31,22 +29,21 @@ const SuggestMediaCaptionsPromptInputSchema = SuggestMediaCaptionsInputSchema.ex
   isImageCollection: z.boolean(),
 });
 
+const SongSuggestionSchema = z.object({
+  title: z.string(),
+  artist: z.string(),
+  description: z.string(),
+});
+
 const LanguageSuggestionEntrySchema = z.object({
-  language: z.string().describe("The name of the language for these suggestions (e.g., 'English', 'Spanish')."),
-  captions: z.array(z.string().min(1))
-    .length(4)
-    .describe("An array of EXACTLY four suggested captions in this language."),
-  songSuggestions: z.array(z.string().min(1))
-    .length(2)
-    .describe("An array containing EXACTLY two suggested song titles. These MUST be culturally and linguistically authentic to the specified language."),
-  hashtags: z.array(z.string().min(1))
-    .length(10)
-    .describe("An array of EXACTLY ten relevant hashtags in this language."),
+  language: z.string().describe("The name of the language."),
+  captions: z.array(z.string().min(1)).length(4).describe("Four suggested captions."),
+  songSuggestions: z.array(SongSuggestionSchema).length(3).describe("Three suggested songs with artist and description."),
+  hashtags: z.array(z.string().min(1)).length(10).describe("Ten hashtags."),
 });
 
 const SuggestMediaCaptionsOutputSchema = z.object({
-  languageEntries: z.array(LanguageSuggestionEntrySchema)
-    .describe("An array of suggestion entries, one for each target language specified in the input."),
+  languageEntries: z.array(LanguageSuggestionEntrySchema).describe("Suggestion entries by language."),
 });
 export type SuggestMediaCaptionsOutput = z.infer<typeof SuggestMediaCaptionsOutputSchema>;
 
@@ -60,37 +57,25 @@ const prompt = ai.definePrompt({
   name: 'suggestMediaCaptionsPrompt',
   input: {schema: SuggestMediaCaptionsPromptInputSchema},
   output: {schema: SuggestMediaCaptionsOutputSchema},
-  prompt: `You are an expert social media manager and global music curator. You will analyze the provided media and generate platform-optimized content.
+  prompt: `You are an expert social media manager and music curator. Analyze the provided media and generate platform-optimized content for: {{#each targetPlatforms}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
 
-  Your task is to generate content tailored for the following platforms: {{#each targetPlatforms}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
-
-  **Linguistic and Cultural Song Selection:**
-  Generate suggestions for ALL of the following languages: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
+  Target Languages: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
   
-  For EACH target language, you MUST provide:
-  1. EXACTLY four captions in that language, optimized for the chosen platforms.
-  2. EXACTLY two song suggestions. These songs MUST be culturally and linguistically authentic to the specified language. 
-     - For example, if the language is Hindi, suggest popular Bollywood tracks, Sufi, or Indian Pop.
-     - If it's Bengali, suggest famous Rabindra Sangeet, Bengali Film songs, or Baul music.
-     - If it's Japanese, suggest J-Pop or Anime themes.
-     - DO NOT suggest English songs for non-English languages unless the media vibe specifically demands a global pop hit.
-  3. EXACTLY ten hashtags in that language.
+  For EACH language, provide:
+  1. EXACTLY four captions.
+  2. EXACTLY three song suggestions (title, artist, description).
+     STRICT Cultural Authenticity:
+     - Hindi: Suggest Bollywood/Hindi Pop/Indie.
+     - Bengali: Suggest Rabindra Sangeet/Bengali Film/Baul/Bengali Pop.
+     - No English songs for non-English languages unless explicitly fitting.
+  3. EXACTLY ten hashtags.
 
-  Provided Media:
-  {{#if isImageCollection}}
-    A collection of {{mediaDataUris.length}} images.
-    {{#each mediaDataUris}}
-      Media {{@index}}: {{media url=this}}
-    {{/each}}
-  {{/if}}
-  {{#if isImage}}
-    Image: {{media url=mediaDataUris.[0]}}
-  {{/if}}
-  {{#if isVideo}}
-    Video: {{media url=mediaDataUris.[0]}}
-  {{/if}}
+  Media:
+  {{#if isImageCollection}}Collection of {{mediaDataUris.length}} images.{{/if}}
+  {{#if isImage}}Image: {{media url=mediaDataUris.[0]}}{{/if}}
+  {{#if isVideo}}Video: {{media url=mediaDataUris.[0]}}{{/if}}
 
-  Return your output as an array in the 'languageEntries' field. Each element in this array MUST be an object corresponding to one of the target languages.`,
+  Return output in 'languageEntries'.`,
 });
 
 const suggestMediaCaptionsFlow = ai.defineFlow(
@@ -99,7 +84,7 @@ const suggestMediaCaptionsFlow = ai.defineFlow(
     inputSchema: SuggestMediaCaptionsInputSchema,
     outputSchema: SuggestMediaCaptionsOutputSchema,
   },
-  async (flowInput: SuggestMediaCaptionsInput) => {
+  async (flowInput) => {
     const promptInput = {
       ...flowInput,
       isImage: flowInput.mediaType === 'image',
