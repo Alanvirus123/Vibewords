@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -8,6 +7,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+
+const maxDuration = 120;
 
 const InitialCaptionEntrySchema = z.object({
   language: z.string().describe("The language of these initial captions."),
@@ -60,8 +61,7 @@ const refineMediaCaptionsPrompt = ai.definePrompt({
   output: {schema: RefineMediaCaptionsOutputSchema},
   prompt: `You are an expert social media manager. Refine the provided captions for the following platforms: {{#each targetPlatforms}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
 
-  Ensure the refinement respects the platform styles:
-  Platforms: {{#each targetPlatforms}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+  Ensure the refinement respects the platform styles.
   {{#if tone}}
   - Requested Tone: **{{{tone}}}**
   {{/if}}
@@ -75,8 +75,8 @@ const refineMediaCaptionsPrompt = ai.definePrompt({
   Initial Caption Entries:
   {{#each initialCaptionEntries}}
   Language: {{this.language}}
-    Initial Captions for {{this.language}}:
-    {{#each this.captions}}- {{{this}}}\n{{/each}}
+    Initial Captions:
+    {{#each this.captions}}- {{{this}}}{{/each}}
   {{/each}}
 
   Return the refined captions as an array in 'refinedLanguageEntries'.`,

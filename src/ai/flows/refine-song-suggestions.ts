@@ -1,15 +1,14 @@
-
 'use server';
 
 /**
  * @fileOverview A flow to refine song suggestions using Genkit.
  * Handles song suggestions in multiple user-specified languages.
- * Expects/returns data as arrays of language-specific entries.
- * It accepts multiple media data URIs if mediaType is 'image_collection' (up to 50 images).
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+
+const maxDuration = 120;
 
 const InitialSongEntrySchema = z.object({
   language: z.string().describe("The language of this initial song suggestion."),
@@ -24,20 +23,20 @@ const RefineSongSuggestionsInputSchema = z.object({
     .min(1)
     .max(50)
     .describe(
-      "An array of media items (1 to 50 images if mediaType is 'image_collection', or 1 image/video otherwise), each as a data URI. Data URI must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "An array of media items as data URIs."
     ),
-  mediaType: z.enum(['image', 'video', 'image_collection']).describe('The type of the media provided (image, video, or image_collection).'),
+  mediaType: z.enum(['image', 'video', 'image_collection']).describe('The type of the media provided.'),
   mediaDescription: z
     .string()
     .describe(
-      "A general description of the media content or context. The AI should primarily use the mediaDataUris and initialSongEntries for detailed context during refinement."
+      "A general description of the media content."
     ),
   initialSongEntries: z.array(InitialSongEntrySchema)
     .min(1)
-    .describe('An array of objects, where each object contains the language and the initial two song suggestions for that language to refine.'),
-  userFeedback: z.string().describe('The user feedback on the initial song suggestions (applies to all selected languages).'),
-  artistPreference: z.string().optional().describe('User-specified artist preferences to guide song suggestions.'),
-  targetLanguages: z.array(z.string()).min(1).describe('An array of language names for which to refine song suggestions. This list should correspond to the languages present in initialSongEntries.'),
+    .describe('Initial song suggestions to refine.'),
+  userFeedback: z.string().describe('The user feedback on the initial song suggestions.'),
+  artistPreference: z.string().optional().describe('User-specified artist preferences.'),
+  targetLanguages: z.array(z.string()).min(1).describe('An array of language names for which to refine suggestions.'),
 });
 
 export type RefineSongSuggestionsInput = z.infer<
@@ -51,15 +50,15 @@ const RefineSongSuggestionsPromptInputSchema = RefineSongSuggestionsInputSchema.
 });
 
 const RefinedLanguageSongEntrySchema = z.object({
-  language: z.string().describe("The name of the language for this refined song suggestion."),
+  language: z.string().describe("The name of the language."),
   refinedSongSuggestions: z.array(z.string().min(1))
     .length(2)
-    .describe("An array containing two refined song titles in this language.")
+    .describe("Two refined song title strings.")
 });
 
 const RefineSongSuggestionsOutputSchema = z.object({
   refinedLanguageSongEntries: z.array(RefinedLanguageSongEntrySchema)
-    .describe("An array of refined song suggestion entries, one for each target language specified in the input."),
+    .describe("Array of refined song suggestion entries."),
 });
 
 export type RefineSongSuggestionsOutput = z.infer<
@@ -76,58 +75,30 @@ const refineSongSuggestionsPrompt = ai.definePrompt({
   name: 'refineSongSuggestionsPrompt',
   input: {schema: RefineSongSuggestionsPromptInputSchema},
   output: {schema: RefineSongSuggestionsOutputSchema},
-  prompt: `You are an expert music curator. You will be provided with media (one or more images, or a video), a general media description, an array of initial song entries (each for a specific language, containing two song titles), userFeedback, optional artist preferences, and a list of target languages.
-
-  Your goal is to refine the initial song suggestions for all specified target languages based on the user feedback, artist preferences, and the provided media. If multiple images are provided, the song suggestions should reflect the overall vibe of the collection.
+  prompt: `You are an expert music curator. Refine the provided song suggestions for all specified target languages based on user feedback, artist preferences, and the media provided.
 
   Target Languages for Refinement: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
 
   Provided Media:
   {{#if isImageCollection}}
-    A collection of {{mediaDataUris.length}} images:
-    {{#each mediaDataUris}}
-      Image {{@index}}: {{media url=this}}
-    {{/each}}
-  {{/if}}
-  {{#if isImage}}
-    Image: {{media url=mediaDataUris.[0]}}
-  {{/if}}
-  {{#if isVideo}}
-    Video: {{media url=mediaDataUris.[0]}}
+    A collection of {{mediaDataUris.length}} images.
   {{/if}}
   
-  Media Description (general context): {{{mediaDescription}}}
+  Media Description: {{{mediaDescription}}}
 
-  Initial Song Entries (use these as primary context for refinement per language):
+  Initial Song Entries:
   {{#each initialSongEntries}}
   Language: {{this.language}}
-    Initial Songs for {{this.language}}:
-    {{#each this.songSuggestions}}- {{{this}}}\n{{/each}}
-  {{else}}
-  No initial song suggestions provided.
+    Initial Songs:
+    {{#each this.songSuggestions}}- {{{this}}}{{/each}}
   {{/each}}
 
-  User Feedback on Songs (applies to all languages): {{{userFeedback}}}
+  User Feedback on Songs: {{{userFeedback}}}
   {{#if artistPreference}}
   Artist/Genre Preferences: {{{artistPreference}}}
   {{/if}}
 
-  Return the refined song suggestions as an array in the 'refinedLanguageSongEntries' field. Each element in this array should be an object corresponding to one of the target languages.
-  Each object in the 'refinedLanguageSongEntries' array must contain:
-  - A 'language' field: The name of the language (e.g., "English", "Spanish").
-  - A 'refinedSongSuggestions' field: An array containing exactly two refined song title strings in that language.
-
-  For example, if targetLanguages were ["English", "Spanish"]:
-  "refinedLanguageSongEntries": [
-    {
-      "language": "English",
-      "refinedSongSuggestions": ["Refined English Song Title 1", "Refined English Song Title 2"]
-    },
-    {
-      "language": "Spanish",
-      "refinedSongSuggestions": ["Título de Canción Refinado en Español 1", "Título de Canción Refinado en Español 2"]
-    }
-  ]`,
+  Return the refined song suggestions as an array in 'refinedLanguageSongEntries'.`,
 });
 
 const refineSongSuggestionsFlow = ai.defineFlow(

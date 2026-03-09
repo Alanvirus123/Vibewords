@@ -1,8 +1,7 @@
-
 "use client";
 
 import React, { useState, type ChangeEvent, useMemo, Suspense } from "react";
-import { UploadCloud, Copy, Loader2, Sparkles, Share2, HelpCircle, Music2, Hash, Text, Volume2, RefreshCw } from "lucide-react";
+import { UploadCloud, Copy, Loader2, Sparkles, Share2, HelpCircle, Music2, Hash, Text, Volume2, RefreshCw, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -128,6 +127,7 @@ const SOCIAL_PLATFORMS: SocialPlatform[] = [
 ];
 
 const TONES = ["Default", "Funny", "Professional", "Inspirational", "Casual", "Poetic", "Witty", "Sarcastic"];
+const MAX_LANGUAGES_PER_REQUEST = 15;
 
 const fileToDataUri = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -279,12 +279,22 @@ export default function CaptionWiseClient() {
       setVibe(vibeResult.vibe);
 
       const targetLanguagesForSuggestions = [...new Set([...selectedLanguages, ...selectedSongLanguages])];
+      
+      if (targetLanguagesForSuggestions.length > MAX_LANGUAGES_PER_REQUEST) {
+        toast({
+          variant: "destructive",
+          title: "Too Many Languages",
+          description: `Processing all languages at once might time out. Limiting to the first ${MAX_LANGUAGES_PER_REQUEST} for better reliability.`
+        });
+      }
+
       const input: SuggestMediaCaptionsInput = { 
         mediaDataUris: dataUris, 
         mediaType: currentMediaType, 
-        targetLanguages: targetLanguagesForSuggestions,
+        targetLanguages: targetLanguagesForSuggestions.slice(0, MAX_LANGUAGES_PER_REQUEST),
         targetPlatforms: selectedPlatforms
       };
+
       const result = await suggestMediaCaptions(input);
       
       const newSuggestedCaptions: MediaSuggestions = {};
@@ -305,7 +315,11 @@ export default function CaptionWiseClient() {
 
     } catch (error: any) {
       console.error("Error during media processing:", error);
-      toast({ variant: "destructive", title: "Processing Error", description: error.message });
+      toast({ 
+        variant: "destructive", 
+        title: "Processing Error", 
+        description: error.message || "An unexpected response was received from the server. Try selecting fewer languages."
+      });
       resetAll();
     } finally {
       setIsSuggesting(false);
@@ -316,7 +330,8 @@ export default function CaptionWiseClient() {
     if (!mediaSrcs || !mediaType || !captionFeedback) return;
     setIsRefiningCaptions(true);
 
-    const initialCaptionEntries = selectedLanguages.map(lang => ({
+    const languagesToRefine = selectedLanguages.slice(0, MAX_LANGUAGES_PER_REQUEST);
+    const initialCaptionEntries = languagesToRefine.map(lang => ({
         language: lang,
         captions: (refinedCaptions && refinedCaptions[lang]) || (suggestedCaptions && suggestedCaptions[lang]) || [],
     }));
@@ -329,12 +344,12 @@ export default function CaptionWiseClient() {
         initialCaptionEntries,
         userFeedback: captionFeedback,
         tone: selectedTone === 'Default' ? undefined : selectedTone,
-        targetLanguages: selectedLanguages,
+        targetLanguages: languagesToRefine,
         targetPlatforms: selectedPlatforms,
       };
       const result = await refineMediaCaptions(captionInput);
       
-      const newRefinedCaptions: MediaSuggestions = {};
+      const newRefinedCaptions: MediaSuggestions = { ...refinedCaptions };
       result.refinedLanguageEntries?.forEach((entry) => {
         if (entry.language && entry.refinedCaptions?.length > 0) newRefinedCaptions[entry.language] = entry.refinedCaptions;
       });
@@ -342,7 +357,11 @@ export default function CaptionWiseClient() {
       setRefinedCaptions(newRefinedCaptions);
       toast({ title: "Captions Refined!" });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Refinement Error", description: error.message });
+      toast({ 
+        variant: "destructive", 
+        title: "Refinement Error", 
+        description: error.message || "Could not refine captions. Try providing simpler feedback."
+      });
     } finally {
       setIsRefiningCaptions(false);
     }
@@ -352,7 +371,8 @@ export default function CaptionWiseClient() {
     if (!mediaSrcs || !mediaType || !songFeedback) return;
     setIsRefiningSongs(true);
 
-    const initialSongEntries = selectedSongLanguages.map(lang => ({
+    const languagesToRefine = selectedSongLanguages.slice(0, MAX_LANGUAGES_PER_REQUEST);
+    const initialSongEntries = languagesToRefine.map(lang => ({
       language: lang,
       songSuggestions: (refinedSongSuggestions && refinedSongSuggestions[lang]) || (suggestedSongs && suggestedSongs[lang]) || [],
     }));
@@ -365,11 +385,11 @@ export default function CaptionWiseClient() {
         initialSongEntries,
         userFeedback: songFeedback,
         artistPreference: artistPreference || undefined,
-        targetLanguages: selectedSongLanguages,
+        targetLanguages: languagesToRefine,
       };
       const result = await refineSongSuggestions(songInput);
 
-      const newRefinedSongs: MediaSuggestions = {};
+      const newRefinedSongs: MediaSuggestions = { ...refinedSongSuggestions };
       result.refinedLanguageSongEntries?.forEach((entry) => {
         if (entry.language && entry.refinedSongSuggestions?.length > 0) {
           newRefinedSongs[entry.language] = entry.refinedSongSuggestions;
@@ -379,7 +399,11 @@ export default function CaptionWiseClient() {
       setRefinedSongSuggestions(newRefinedSongs);
       toast({ title: "Songs Refined!" });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Refinement Error", description: error.message });
+      toast({ 
+        variant: "destructive", 
+        title: "Refinement Error", 
+        description: error.message || "Could not refine songs. Try selecting fewer song languages."
+      });
     } finally {
       setIsRefiningSongs(false);
     }
@@ -493,7 +517,7 @@ export default function CaptionWiseClient() {
                   selectedLanguages={selectedLanguages}
                   onLanguageChange={handleLanguageChange}
                   onBulkSelect={setSelectedLanguages}
-                  description="Choose languages for your platform captions."
+                  description={`Choose languages for your platform captions (Max ${MAX_LANGUAGES_PER_REQUEST} for AI stability).`}
                 />
               </TabsContent>
               <TabsContent value="songs" className="pt-4">
@@ -502,7 +526,7 @@ export default function CaptionWiseClient() {
                   selectedLanguages={selectedSongLanguages}
                   onLanguageChange={handleSongLanguageChange}
                   onBulkSelect={setSelectedSongLanguages}
-                  description="Choose languages for your culturally-aware song ideas."
+                  description={`Choose languages for song ideas (Max ${MAX_LANGUAGES_PER_REQUEST} for AI stability).`}
                 />
               </TabsContent>
             </Tabs>
@@ -521,17 +545,20 @@ export default function CaptionWiseClient() {
           </CardContent>
         </Card>
 
-        {vibe && (
-          <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <p className="italic">{vibe}</p>
+        {isSuggesting && (
+          <div className="flex flex-col items-center gap-4 py-8 bg-muted/20 rounded-xl border border-dashed animate-pulse">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <div className="text-center">
+              <p className="font-semibold">Tailoring for {selectedPlatforms.join(' & ')}...</p>
+              <p className="text-sm text-muted-foreground">Generating {selectedLanguages.length} linguistic variations. This might take a minute.</p>
+            </div>
           </div>
         )}
 
-        {isSuggesting && (
-          <div className="flex flex-col items-center gap-2 py-8">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <p>Tailoring for {selectedPlatforms.join(' & ')}...</p>
+        {vibe && !isSuggesting && (
+          <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <p className="italic">{vibe}</p>
           </div>
         )}
 
@@ -570,7 +597,7 @@ export default function CaptionWiseClient() {
           <Card className="shadow-lg">
             <CardHeader><CardTitle className="flex items-center gap-2"><Hash className="h-5 w-5 text-primary" /> Hashtags for {selectedPlatforms.join(', ')}</CardTitle></CardHeader>
             <CardContent className="flex flex-wrap gap-2">
-              {Object.values(suggestedHashtags).flat().map((tag, i) => (
+              {Object.values(suggestedHashtags).flat().slice(0, 30).map((tag, i) => (
                 <Badge key={i} variant="secondary" className="cursor-pointer" onClick={() => handleCopyText(tag, 'Hashtag')}>{tag}</Badge>
               ))}
             </CardContent>

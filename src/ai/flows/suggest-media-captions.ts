@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -9,6 +8,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+
+const maxDuration = 120;
 
 const SuggestMediaCaptionsInputSchema = z.object({
   mediaDataUris: z
@@ -37,7 +38,7 @@ const LanguageSuggestionEntrySchema = z.object({
     .describe("An array of EXACTLY four suggested captions in this language."),
   songSuggestions: z.array(z.string().min(1))
     .length(2)
-    .describe("An array containing EXACTLY two suggested song titles. These MUST be culturally and linguistically authentic to the specified language (e.g., Bollywood for Hindi, J-Pop for Japanese)."),
+    .describe("An array containing EXACTLY two suggested song titles. These MUST be culturally and linguistically authentic to the specified language."),
   hashtags: z.array(z.string().min(1))
     .length(10)
     .describe("An array of EXACTLY ten relevant hashtags in this language."),
@@ -68,17 +69,14 @@ const prompt = ai.definePrompt({
   
   For EACH target language, you MUST provide:
   1. EXACTLY four captions in that language, optimized for the chosen platforms.
-  2. EXACTLY two song suggestions. **Crucially**, these songs MUST be culturally and linguistically relevant to the specified language. 
-     - For Indian languages (Hindi, Marathi, Tamil, etc.), suggest popular regional or Bollywood/Tollywood/Kollywood hits.
-     - For East Asian languages, suggest K-Pop, J-Pop, or C-Pop as appropriate.
-     - For European languages, suggest tracks popular in those specific cultural regions.
+  2. EXACTLY two song suggestions. These songs MUST be culturally and linguistically relevant to the specified language (e.g. Bollywood for Hindi, J-Pop for Japanese).
   3. EXACTLY ten hashtags in that language.
 
   Provided Media:
   {{#if isImageCollection}}
-    A collection of {{mediaDataUris.length}} images:
+    A collection of {{mediaDataUris.length}} images.
     {{#each mediaDataUris}}
-      Image {{@index}}: {{media url=this}}
+      Media {{@index}}: {{media url=this}}
     {{/each}}
   {{/if}}
   {{#if isImage}}
