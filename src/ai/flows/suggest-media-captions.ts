@@ -3,9 +3,8 @@
 
 /**
  * @fileOverview Media (image/video/image_collection) caption, song, and hashtag suggestion AI agent.
- * Allows users to specify target languages for generation.
+ * Allows users to specify target languages and the target social media platform for generation.
  * Outputs suggestions as an array of language-specific entries.
- * Handles single images, single videos, or a collection of up to 50 images.
  */
 
 import {ai} from '@/ai/genkit';
@@ -21,6 +20,7 @@ const SuggestMediaCaptionsInputSchema = z.object({
     ),
   mediaType: z.enum(['image', 'video', 'image_collection']).describe('The type of the media provided (image, video, or image_collection for multiple images).'),
   targetLanguages: z.array(z.string()).min(1).describe('An array of language names (e.g., "English", "Spanish") for which to generate captions and song suggestions.'),
+  targetPlatform: z.string().describe('The target social media platform (e.g., "Instagram", "LinkedIn", "TikTok").'),
 });
 export type SuggestMediaCaptionsInput = z.infer<typeof SuggestMediaCaptionsInputSchema>;
 
@@ -60,12 +60,24 @@ const prompt = ai.definePrompt({
   input: {schema: SuggestMediaCaptionsPromptInputSchema},
   output: {schema: SuggestMediaCaptionsOutputSchema},
   prompt: `You are an expert social media manager. You will analyze the provided media.
-  Your task is to generate content for ALL of the following languages: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
+  Your task is to generate content tailored for the **{{{targetPlatform}}}** platform.
+
+  Platform-Specific Guidance:
+  - **Instagram**: Use engaging hooks, emojis, and a mix of descriptive and punchy styles.
+  - **TikTok**: Be trendy, energetic, and use hooks that grab attention quickly.
+  - **LinkedIn**: Be professional, insightful, and thought-provoking. Focus on value or career stories.
+  - **X (Twitter)**: Be concise, witty, and timely.
+  - **Facebook**: Be conversational, community-oriented, and slightly longer if needed.
+  - **Threads**: Be casual, text-focused, and encourage engagement.
+  - **Pinterest**: Be inspirational, descriptive, and use keywords effectively.
+  - **YouTube**: Focus on titles and descriptions that work well for video content.
+
+  Generate suggestions for ALL of the following languages: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
 
   For EACH of these target languages, you MUST generate:
-  1. EXACTLY four engaging captions. The captions should be relevant to the media's content and appropriate for a general audience.
+  1. EXACTLY four engaging captions suitable for {{{targetPlatform}}}.
   2. EXACTLY two song titles that would fit the mood or theme of the media.
-  3. EXACTLY ten relevant hashtags.
+  3. EXACTLY ten relevant hashtags appropriate for {{{targetPlatform}}}.
 
   Provided Media:
   {{#if isImageCollection}}

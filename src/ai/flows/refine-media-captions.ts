@@ -2,16 +2,8 @@
 'use server';
 
 /**
- * @fileOverview A flow to refine media (image/video/image_collection) caption suggestions using Genkit.
- * This flow now handles captions in multiple user-specified languages, producing four refined captions per language,
- * and expects/returns data as arrays of language-specific entries.
- * It accepts multiple media data URIs if mediaType is 'image_collection' (up to 50 images).
- * It also accepts an optional tone for refinement.
- *
- * This file exports:
- * - `refineMediaCaptions`: An async function that refines caption suggestions based on user input.
- * - `RefineMediaCaptionsInput`: The input type for the `refineMediaCaptions` function.
- * - `RefineMediaCaptionsOutput`: The output type for the `refineMediaCaptions` function.
+ * @fileOverview A flow to refine media caption suggestions using Genkit.
+ * Handles platform-specific refinement based on user feedback and target platform.
  */
 
 import {ai} from '@/ai/genkit';
@@ -29,26 +21,17 @@ const RefineMediaCaptionsInputSchema = z.object({
     .array(z.string().min(1))
     .min(1)
     .max(50)
-    .describe(
-      "An array of media items (1 to 50 images if mediaType is 'image_collection', or 1 image/video otherwise), each as a data URI. Data URI must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
-    ),
-  mediaType: z.enum(['image', 'video', 'image_collection']).describe('The type of the media provided (image, video, or image_collection).'),
-  mediaDescription: z
-    .string()
-    .describe(
-      "A general description of the media content or context. The AI should primarily use the mediaDataUris and initialCaptionEntries for detailed context during refinement."
-    ),
-  initialCaptionEntries: z.array(InitialCaptionEntrySchema)
-    .min(1)
-    .describe('An array of objects, where each object contains the language and the initial four captions for that language to refine.'),
-  userFeedback: z.string().describe('The user feedback on the initial captions (applies to all selected languages).'),
-  tone: z.string().optional().describe('An optional tone to apply to the refined captions (e.g., "Funny", "Professional").'),
-  targetLanguages: z.array(z.string()).min(1).describe('An array of language names for which to refine captions. This list should correspond to the languages present in initialCaptionEntries.'),
+    .describe("An array of media items as data URIs."),
+  mediaType: z.enum(['image', 'video', 'image_collection']).describe('The type of the media provided.'),
+  mediaDescription: z.string().describe("A general description of the media content."),
+  initialCaptionEntries: z.array(InitialCaptionEntrySchema).min(1).describe('Initial captions to refine.'),
+  userFeedback: z.string().describe('The user feedback on the initial captions.'),
+  tone: z.string().optional().describe('An optional tone to apply.'),
+  targetLanguages: z.array(z.string()).min(1).describe('Array of language names.'),
+  targetPlatform: z.string().describe('The target social media platform.'),
 });
 
-export type RefineMediaCaptionsInput = z.infer<
-  typeof RefineMediaCaptionsInputSchema
->;
+export type RefineMediaCaptionsInput = z.infer<typeof RefineMediaCaptionsInputSchema>;
 
 const RefineMediaCaptionsPromptInputSchema = RefineMediaCaptionsInputSchema.extend({
   isImage: z.boolean(),
@@ -57,24 +40,17 @@ const RefineMediaCaptionsPromptInputSchema = RefineMediaCaptionsInputSchema.exte
 });
 
 const RefinedLanguageCaptionEntrySchema = z.object({
-  language: z.string().describe("The name of the language for these refined captions."),
-  refinedCaptions: z.array(z.string().min(1))
-    .length(4)
-    .describe("An array of four refined captions in this language.")
+  language: z.string().describe("The name of the language."),
+  refinedCaptions: z.array(z.string().min(1)).length(4).describe("Four refined captions.")
 });
 
 const RefineMediaCaptionsOutputSchema = z.object({
-  refinedLanguageEntries: z.array(RefinedLanguageCaptionEntrySchema)
-    .describe("An array of refined caption entries, one for each target language specified in the input."),
+  refinedLanguageEntries: z.array(RefinedLanguageCaptionEntrySchema).describe("Array of refined caption entries."),
 });
 
-export type RefineMediaCaptionsOutput = z.infer<
-  typeof RefineMediaCaptionsOutputSchema
->;
+export type RefineMediaCaptionsOutput = z.infer<typeof RefineMediaCaptionsOutputSchema>;
 
-export async function refineMediaCaptions(
-  input: RefineMediaCaptionsInput
-): Promise<RefineMediaCaptionsOutput> {
+export async function refineMediaCaptions(input: RefineMediaCaptionsInput): Promise<RefineMediaCaptionsOutput> {
   return refineMediaCaptionsFlow(input);
 }
 
@@ -82,59 +58,28 @@ const refineMediaCaptionsPrompt = ai.definePrompt({
   name: 'refineMediaCaptionsPrompt',
   input: {schema: RefineMediaCaptionsPromptInputSchema},
   output: {schema: RefineMediaCaptionsOutputSchema},
-  prompt: `You are an expert caption writer. You will be provided with media (one or more images, or a video), a general media description, an array of initial caption entries (each for a specific language), user feedback, and a list of target languages.
+  prompt: `You are an expert social media manager. Refine the provided captions for the **{{{targetPlatform}}}** platform.
 
-  Your goal is to refine the initial captions for all specified target languages based on the user feedback and the provided media. For each target language, create a new set of four improved caption suggestions.
-
+  Ensure the refinement respects the platform's style:
+  - Platform: {{{targetPlatform}}}
   {{#if tone}}
-  The user has requested a specific tone for the refined captions: **{{{tone}}}**. Please ensure the refined captions reflect this tone.
+  - Requested Tone: **{{{tone}}}**
   {{/if}}
 
-  Target Languages for Refinement: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
+  Target Languages: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
 
-  Provided Media:
-  {{#if isImageCollection}}
-    A collection of {{mediaDataUris.length}} images:
-    {{#each mediaDataUris}}
-      Image {{@index}}: {{media url=this}}
-    {{/each}}
-  {{/if}}
-  {{#if isImage}}
-    Image: {{media url=mediaDataUris.[0]}}
-  {{/if}}
-  {{#if isVideo}}
-    Video: {{media url=mediaDataUris.[0]}}
-  {{/if}}
+  Media Description: {{{mediaDescription}}}
 
-  Media Description (general context): {{{mediaDescription}}}
+  User Feedback: {{{userFeedback}}}
 
-  Initial Caption Entries (use these as primary context for refinement per language):
+  Initial Caption Entries:
   {{#each initialCaptionEntries}}
   Language: {{this.language}}
     Initial Captions for {{this.language}}:
     {{#each this.captions}}- {{{this}}}\n{{/each}}
-  {{else}}
-  No initial captions provided.
   {{/each}}
 
-  User Feedback (applies to all languages): {{{userFeedback}}}
-
-  Return the refined captions as an array in the 'refinedLanguageEntries' field. Each element in this array should be an object corresponding to one of the target languages.
-  Each object in the 'refinedLanguageEntries' array must contain:
-  - A 'language' field: The name of the language (e.g., "English", "Spanish").
-  - A 'refinedCaptions' field: An array of exactly four refined caption strings in that language.
-
-  Example for 'refinedLanguageEntries' if targetLanguages were ["English", "Spanish"]:
-  "refinedLanguageEntries": [
-    {
-      "language": "English",
-      "refinedCaptions": ["Refined English Caption 1", "Refined English Caption 2", "Refined English Caption 3", "Refined English Caption 4"]
-    },
-    {
-      "language": "Spanish",
-      "refinedCaptions": ["Leyenda en Español Refinada 1", "Leyenda en Español Refinada 2", "Leyenda en Español Refinada 3", "Leyenda en Español Refinada 4"]
-    }
-  ]`,
+  Return the refined captions as an array in 'refinedLanguageEntries'.`,
 });
 
 const refineMediaCaptionsFlow = ai.defineFlow(
