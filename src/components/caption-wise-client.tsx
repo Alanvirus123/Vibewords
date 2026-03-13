@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, type ChangeEvent, useMemo, Suspense, useEffect, useCallback } from "react";
-import { UploadCloud, Copy, Loader2, Sparkles, Share2, HelpCircle, Music2, Volume2, RefreshCw, Video, Download, ClipboardPaste, ExternalLink, FileText } from "lucide-react";
+import { UploadCloud, Copy, Loader2, Sparkles, Share2, HelpCircle, Music2, Volume2, RefreshCw, Video, Download, ClipboardPaste, ExternalLink, FileText, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AiAssistant } from "@/components/ai-assistant";
 import { Textarea } from "./ui/textarea";
 import { cn } from "@/lib/utils";
+import { useAuth, useUser } from "@/firebase";
+import { signOut } from "firebase/auth";
 
 const SuggestedCaptionsDisplay = React.lazy(() => import('@/components/suggested-captions-display'));
 const RefinedCaptionsDisplay = React.lazy(() => import('@/components/refined-captions-display'));
@@ -90,9 +92,9 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "Mongolian", label: "Монгол (Mongolian)" },
   { value: "Nepali", label: "নেपाली (Nepali)" },
   { value: "Norwegian", label: "Norsk (Norwegian)" },
-  { value: "Odia", label: "ଓଡ଼ିଆ (Odia)" },
+  { value: "Odia", label: "ଓଡ଼িଆ (Odia)" },
   { value: "Pashto", label: "پښتو (Pashto)" },
-  { value: "Persian", label: "فارسی (Persian)" },
+  { value: "Persian", label: "ফারসি (Persian)" },
   { value: "Polish", label: "Polski (Polish)" },
   { value: "Portuguese", label: "Português (Portuguese)" },
   { value: "Punjabi", label: "ਪੰਜਾਬੀ (Punjabi)" },
@@ -100,7 +102,7 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "Russian", label: "Русский (Russian)" },
   { value: "Sanskrit", label: "संस्कृतम् (Sanskrit)" },
   { value: "Santali", label: "संताली (Santali)" },
-  { value: "Serbian", label: "Српски (Serbian)" },
+  { value: "Serbian", label: "Ср্পски (Serbian)" },
   { value: "Sindhi", label: "سنڌي (Sindhi)" },
   { value: "Sinhala", label: "සිංহල (Sinhala)" },
   { value: "Slovak", label: "Slovenčina (Slovak)" },
@@ -137,7 +139,7 @@ const PLATFORM_LIMITS: Record<string, number> = {
   "Facebook": 5000,
   "Pinterest": 500,
   "YouTube": 5000,
-  "WhatsApp": 700 // Recommended status length, though messages can be longer
+  "WhatsApp": 700 
 };
 
 const TONES = ["Default", "Funny", "Professional", "Inspirational", "Casual", "Poetic", "Witty", "Sarcastic"];
@@ -165,6 +167,8 @@ const LoadingFallback = () => (
 
 export default function CaptionWiseClient() {
   const { toast } = useToast();
+  const auth = useAuth();
+  const { user } = useUser();
   
   const [mediaFiles, setMediaFiles] = useState<File[] | null>(null);
   const [mediaSrcs, setMediaSrcs] = useState<string[] | null>(null);
@@ -533,6 +537,12 @@ export default function CaptionWiseClient() {
     navigator.clipboard.writeText(fullPost).then(() => toast({ title: "Full Post Copied!", description: `Caption and hashtags are ready to paste.` }));
   };
 
+  const handleLogout = () => {
+    signOut(auth).then(() => {
+        toast({ title: "Logged Out", description: "You have been successfully logged out." });
+    });
+  }
+
   const CaptionDisplayCardRenderer = ({ caption, language }: { caption: string; language: string }) => {
     const charCount = caption.length;
     const isOverLimit = charCount > minPlatformLimit;
@@ -599,7 +609,15 @@ export default function CaptionWiseClient() {
   return (
     <div className="container mx-auto p-4 md:p-8 min-h-screen flex flex-col items-center antialiased">
       <header className="w-full flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-[hsl(var(--app-title))] tracking-tight">VibeWords</h1>
+        <div className="flex items-center gap-4">
+            <h1 className="text-3xl font-bold text-[hsl(var(--app-title))] tracking-tight">VibeWords</h1>
+            {user && (
+                <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-secondary/30 rounded-full border text-xs text-muted-foreground">
+                    <User className="h-3 w-3" />
+                    <span>{user.isAnonymous ? "Guest Creator" : user.email}</span>
+                </div>
+            )}
+        </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <Dialog>
@@ -618,6 +636,9 @@ export default function CaptionWiseClient() {
               />
             </DialogContent>
           </Dialog>
+          <Button variant="ghost" size="icon" onClick={handleLogout} title="Logout">
+            <LogOut className="h-5 w-5" />
+          </Button>
         </div>
       </header>
 

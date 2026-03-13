@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import type { ThemeProviderProps } from 'next-themes/dist/types';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from "@/components/ui/toaster";
+import { FirebaseClientProvider } from '@/firebase';
 
 interface ClientLayoutWrapperProps extends PropsWithChildren {
   themeProviderProps: Omit<ThemeProviderProps, 'children'>;
@@ -19,9 +20,11 @@ export default function ClientLayoutWrapper({ children, themeProviderProps }: Cl
   }, []);
 
   return (
-    <ThemeProvider {...themeProviderProps}>
-      {children}
-      {mounted && <Toaster />}
-    </ThemeProvider>
+    <FirebaseClientProvider>
+      <ThemeProvider {...themeProviderProps}>
+        {children}
+        {mounted && <Toaster />}
+      </ThemeProvider>
+    </FirebaseClientProvider>
   );
 }
