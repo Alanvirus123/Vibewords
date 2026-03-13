@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, type ChangeEvent, useMemo, Suspense, useEffect, useCallback } from "react";
-import { UploadCloud, Copy, Loader2, Sparkles, Share2, HelpCircle, Music2, Volume2, RefreshCw, Video, Download, ClipboardPaste } from "lucide-react";
+import { UploadCloud, Copy, Loader2, Sparkles, Share2, HelpCircle, Music2, Volume2, RefreshCw, Video, Download, ClipboardPaste, ExternalLink, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,7 @@ import type { MediaSuggestions, LanguageOption, SocialPlatform, SongSuggestion, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AiAssistant } from "@/components/ai-assistant";
 import { Textarea } from "./ui/textarea";
+import { cn } from "@/lib/utils";
 
 const SuggestedCaptionsDisplay = React.lazy(() => import('@/components/suggested-captions-display'));
 const RefinedCaptionsDisplay = React.lazy(() => import('@/components/refined-captions-display'));
@@ -49,7 +50,7 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "Croatian", label: "Hrvatski (Croatian)" },
   { value: "Czech", label: "Čeština (Czech)" },
   { value: "Danish", label: "Dansk (Danish)" },
-  { value: "Dogri", label: "डोगरी (Dogri)" },
+  { value: "Dogri", label: "डোগরি (Dogri)" },
   { value: "Dutch", label: "Nederlands (Dutch)" },
   { value: "English", label: "English" },
   { value: "Esperanto", label: "Esperanto" },
@@ -61,7 +62,7 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "German", label: "Deutsch (German)" },
   { value: "Greek", label: "Ελληνικά (Greek)" },
   { value: "Gujarati", label: "ગુજરાતી (Gujarati)" },
-  { value: "Hebrew", label: "עבריত (Hebrew)" },
+  { value: "Hebrew", label: "עבריت (Hebrew)" },
   { value: "Hindi", label: "हिन्दी (Hindi)" },
   { value: "Hungarian", label: "Magyar (Hungarian)" },
   { value: "Icelandic", label: "Íslenska (Icelandic)" },
@@ -72,7 +73,7 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "Kannada", label: "ಕನ್ನಡ (Kannada)" },
   { value: "Kashmiri", label: "کأشُر (Kashmiri)" },
   { value: "Kazakh", label: "Қазақ (Kazakh)" },
-  { value: "Khmer", label: "ខ្মែর (Khmer)" },
+  { value: "Khmer", label: "ខ្មែর (Khmer)" },
   { value: "Konkani", label: "कोंকণী (Konkani)" },
   { value: "Korean", label: "한국어 (Korean)" },
   { value: "Kyrgyz", label: "Кыргызча (Kyrgyz)" },
@@ -85,7 +86,7 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "Malayalam", label: "മലയാളം (Malayalam)" },
   { value: "Maltese", label: "Malti (Maltese)" },
   { value: "Manipuri", label: "মৈতৈলোন (Manipuri)" },
-  { value: "Marathi", label: "मराठी (Marathi)" },
+  { value: "Marathi", label: "মরাঠি (Marathi)" },
   { value: "Mongolian", label: "Монгол (Mongolian)" },
   { value: "Nepali", label: "नेपाली (Nepali)" },
   { value: "Norwegian", label: "Norsk (Norwegian)" },
@@ -126,6 +127,17 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
 const SOCIAL_PLATFORMS: SocialPlatform[] = [
   "Instagram", "TikTok", "LinkedIn", "X", "Facebook", "Threads", "Pinterest", "YouTube"
 ];
+
+const PLATFORM_LIMITS: Record<string, number> = {
+  "X": 280,
+  "Threads": 500,
+  "Instagram": 2200,
+  "LinkedIn": 3000,
+  "TikTok": 4000,
+  "Facebook": 5000, // Practically much higher but 5k is a safe professional limit
+  "Pinterest": 500,
+  "YouTube": 5000
+};
 
 const TONES = ["Default", "Funny", "Professional", "Inspirational", "Casual", "Poetic", "Witty", "Sarcastic"];
 const MAX_LANGUAGES_PER_REQUEST = 15;
@@ -190,6 +202,11 @@ export default function CaptionWiseClient() {
   const hasRefinedSongSuggestions = useMemo(() => {
     return refinedSongSuggestions && Object.keys(refinedSongSuggestions).length > 0;
   }, [refinedSongSuggestions]);
+
+  const minPlatformLimit = useMemo(() => {
+    const limits = selectedPlatforms.map(p => PLATFORM_LIMITS[p] || 2200);
+    return Math.min(...limits);
+  }, [selectedPlatforms]);
 
   const resetSuggestions = useCallback(() => {
     setSuggestedCaptions(null);
@@ -509,29 +526,68 @@ export default function CaptionWiseClient() {
     navigator.clipboard.writeText(text).then(() => toast({ title: "Copied!", description: `${type} copied.` }));
   };
 
-  const CaptionDisplayCardRenderer = ({ caption, language }: { caption: string; language: string }) => (
-    <div className="p-3 border rounded-md bg-card flex justify-between items-center gap-2 shadow-sm">
-      <div className="flex-grow">
-        <p className="text-xs text-muted-foreground font-semibold">{language}</p>
-        <p className="text-sm text-card-foreground">{caption}</p>
+  const handleCopyPost = (caption: string, language: string) => {
+    const hashtags = suggestedHashtags?.[language]?.join(' ') || "";
+    const fullPost = `${caption}\n\n${hashtags}`;
+    navigator.clipboard.writeText(fullPost).then(() => toast({ title: "Full Post Copied!", description: `Caption and hashtags are ready to paste.` }));
+  };
+
+  const CaptionDisplayCardRenderer = ({ caption, language }: { caption: string; language: string }) => {
+    const charCount = caption.length;
+    const isOverLimit = charCount > minPlatformLimit;
+    
+    return (
+      <div className="p-3 border rounded-md bg-card flex flex-col gap-2 shadow-sm">
+        <div className="flex justify-between items-start gap-2">
+          <div className="flex-grow">
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{language}</p>
+            <p className="text-sm text-card-foreground leading-relaxed">{caption}</p>
+          </div>
+          <div className="flex flex-col items-center gap-1">
+             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePlayAudio(caption)} disabled={playingCaption === caption}>
+                {playingCaption === caption ? <Loader2 className="h-3 w-3 animate-spin" /> : <Volume2 className="h-4 w-4" />}
+             </Button>
+             <Button variant="ghost" size="icon" className="h-8 w-8" title="Copy Caption" onClick={() => handleCopyText(caption, `Caption`)}>
+                <Copy className="h-4 w-4" />
+             </Button>
+             <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" title="Copy Full Post" onClick={() => handleCopyPost(caption, language)}>
+                <FileText className="h-4 w-4" />
+             </Button>
+          </div>
+        </div>
+        <div className="flex items-center justify-between pt-2 border-t mt-1">
+            <div className={cn("text-[10px] font-medium flex items-center gap-1", isOverLimit ? "text-destructive" : "text-muted-foreground")}>
+                <span>{charCount} / {minPlatformLimit} chars</span>
+                {isOverLimit && <span className="animate-pulse">⚠️ Too long for {selectedPlatforms.length > 1 ? 'one of your targets' : selectedPlatforms[0]}</span>}
+            </div>
+            <div className="flex gap-1">
+                {selectedPlatforms.map(p => (
+                    <span key={p} className="text-[9px] bg-secondary px-1 py-0.5 rounded text-secondary-foreground">{p}</span>
+                ))}
+            </div>
+        </div>
       </div>
-      <div className="flex items-center">
-        <Button variant="ghost" size="icon" onClick={() => handlePlayAudio(caption)} disabled={playingCaption === caption}>
-            {playingCaption === caption ? <Loader2 className="h-4 w-4 animate-spin" /> : <Volume2 className="h-4 w-4" />}
-        </Button>
-        <Button variant="ghost" size="icon" onClick={() => handleCopyText(caption, `Caption`)}>
-            <Copy className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   const SongSuggestionItemRenderer = ({ song, language }: { song: SongSuggestion; language: string }) => (
     <div className="p-3 border rounded-md bg-card flex justify-between items-center gap-2 shadow-sm">
       <div className="flex-grow">
-        <p className="text-xs text-muted-foreground">{language}</p>
+        <p className="text-[10px] text-muted-foreground font-bold uppercase">{language}</p>
         <p className="text-sm font-bold text-card-foreground">{song.title} <span className="font-normal text-muted-foreground">by {song.artist}</span></p>
-        <p className="text-xs text-muted-foreground mt-1 italic">{song.description}</p>
+        <p className="text-xs text-muted-foreground mt-1 italic leading-tight">{song.description}</p>
+        <div className="flex gap-2 mt-2">
+           <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" asChild>
+             <a href={`https://open.spotify.com/search/${encodeURIComponent(`${song.title} ${song.artist}`)}`} target="_blank" rel="noopener noreferrer">
+                <Music2 className="h-3 w-3 mr-1" /> Spotify
+             </a>
+           </Button>
+           <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" asChild>
+             <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${song.title} ${song.artist}`)}`} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-3 w-3 mr-1" /> YouTube
+             </a>
+           </Button>
+        </div>
       </div>
       <Button variant="ghost" size="icon" onClick={() => handleCopyText(`${song.title} by ${song.artist}`, `Song`)}>
         <Copy className="h-4 w-4" />
@@ -542,7 +598,7 @@ export default function CaptionWiseClient() {
   return (
     <div className="container mx-auto p-4 md:p-8 min-h-screen flex flex-col items-center antialiased">
       <header className="w-full flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-[hsl(var(--app-title))]">VibeWords</h1>
+        <h1 className="text-3xl font-bold text-[hsl(var(--app-title))] tracking-tight">VibeWords</h1>
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <Dialog>
@@ -565,7 +621,7 @@ export default function CaptionWiseClient() {
       </header>
 
       <main className="w-full max-w-2xl flex flex-col gap-8">
-        <Card className="w-full shadow-lg">
+        <Card className="w-full shadow-lg border-primary/10">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Share2 className="h-6 w-6 text-primary" />
@@ -607,7 +663,7 @@ export default function CaptionWiseClient() {
           </CardContent>
         </Card>
 
-        <Card className="w-full shadow-lg border-2 border-dashed border-muted hover:border-primary/50 transition-colors">
+        <Card className="w-full shadow-lg border-2 border-dashed border-muted hover:border-primary/50 transition-colors bg-secondary/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <UploadCloud className="h-6 w-6 text-primary" />
@@ -658,7 +714,7 @@ export default function CaptionWiseClient() {
         </Card>
 
         {mediaType === 'image' && mediaSrcs && (
-           <Card className="w-full shadow-lg overflow-hidden">
+           <Card className="w-full shadow-lg overflow-hidden border-primary/10">
              <CardHeader className="bg-primary/5">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Video className="h-5 w-5 text-primary" />
@@ -679,7 +735,7 @@ export default function CaptionWiseClient() {
                   </Button>
                 )}
                 {isGeneratingVideo && (
-                   <div className="mt-4 flex flex-col items-center gap-2 py-4 animate-pulse">
+                   <div className="mt-4 flex flex-col items-center gap-2 py-4 animate-pulse text-center">
                       <p className="text-sm text-muted-foreground italic">Generating cinematic motion. This usually takes 30-60 seconds...</p>
                    </div>
                 )}
@@ -702,14 +758,14 @@ export default function CaptionWiseClient() {
         {isSuggesting && (
           <div className="flex flex-col items-center gap-4 py-8 animate-pulse">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <p>Processing for {selectedPlatforms.join(' & ')}...</p>
+            <p className="text-sm font-medium">Processing for {selectedPlatforms.join(' & ')}...</p>
           </div>
         )}
 
         {vibe && !isSuggesting && (
-          <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <p className="italic">{vibe}</p>
+          <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg flex items-center gap-2 shadow-sm">
+            <Sparkles className="h-5 w-5 text-primary shrink-0" />
+            <p className="italic text-sm">{vibe}</p>
           </div>
         )}
 
@@ -774,6 +830,9 @@ export default function CaptionWiseClient() {
           </Suspense>
         )}
       </main>
+      <footer className="w-full mt-12 py-6 border-t text-center text-xs text-muted-foreground">
+        <p>© {new Date().getFullYear()} VibeWords AI Content Assistant. Crafted with ❤️ for Creators.</p>
+      </footer>
     </div>
   );
 }
