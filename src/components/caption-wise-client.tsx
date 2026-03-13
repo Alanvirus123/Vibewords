@@ -1,8 +1,8 @@
 
 "use client";
 
-import React, { useState, type ChangeEvent, useMemo, Suspense } from "react";
-import { UploadCloud, Copy, Loader2, Sparkles, Share2, HelpCircle, Music2, Hash, Text, Volume2, RefreshCw } from "lucide-react";
+import React, { useState, type ChangeEvent, useMemo, Suspense, useEffect, useCallback } from "react";
+import { UploadCloud, Copy, Loader2, Sparkles, Share2, HelpCircle, Music2, Volume2, RefreshCw, Video, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { refineMediaCaptions, type RefineMediaCaptionsInput } from "@/ai/flows/r
 import { refineSongSuggestions, type RefineSongSuggestionsInput } from "@/ai/flows/refine-song-suggestions";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { analyzeMediaVibe } from "@/ai/flows/analyze-media-vibe";
+import { generateVideo } from "@/ai/flows/generate-video";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { LanguageSelector } from './language-selector';
@@ -20,7 +21,6 @@ import { PlatformSelector } from './platform-selector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { MediaSuggestions, LanguageOption, SocialPlatform, SongSuggestion, SongSuggestionsMap } from '@/lib/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { AiAssistant } from "@/components/ai-assistant";
 import { Textarea } from "./ui/textarea";
 
@@ -34,12 +34,12 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "Albanian", label: "Shqip (Albanian)" },
   { value: "Amharic", label: "አማርኛ (Amharic)" },
   { value: "Arabic", label: "العربية (Arabic)" },
-  { value: "Armenian", label: "Հայերեն (Armenian)" },
+  { value: "Armenian", label: "Հայերেন (Armenian)" },
   { value: "Assamese", label: "অসমীয়া (Assamese)" },
   { value: "Azerbaijani", label: "Azərbaycanca (Azerbaijani)" },
   { value: "Basque", label: "Euskara (Basque)" },
   { value: "Bengali", label: "বাংলা (Bengali)" },
-  { value: "Bhojpuri", label: "भोजपुरी (Bhojpuri)" },
+  { value: "Bhojpuri", label: "भোজপুরী (Bhojpuri)" },
   { value: "Bodo", label: "बर' (Bodo)" },
   { value: "Bosnian", label: "Bosanski (Bosnian)" },
   { value: "Bulgarian", label: "Български (Bulgarian)" },
@@ -72,8 +72,8 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "Kannada", label: "ಕನ್ನಡ (Kannada)" },
   { value: "Kashmiri", label: "کأشُر (Kashmiri)" },
   { value: "Kazakh", label: "Қазақ (Kazakh)" },
-  { value: "Khmer", label: "ខ្មែរ (Khmer)" },
-  { value: "Konkani", label: "कोंकणी (Konkani)" },
+  { value: "Khmer", label: "ខ្মែរ (Khmer)" },
+  { value: "Konkani", label: "कोंকণী (Konkani)" },
   { value: "Korean", label: "한국어 (Korean)" },
   { value: "Kyrgyz", label: "Кыргызча (Kyrgyz)" },
   { value: "Lao", label: "ລາວ (Lao)" },
@@ -177,6 +177,8 @@ export default function CaptionWiseClient() {
   const [isSuggesting, setIsSuggesting] = useState<boolean>(false);
   const [isRefiningCaptions, setIsRefiningCaptions] = useState<boolean>(false);
   const [isRefiningSongs, setIsRefiningSongs] = useState<boolean>(false);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState<boolean>(false);
+  const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
   
   const [activeAudio, setActiveAudio] = useState<HTMLAudioElement | null>(null);
   const [playingCaption, setPlayingCaption] = useState<string | null>(null);
@@ -189,7 +191,7 @@ export default function CaptionWiseClient() {
     return refinedSongSuggestions && Object.keys(refinedSongSuggestions).length > 0;
   }, [refinedSongSuggestions]);
 
-  const resetSuggestions = () => {
+  const resetSuggestions = useCallback(() => {
     setSuggestedCaptions(null);
     setRefinedCaptions(null);
     setCaptionFeedback("");
@@ -200,18 +202,19 @@ export default function CaptionWiseClient() {
     setSuggestedHashtags(null);
     setSelectedTone("Default");
     setVibe(null);
-  }
+    setGeneratedVideoUrl(null);
+  }, []);
 
-  const resetMedia = () => {
+  const resetMedia = useCallback(() => {
       setMediaFiles(null);
       setMediaSrcs(null);
       setMediaType(null);
-  }
+  }, []);
   
-  const resetAll = () => {
+  const resetAll = useCallback(() => {
     resetSuggestions();
     resetMedia();
-  }
+  }, [resetSuggestions, resetMedia]);
 
   const handleLanguageChange = (languageValue: string) => {
     setSelectedLanguages(prev => {
@@ -252,11 +255,10 @@ export default function CaptionWiseClient() {
     });
   }
 
-  const handleMediaUpload = async (event: ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
+  const processMediaFiles = useCallback(async (files: File[]) => {
+    if (files.length === 0) return;
 
-    resetAll(); 
+    resetAll();
     
     const uploadedFiles = Array.from(files);
     let currentMediaType: AppMediaType;
@@ -317,7 +319,39 @@ export default function CaptionWiseClient() {
     } finally {
       setIsSuggesting(false);
     }
+  }, [selectedLanguages, selectedSongLanguages, selectedPlatforms, toast, resetAll]);
+
+  const handleMediaUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+    processMediaFiles(Array.from(files));
   };
+
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      const items = event.clipboardData?.items;
+      if (!items) return;
+      
+      const pastedFiles: File[] = [];
+      for (const item of Array.from(items)) {
+        if (item.type.indexOf("image") !== -1) {
+          const file = item.getAsFile();
+          if (file) pastedFiles.push(file);
+        }
+      }
+
+      if (pastedFiles.length > 0) {
+        toast({ 
+          title: "Image Pasted", 
+          description: `Processing ${pastedFiles.length} image(s) from clipboard.` 
+        });
+        processMediaFiles(pastedFiles);
+      }
+    };
+
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [processMediaFiles, toast]);
 
   const handleRefineCaptions = async () => {
     if (!mediaSrcs || !mediaType || !captionFeedback) return;
@@ -391,6 +425,30 @@ export default function CaptionWiseClient() {
       toast({ variant: "destructive", title: "Refinement Error", description: error.message });
     } finally {
       setIsRefiningSongs(false);
+    }
+  };
+
+  const handleGenerateVideo = async () => {
+    if (!mediaSrcs || mediaSrcs.length === 0) return;
+    setIsGeneratingVideo(true);
+    setGeneratedVideoUrl(null);
+
+    try {
+      const result = await generateVideo({ 
+        imageDataUri: mediaSrcs[0], 
+        prompt: `Animate this media with a ${vibe || 'cinematic'} vibe.` 
+      });
+      setGeneratedVideoUrl(result.videoDataUri);
+      toast({ title: "Video Generated!", description: "Your AI video is ready." });
+    } catch (error: any) {
+      console.error("Video generation error:", error);
+      toast({ 
+        variant: "destructive", 
+        title: "Video Error", 
+        description: "Could not generate video. The AI servers might be busy." 
+      });
+    } finally {
+      setIsGeneratingVideo(false);
     }
   };
 
@@ -516,17 +574,83 @@ export default function CaptionWiseClient() {
           </CardContent>
         </Card>
 
-        <Card className="w-full shadow-lg">
+        <Card className="w-full shadow-lg border-2 border-dashed border-muted hover:border-primary/50 transition-colors">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <UploadCloud className="h-6 w-6 text-primary" />
-              2. Upload Content
+              2. Upload or Paste Content
             </CardTitle>
+            <CardDescription>Drag & drop, click to select, or simply **paste an image** from your clipboard anywhere!</CardDescription>
           </CardHeader>
-          <CardContent>
-             <Input type="file" accept="image/*,video/*" multiple onChange={handleMediaUpload} disabled={isSuggesting} />
+          <CardContent className="flex flex-col items-center justify-center py-6">
+             <Input type="file" id="media-upload" accept="image/*,video/*" multiple onChange={handleMediaUpload} disabled={isSuggesting} className="hidden" />
+             <Label htmlFor="media-upload" className="w-full">
+                <Button variant="outline" className="w-full py-12 flex flex-col gap-2 h-auto border-dashed" asChild disabled={isSuggesting}>
+                  <div className="cursor-pointer">
+                    <UploadCloud className="h-10 w-10 text-muted-foreground mb-2" />
+                    <span className="text-lg font-medium">Select Media</span>
+                    <span className="text-sm text-muted-foreground">or Paste Ctrl+V</span>
+                  </div>
+                </Button>
+             </Label>
+             
+             {mediaSrcs && mediaSrcs.length > 0 && (
+                <div className="flex flex-wrap gap-2 justify-center mt-6">
+                    {mediaSrcs.map((src, idx) => (
+                        <div key={idx} className="relative w-24 h-24 rounded-lg overflow-hidden border shadow-sm group">
+                             {mediaType === 'video' ? (
+                                <video src={src} className="w-full h-full object-cover" />
+                             ) : (
+                                <img src={src} alt="Preview" className="w-full h-full object-cover" />
+                             )}
+                        </div>
+                    ))}
+                </div>
+             )}
           </CardContent>
         </Card>
+
+        {mediaType === 'image' && mediaSrcs && (
+           <Card className="w-full shadow-lg overflow-hidden">
+             <CardHeader className="bg-primary/5">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Video className="h-5 w-5 text-primary" />
+                  3. AI Video Generation (Optional)
+                </CardTitle>
+                <CardDescription>Convert your image into a cinematic 5-second video.</CardDescription>
+             </CardHeader>
+             <CardContent className="pt-6">
+                {!generatedVideoUrl && (
+                   <Button 
+                    onClick={handleGenerateVideo} 
+                    disabled={isGeneratingVideo} 
+                    className="w-full h-12 text-lg font-semibold"
+                    variant="secondary"
+                  >
+                    {isGeneratingVideo ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Sparkles className="mr-2 h-5 w-5" />}
+                    {isGeneratingVideo ? "Creating Magic..." : "Generate AI Video"}
+                  </Button>
+                )}
+                {isGeneratingVideo && (
+                   <div className="mt-4 flex flex-col items-center gap-2 py-4 animate-pulse">
+                      <p className="text-sm text-muted-foreground italic">Generating cinematic motion. This usually takes 30-60 seconds...</p>
+                   </div>
+                )}
+                {generatedVideoUrl && (
+                  <div className="mt-2 space-y-4">
+                    <div className="rounded-lg overflow-hidden border shadow-inner bg-black aspect-video">
+                      <video src={generatedVideoUrl} controls className="w-full h-full" autoPlay loop muted />
+                    </div>
+                    <Button variant="outline" className="w-full" asChild>
+                      <a href={generatedVideoUrl} download="vibewords-video.mp4">
+                        <Download className="mr-2 h-4 w-4" /> Download AI Video
+                      </a>
+                    </Button>
+                  </div>
+                )}
+             </CardContent>
+           </Card>
+        )}
 
         {isSuggesting && (
           <div className="flex flex-col items-center gap-4 py-8 animate-pulse">
