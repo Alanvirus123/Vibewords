@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * @fileOverview Detailed mood-based song recommendation AI agent.
+ * @fileOverview Detailed mood-based song recommendation AI agent with retry logic.
  */
 
 import { ai } from '@/ai/genkit';
@@ -30,7 +30,6 @@ export const SongResponseSchema = z.object({
 export type SongRequest = z.infer<typeof SongRequestSchema>;
 export type SongResponse = z.infer<typeof SongResponseSchema>;
 
-// A simple helper function to make the code pause
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
@@ -47,25 +46,17 @@ export async function getSongRecommendations(input: SongRequest): Promise<SongRe
 export async function getSongRecommendationsSafe(input: SongRequest, maxRetries = 3): Promise<SongResponse> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      // Try calling your original function
       return await getSongRecommendations(input);
-      
     } catch (error: any) {
-      // Check if the error is a rate limit (429)
-      // We check for '429' in message or a status property if available
       if (error.message?.includes('429') || error.status === 429) {
-        // Calculate wait time: 2s, then 4s, then 8s...
         const waitTime = (2 ** attempt) * 1000; 
         console.warn(`Rate limit hit! Waiting ${waitTime / 1000} seconds before retrying (Attempt ${attempt + 1})...`);
-        
         await delay(waitTime); 
       } else {
-        // If it's a different kind of error, throw it immediately
         throw error; 
       }
     }
   }
-  
   throw new Error("Sorry, the servers are too busy right now. Please try again in a minute.");
 }
 
@@ -80,7 +71,7 @@ const prompt = ai.definePrompt({
   STRICT Cultural and Linguistic Authenticity:
   - If language is Hindi, suggest Hindi/Bollywood/Indipop.
   - If language is Bengali, suggest Bengali/Rabindra Sangeet/Baul/Bengali Pop.
-  - Do NOT suggest English songs for non-English languages.`,
+  - Do NOT suggest English songs for non-English languages unless they are specifically a massive hit in that region.`,
 });
 
 const getSongRecommendationsFlow = ai.defineFlow(

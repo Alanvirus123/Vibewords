@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -8,6 +7,8 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+
+const maxDuration = 120;
 
 const SuggestMediaCaptionsInputSchema = z.object({
   mediaDataUris: z
@@ -64,14 +65,15 @@ const prompt = ai.definePrompt({
   For EACH language, provide:
   1. EXACTLY four unique captions.
   2. EXACTLY three song suggestions (title, artist, description).
-     STRICT Cultural Authenticity:
-     - Hindi: Suggest Bollywood/Hindi Pop/Indie.
-     - Bengali: Suggest Rabindra Sangeet/Bengali Film/Baul/Bengali Pop.
-     - No English songs for non-English languages unless explicitly fitting.
+     STRICT Cultural and Linguistic Authenticity:
+     - If the language is Hindi, suggest Bollywood, Hindi Pop, or Indipop songs.
+     - If the language is Bengali, suggest Rabindra Sangeet, Bengali Film songs, Baul, or Bengali Pop.
+     - Ensure the song recommendations are native to the specific language culture.
+     - Do NOT suggest English songs for non-English languages unless they are specifically a massive hit in that region.
   3. EXACTLY ten hashtags as a list of 10 individual, non-empty strings. 
      - Do NOT combine multiple hashtags into one string.
      - Do NOT return empty strings ("").
-     - Ensure every array element contains a meaningful hashtag.
+     - Ensure every array element contains a meaningful hashtag starting with #.
 
   Media:
   {{#if isImageCollection}}Collection of {{mediaDataUris.length}} images.{{/if}}
