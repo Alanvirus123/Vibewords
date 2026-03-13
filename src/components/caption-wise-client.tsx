@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, type ChangeEvent, useMemo, Suspense, useEffect, useCallback } from "react";
-import { UploadCloud, Copy, Loader2, Sparkles, Share2, HelpCircle, Music2, Volume2, RefreshCw, Video, Download } from "lucide-react";
+import { UploadCloud, Copy, Loader2, Sparkles, Share2, HelpCircle, Music2, Volume2, RefreshCw, Video, Download, ClipboardPaste } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,8 +39,8 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "Azerbaijani", label: "Azərbaycanca (Azerbaijani)" },
   { value: "Basque", label: "Euskara (Basque)" },
   { value: "Bengali", label: "বাংলা (Bengali)" },
-  { value: "Bhojpuri", label: "भোজপুরী (Bhojpuri)" },
-  { value: "Bodo", label: "बर' (Bodo)" },
+  { value: "Bhojpuri", label: "ভোজপুরী (Bhojpuri)" },
+  { value: "Bodo", label: "বর' (Bodo)" },
   { value: "Bosnian", label: "Bosanski (Bosnian)" },
   { value: "Bulgarian", label: "Български (Bulgarian)" },
   { value: "Catalan", label: "Català (Catalan)" },
@@ -61,7 +61,7 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "German", label: "Deutsch (German)" },
   { value: "Greek", label: "Ελληνικά (Greek)" },
   { value: "Gujarati", label: "ગુજરાતી (Gujarati)" },
-  { value: "Hebrew", label: "עברית (Hebrew)" },
+  { value: "Hebrew", label: "עבריত (Hebrew)" },
   { value: "Hindi", label: "हिन्दी (Hindi)" },
   { value: "Hungarian", label: "Magyar (Hungarian)" },
   { value: "Icelandic", label: "Íslenska (Icelandic)" },
@@ -72,7 +72,7 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "Kannada", label: "ಕನ್ನಡ (Kannada)" },
   { value: "Kashmiri", label: "کأشُر (Kashmiri)" },
   { value: "Kazakh", label: "Қазақ (Kazakh)" },
-  { value: "Khmer", label: "ខ្মែរ (Khmer)" },
+  { value: "Khmer", label: "ខ្মែর (Khmer)" },
   { value: "Konkani", label: "कोंকণী (Konkani)" },
   { value: "Korean", label: "한국어 (Korean)" },
   { value: "Kyrgyz", label: "Кыргызча (Kyrgyz)" },
@@ -80,7 +80,7 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "Latvian", label: "Latviešu (Latvian)" },
   { value: "Lithuanian", label: "Lietuvių (Lithuanian)" },
   { value: "Macedonian", label: "Македонски (Macedonian)" },
-  { value: "Maithili", label: "मैथिली (Maithili)" },
+  { value: "Maithili", label: "मैথিলে (Maithili)" },
   { value: "Malay", label: "Bahasa Melayu (Malay)" },
   { value: "Malayalam", label: "മലയാളം (Malayalam)" },
   { value: "Maltese", label: "Malti (Maltese)" },
@@ -325,6 +325,39 @@ export default function CaptionWiseClient() {
     const files = event.target.files;
     if (!files) return;
     processMediaFiles(Array.from(files));
+  };
+
+  const handlePasteFromClipboard = async () => {
+    try {
+      if (!navigator.clipboard?.read) {
+        toast({ variant: "destructive", title: "Compatibility Issue", description: "Your browser doesn't support reading the clipboard directly. Try using Ctrl+V or long-pressing." });
+        return;
+      }
+
+      const clipboardItems = await navigator.clipboard.read();
+      const pastedFiles: File[] = [];
+
+      for (const item of clipboardItems) {
+        for (const type of item.types) {
+          if (type.startsWith("image/")) {
+            const blob = await item.getType(type);
+            const ext = type.split('/')[1] || 'png';
+            const file = new File([blob], `pasted-image-${Date.now()}.${ext}`, { type });
+            pastedFiles.push(file);
+          }
+        }
+      }
+
+      if (pastedFiles.length > 0) {
+        toast({ title: "Image Pasted", description: `Processing ${pastedFiles.length} image(s) from clipboard.` });
+        processMediaFiles(pastedFiles);
+      } else {
+        toast({ variant: "destructive", title: "No Image Found", description: "No image was found in your clipboard. Make sure you've copied an image recently." });
+      }
+    } catch (err) {
+      console.error("Failed to read clipboard:", err);
+      toast({ variant: "destructive", title: "Clipboard Error", description: "Could not access clipboard. Please ensure you've given permission." });
+    }
   };
 
   useEffect(() => {
@@ -580,19 +613,33 @@ export default function CaptionWiseClient() {
               <UploadCloud className="h-6 w-6 text-primary" />
               2. Upload or Paste Content
             </CardTitle>
-            <CardDescription>Drag & drop, click to select, or simply **paste an image** from your clipboard anywhere!</CardDescription>
+            <CardDescription>Upload files, or simply **paste an image** from your clipboard anywhere!</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center py-6">
+          <CardContent className="flex flex-col items-center justify-center py-6 gap-4">
              <Input type="file" id="media-upload" accept="image/*,video/*" multiple onChange={handleMediaUpload} disabled={isSuggesting} className="hidden" />
-             <Label htmlFor="media-upload" className="w-full">
-                <Button variant="outline" className="w-full py-12 flex flex-col gap-2 h-auto border-dashed" asChild disabled={isSuggesting}>
-                  <div className="cursor-pointer">
-                    <UploadCloud className="h-10 w-10 text-muted-foreground mb-2" />
-                    <span className="text-lg font-medium">Select Media</span>
-                    <span className="text-sm text-muted-foreground">or Paste Ctrl+V</span>
-                  </div>
+             
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+                <Label htmlFor="media-upload" className="w-full">
+                    <Button variant="outline" className="w-full py-12 flex flex-col gap-2 h-auto border-dashed hover:bg-primary/5 hover:border-primary/40" asChild disabled={isSuggesting}>
+                    <div className="cursor-pointer">
+                        <UploadCloud className="h-10 w-10 text-muted-foreground mb-2" />
+                        <span className="text-lg font-medium">Browse Files</span>
+                        <span className="text-xs text-muted-foreground">Select images or videos</span>
+                    </div>
+                    </Button>
+                </Label>
+
+                <Button 
+                    variant="outline" 
+                    className="w-full py-12 flex flex-col gap-2 h-auto border-dashed hover:bg-primary/5 hover:border-primary/40" 
+                    onClick={handlePasteFromClipboard}
+                    disabled={isSuggesting}
+                >
+                    <ClipboardPaste className="h-10 w-10 text-muted-foreground mb-2" />
+                    <span className="text-lg font-medium">Paste Image</span>
+                    <span className="text-xs text-muted-foreground">From your clipboard</span>
                 </Button>
-             </Label>
+             </div>
              
              {mediaSrcs && mediaSrcs.length > 0 && (
                 <div className="flex flex-wrap gap-2 justify-center mt-6">
