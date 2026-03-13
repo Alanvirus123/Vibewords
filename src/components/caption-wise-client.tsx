@@ -62,7 +62,7 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "German", label: "Deutsch (German)" },
   { value: "Greek", label: "Ελληνικά (Greek)" },
   { value: "Gujarati", label: "ગુજરાતી (Gujarati)" },
-  { value: "Hebrew", label: "עבריت (Hebrew)" },
+  { value: "Hebrew", label: "עבריত (Hebrew)" },
   { value: "Hindi", label: "हिन्दी (Hindi)" },
   { value: "Hungarian", label: "Magyar (Hungarian)" },
   { value: "Icelandic", label: "Íslenska (Icelandic)" },
@@ -73,7 +73,7 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "Kannada", label: "ಕನ್ನಡ (Kannada)" },
   { value: "Kashmiri", label: "کأشُر (Kashmiri)" },
   { value: "Kazakh", label: "Қазақ (Kazakh)" },
-  { value: "Khmer", label: "ខ្មែর (Khmer)" },
+  { value: "Khmer", label: "ខ្মែর (Khmer)" },
   { value: "Konkani", label: "कोंকণী (Konkani)" },
   { value: "Korean", label: "한국어 (Korean)" },
   { value: "Kyrgyz", label: "Кыргызча (Kyrgyz)" },
@@ -88,7 +88,7 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "Manipuri", label: "মৈতৈলোন (Manipuri)" },
   { value: "Marathi", label: "মরাঠি (Marathi)" },
   { value: "Mongolian", label: "Монгол (Mongolian)" },
-  { value: "Nepali", label: "नेपाली (Nepali)" },
+  { value: "Nepali", label: "নেपाली (Nepali)" },
   { value: "Norwegian", label: "Norsk (Norwegian)" },
   { value: "Odia", label: "ଓଡ଼ିଆ (Odia)" },
   { value: "Pashto", label: "پښتو (Pashto)" },
@@ -102,7 +102,7 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "Santali", label: "संताली (Santali)" },
   { value: "Serbian", label: "Српски (Serbian)" },
   { value: "Sindhi", label: "سنڌي (Sindhi)" },
-  { value: "Sinhala", label: "සිංහල (Sinhala)" },
+  { value: "Sinhala", label: "සිංহල (Sinhala)" },
   { value: "Slovak", label: "Slovenčina (Slovak)" },
   { value: "Slovenian", label: "Slovenščina (Slovenian)" },
   { value: "Somali", label: "Soomaali (Somali)" },
@@ -125,7 +125,7 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
 ].sort((a, b) => a.label.localeCompare(b.label));
 
 const SOCIAL_PLATFORMS: SocialPlatform[] = [
-  "Instagram", "TikTok", "LinkedIn", "X", "Facebook", "Threads", "Pinterest", "YouTube"
+  "Instagram", "TikTok", "LinkedIn", "X", "Facebook", "Threads", "Pinterest", "YouTube", "WhatsApp"
 ];
 
 const PLATFORM_LIMITS: Record<string, number> = {
@@ -134,9 +134,10 @@ const PLATFORM_LIMITS: Record<string, number> = {
   "Instagram": 2200,
   "LinkedIn": 3000,
   "TikTok": 4000,
-  "Facebook": 5000, // Practically much higher but 5k is a safe professional limit
+  "Facebook": 5000,
   "Pinterest": 500,
-  "YouTube": 5000
+  "YouTube": 5000,
+  "WhatsApp": 700 // Recommended status length, though messages can be longer
 };
 
 const TONES = ["Default", "Funny", "Professional", "Inspirational", "Casual", "Poetic", "Witty", "Sarcastic"];
