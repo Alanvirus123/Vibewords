@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -12,8 +11,8 @@ import { useAuth, useUser } from "@/firebase";
 import { initiateEmailSignIn, initiateEmailSignUp, initiateAnonymousSignIn } from "@/firebase/non-blocking-login";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, LogIn, UserPlus, Ghost, Sparkles } from "lucide-react";
-import { doc, setDoc } from "firebase/firestore";
-import { getFirestore } from "firebase/firestore";
+import { doc, setDoc, getFirestore } from "firebase/firestore";
+import { updateProfile } from "firebase/auth";
 
 export default function LoginPage() {
   const { user, isUserLoading } = useUser();
@@ -32,38 +31,62 @@ export default function LoginPage() {
     }
   }, [user, isUserLoading, router]);
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
     setIsSubmitting(true);
-    try {
-      initiateEmailSignIn(auth, email, password);
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Login Failed", description: error.message });
-      setIsSubmitting(false);
-    }
+    
+    initiateEmailSignIn(auth, email, password)
+      .catch((error: any) => {
+        toast({ 
+          variant: "destructive", 
+          title: "Login Failed", 
+          description: error.message || "Invalid credentials. Please check your email and password." 
+        });
+        setIsSubmitting(false);
+      });
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleSignUp = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password || !displayName) return;
     setIsSubmitting(true);
-    try {
-      // In a real app, you'd handle the creation and then the profile update.
-      // For this prototype, we'll let the onAuthStateChanged in provider handle the state.
-      initiateEmailSignUp(auth, email, password);
-      // Profile creation is typically handled via a Cloud Function or post-registration hook,
-      // but here we can't easily sync the displayName without blocking. 
-      // We'll proceed with the login flow.
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Signup Failed", description: error.message });
-      setIsSubmitting(false);
-    }
+    
+    initiateEmailSignUp(auth, email, password)
+      .then(async (cred) => {
+        // 1. Update the Auth profile with the display name
+        await updateProfile(cred.user, { displayName });
+        
+        // 2. Create the UserProfile document in Firestore
+        const db = getFirestore();
+        const userRef = doc(db, "users", cred.user.uid);
+        // We don't await this mutation to maintain the non-blocking UX,
+        // but we initiate it immediately.
+        setDoc(userRef, {
+          id: cred.user.uid,
+          displayName: displayName,
+          email: email,
+          preferredTheme: "system",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      })
+      .catch((error: any) => {
+        toast({ 
+          variant: "destructive", 
+          title: "Signup Failed", 
+          description: error.message || "Could not create account." 
+        });
+        setIsSubmitting(false);
+      });
   };
 
   const handleGuestLogin = () => {
     setIsSubmitting(true);
-    initiateAnonymousSignIn(auth);
+    initiateAnonymousSignIn(auth).catch((error: any) => {
+      toast({ variant: "destructive", title: "Guest Login Failed", description: error.message });
+      setIsSubmitting(false);
+    });
   };
 
   if (isUserLoading) {
@@ -95,8 +118,10 @@ export default function LoginPage() {
             <Card>
               <form onSubmit={handleSignIn}>
                 <CardHeader>
-                  <CardTitle>Welcome Back</CardTitle>
-                  <CardDescription>Enter your credentials to access your workspace.</CardDescription>
+                  <CardHeader>
+                    <CardTitle>Welcome Back</CardTitle>
+                    <CardDescription>Enter your credentials to access your workspace.</CardDescription>
+                  </CardHeader>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
