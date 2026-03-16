@@ -164,3 +164,68 @@
 .animate-completion-reveal {
   animation: completion-reveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
+
+/* Jitter-inspired Background Animations */
+@keyframes aurora-1 {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(10%, 15%) scale(1.2); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+@keyframes aurora-2 {
+  0% { transform: translate(0, 0) scale(1.1); }
+  50% { transform: translate(-15%, 10%) scale(0.9); }
+  100% { transform: translate(0, 0) scale(1.1); }
+}
+
+@keyframes aurora-3 {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(5%, -10%) rotate(5deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+.bg-aurora {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  overflow: hidden;
+  background: hsl(var(--background));
+}
+
+.aurora-blob {
+  position: absolute;
+  width: 60vw;
+  height: 60vw;
+  filter: blur(100px);
+  opacity: 0.15;
+  border-radius: 50%;
+}
+
+.aurora-1 {
+  background: hsl(var(--primary));
+  top: -10%;
+  left: -10%;
+  animation: aurora-1 15s infinite alternate ease-in-out;
+}
+
+.aurora-2 {
+  background: hsl(var(--primary));
+  bottom: -10%;
+  right: -10%;
+  animation: aurora-2 18s infinite alternate ease-in-out;
+  opacity: 0.1;
+}
+
+.aurora-3 {
+  background: hsl(var(--primary));
+  top: 50%;
+  left: 50%;
+  width: 40vw;
+  height: 40vw;
+  transform: translate(-50%, -50%);
+  animation: aurora-3 20s infinite alternate ease-in-out;
+  opacity: 0.05;
+}
