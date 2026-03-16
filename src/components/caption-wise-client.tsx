@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, type ChangeEvent, useMemo, Suspense, useEffect, useCallback } from "react";
@@ -368,11 +369,6 @@ export default function CaptionWiseClient() {
             </div>
             <h1 className="text-lg font-bold tracking-tight text-[hsl(var(--app-title))]">VibeWords</h1>
           </div>
-          <div className="hidden md:flex h-8 w-[1px] bg-border/50" />
-          <div className="hidden md:flex items-center gap-1 text-xs font-bold text-muted-foreground">
-            <LayoutDashboard className="h-4 w-4 mr-2" />
-            CONTROL CENTER
-          </div>
         </div>
 
         <div className="flex items-center gap-3">
@@ -401,63 +397,65 @@ export default function CaptionWiseClient() {
         </div>
       </nav>
 
-      <div className="flex-grow flex flex-col lg:flex-row container mx-auto p-6 gap-8">
-        <aside className="w-full lg:w-[350px] shrink-0 space-y-6">
-          <Card className="border-border/50 shadow-xl overflow-hidden">
-            <CardHeader className="bg-primary/5 pb-4">
-              <CardTitle className="text-sm font-bold tracking-widest flex items-center gap-2">
-                <Settings className="h-4 w-4 text-primary" />
-                CONFIGURATION
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-6">
-              <PlatformSelector
-                allPlatforms={SOCIAL_PLATFORMS}
-                selectedPlatforms={selectedPlatforms}
-                onPlatformChange={(p) => setSelectedPlatforms(prev => prev.includes(p) ? (prev.length > 1 ? prev.filter(x => x !== p) : prev) : [...prev, p])}
-                description="Optimize AI generation for your channels."
-              />
-              
-              <Tabs defaultValue="captions" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 h-9">
-                  <TabsTrigger value="captions" className="text-[10px] font-bold uppercase">Captions</TabsTrigger>
-                  <TabsTrigger value="songs" className="text-[10px] font-bold uppercase">Audio</TabsTrigger>
-                </TabsList>
-                <TabsContent value="captions" className="pt-4 space-y-4">
-                  <LanguageSelector
-                    allLanguages={PREDEFINED_LANGUAGES}
-                    selectedLanguages={selectedLanguages}
-                    onLanguageChange={(l) => setSelectedLanguages(prev => prev.includes(l) ? (prev.length > 1 ? prev.filter(x => x !== l) : prev) : [...prev, l])}
-                    description="Generation Languages"
-                  />
-                </TabsContent>
-                <TabsContent value="songs" className="pt-4">
-                   <LanguageSelector
-                    allLanguages={PREDEFINED_LANGUAGES}
-                    selectedLanguages={selectedSongLanguages}
-                    onLanguageChange={(l) => setSelectedSongLanguages(prev => prev.includes(l) ? (prev.length > 1 ? prev.filter(x => x !== l) : prev) : [...prev, l])}
-                    description="Song Vibe Languages"
-                  />
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
+      <div className="flex-grow flex flex-col container mx-auto max-w-4xl p-6 gap-8">
+        <main className="flex-grow space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="border-2 border-dashed border-primary/20 bg-primary/5 hover:border-primary/50 transition-all cursor-pointer group h-full">
+              <label htmlFor="media-upload" className="block p-8 text-center space-y-4 cursor-pointer">
+                <div className="inline-flex p-4 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
+                  <UploadCloud className="h-8 w-8" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm tracking-tight">DATA INGESTION</h3>
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase mt-1">Images, Videos, or Collections</p>
+                </div>
+                <Input type="file" id="media-upload" accept="image/*,video/*" multiple onChange={handleMediaUpload} disabled={isSuggesting} className="hidden" />
+                <Button variant="secondary" size="sm" className="w-full text-[10px] font-bold" onClick={handlePasteFromClipboard} disabled={isSuggesting}>
+                  <ClipboardPaste className="h-3 w-3 mr-2" /> PASTE FROM CLIPBOARD
+                </Button>
+              </label>
+            </Card>
 
-          <Card className="border-2 border-dashed border-primary/20 bg-primary/5 hover:border-primary/50 transition-all cursor-pointer group">
-            <label htmlFor="media-upload" className="block p-8 text-center space-y-4 cursor-pointer">
-              <div className="inline-flex p-4 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
-                <UploadCloud className="h-8 w-8" />
-              </div>
-              <div>
-                <h3 className="font-bold text-sm tracking-tight">DATA INGESTION</h3>
-                <p className="text-[10px] text-muted-foreground font-medium uppercase mt-1">Images, Videos, or Multi-Image Collections</p>
-              </div>
-              <Input type="file" id="media-upload" accept="image/*,video/*" multiple onChange={handleMediaUpload} disabled={isSuggesting} className="hidden" />
-              <Button variant="secondary" size="sm" className="w-full text-[10px] font-bold" onClick={handlePasteFromClipboard} disabled={isSuggesting}>
-                <ClipboardPaste className="h-3 w-3 mr-2" /> PASTE FROM CLIPBOARD
-              </Button>
-            </label>
-          </Card>
+            <Card className="border-border/50 shadow-xl overflow-hidden h-full">
+              <CardHeader className="bg-primary/5 pb-4">
+                <CardTitle className="text-sm font-bold tracking-widest flex items-center gap-2">
+                  <Settings className="h-4 w-4 text-primary" />
+                  CONFIGURATION
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-6">
+                <PlatformSelector
+                  allPlatforms={SOCIAL_PLATFORMS}
+                  selectedPlatforms={selectedPlatforms}
+                  onPlatformChange={(p) => setSelectedPlatforms(prev => prev.includes(p) ? (prev.length > 1 ? prev.filter(x => x !== p) : prev) : [...prev, p])}
+                  description="Optimize AI generation for your channels."
+                />
+                
+                <Tabs defaultValue="captions" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 h-9">
+                    <TabsTrigger value="captions" className="text-[10px] font-bold uppercase">Captions</TabsTrigger>
+                    <TabsTrigger value="songs" className="text-[10px] font-bold uppercase">Audio</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="captions" className="pt-4 space-y-4">
+                    <LanguageSelector
+                      allLanguages={PREDEFINED_LANGUAGES}
+                      selectedLanguages={selectedLanguages}
+                      onLanguageChange={(l) => setSelectedLanguages(prev => prev.includes(l) ? (prev.length > 1 ? prev.filter(x => x !== l) : prev) : [...prev, l])}
+                      description="Generation Languages"
+                    />
+                  </TabsContent>
+                  <TabsContent value="songs" className="pt-4">
+                     <LanguageSelector
+                      allLanguages={PREDEFINED_LANGUAGES}
+                      selectedLanguages={selectedSongLanguages}
+                      onLanguageChange={(l) => setSelectedSongLanguages(prev => prev.includes(l) ? (prev.length > 1 ? prev.filter(x => x !== l) : prev) : [...prev, l])}
+                      description="Song Vibe Languages"
+                    />
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </div>
 
           {mediaSrcs && mediaSrcs.length > 0 && (
             <Card className="border-border/50 overflow-hidden shadow-lg animate-in fade-in slide-in-from-bottom-4">
@@ -466,7 +464,7 @@ export default function CaptionWiseClient() {
                     <Button variant="ghost" size="sm" className="h-6 text-[10px] text-destructive hover:bg-destructive/10" onClick={resetAll}>DISCARD</Button>
                 </CardHeader>
                 <CardContent className="p-3">
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
                         {mediaSrcs.map((src, idx) => (
                             <div key={idx} className="aspect-square rounded-lg overflow-hidden border border-white/10 shadow-inner">
                                  {mediaType === 'video' ? <video src={src} className="w-full h-full object-cover" /> : <img src={src} alt="Preview" className="w-full h-full object-cover" />}
@@ -476,9 +474,7 @@ export default function CaptionWiseClient() {
                 </CardContent>
             </Card>
           )}
-        </aside>
 
-        <main className="flex-grow space-y-6 overflow-y-auto">
           {isSuggesting && (
             <div className="flex flex-col items-center justify-center py-20 gap-6">
                 <div className="relative">
@@ -487,8 +483,8 @@ export default function CaptionWiseClient() {
                     <Sparkles className="h-10 w-10 text-primary absolute inset-0 m-auto" />
                 </div>
                 <div className="text-center space-y-2">
-                    <h2 className="text-xl font-bold tracking-tight">SYNCHRONIZING AI AGENTS</h2>
-                    <p className="text-xs text-muted-foreground font-medium uppercase">Optimizing for {selectedPlatforms.join(' + ')}</p>
+                    <h2 className="text-xl font-bold tracking-tight uppercase">Processing Media</h2>
+                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Optimizing for {selectedPlatforms.join(' + ')}</p>
                 </div>
             </div>
           )}
