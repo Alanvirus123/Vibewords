@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -22,7 +21,7 @@ interface SuggestedSongsDisplayProps {
   isRefiningSongs: boolean;
   selectedLanguages: string[];
   PREDEFINED_LANGUAGES: LanguageOption[];
-  SongSuggestionItemRenderer: React.FC<{ song: SongSuggestion; language: string }>;
+  SongSuggestionItemRenderer: React.FC<{ song: SongSuggestion; language: string; index?: number }>;
 }
 
 const SuggestedSongsDisplay: React.FC<SuggestedSongsDisplayProps> = ({
@@ -49,12 +48,17 @@ const SuggestedSongsDisplay: React.FC<SuggestedSongsDisplayProps> = ({
         <CardDescription>Multilingual song ideas with artist details and cultural vibes.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {suggestedSongs && selectedLanguages.map(language => (
+        {suggestedSongs && selectedLanguages.map((language, langIndex) => (
           suggestedSongs[language] && (
             <div key={`suggested-song-${language}`} className="space-y-2">
               <h4 className="font-semibold text-md text-foreground">{language}</h4>
               {suggestedSongs[language].map((song, index) => (
-                <SongSuggestionItemRenderer key={`${language}-${index}`} song={song} language={language} />
+                <SongSuggestionItemRenderer 
+                    key={`${language}-${index}`} 
+                    song={song} 
+                    language={language} 
+                    index={langIndex * 3 + index}
+                />
               ))}
             </div>
           )

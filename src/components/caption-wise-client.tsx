@@ -180,6 +180,13 @@ export default function CaptionWiseClient() {
       setSuggestedCaptions(newSuggestedCaptions);
       setSuggestedSongs(newSuggestedSongs);
       setSuggestedHashtags(newSuggestedHashtags);
+      
+      toast({
+        title: "Content Analysis Complete",
+        description: "Your custom captions and audio vibes are ready.",
+        className: "bg-primary text-primary-foreground font-bold",
+      });
+
     } catch (error: any) {
       toast({ variant: "destructive", title: "AI Error", description: error.message || "Model timeout." });
       resetAll();
@@ -290,13 +297,16 @@ export default function CaptionWiseClient() {
     } catch (e) { setPlayingCaption(null); }
   }
 
-  const CaptionDisplayCardRenderer = ({ caption, language }: { caption: string; language: string }) => {
+  const CaptionDisplayCardRenderer = ({ caption, language, index }: { caption: string; language: string; index?: number }) => {
     const isOverLimit = caption.length > minPlatformLimit;
     const hashtags = suggestedHashtags?.[language] || [];
     const fullText = `${caption}\n\n${hashtags.join(' ')}`;
 
     return (
-      <div className="p-4 border rounded-xl bg-card hover:border-primary/50 transition-all shadow-sm group animate-in slide-in-from-bottom-2 duration-500 fill-mode-both">
+      <div 
+        className="p-4 border rounded-xl bg-card hover:border-primary/50 transition-all shadow-sm group animate-completion-reveal fill-mode-both"
+        style={{ animationDelay: `${(index || 0) * 100}ms` }}
+      >
         <div className="flex justify-between items-start gap-4">
           <div className="flex-grow space-y-2">
             <span className="text-[10px] font-bold text-primary uppercase tracking-widest">{language}</span>
@@ -334,8 +344,11 @@ export default function CaptionWiseClient() {
     );
   };
 
-  const SongSuggestionItemRenderer = ({ song, language }: { song: SongSuggestion; language: string }) => (
-    <div className="p-4 border rounded-xl bg-card hover:border-primary/50 transition-all shadow-sm animate-in slide-in-from-bottom-2 duration-500 fill-mode-both">
+  const SongSuggestionItemRenderer = ({ song, language, index }: { song: SongSuggestion; language: string; index?: number }) => (
+    <div 
+        className="p-4 border rounded-xl bg-card hover:border-primary/50 transition-all shadow-sm animate-completion-reveal fill-mode-both"
+        style={{ animationDelay: `${(index || 0) * 150}ms` }}
+    >
       <div className="flex justify-between items-center mb-2">
         <div>
           <span className="text-[10px] font-bold text-primary uppercase tracking-widest">{language}</span>
@@ -562,7 +575,7 @@ export default function CaptionWiseClient() {
 
               <div className="space-y-8">
                 {suggestedHashtags && (
-                  <Card className="border-border/50 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <Card className="border-border/50 shadow-sm animate-completion-reveal">
                     <CardHeader className="py-4">
                       <CardTitle className="text-xs font-bold tracking-widest flex items-center gap-2">
                         <Hash className="h-4 w-4 text-primary" />
@@ -588,7 +601,7 @@ export default function CaptionWiseClient() {
 
                 {suggestedCaptions && (
                   <Suspense fallback={<LoadingFallback />}>
-                    <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+                    <div className="animate-completion-reveal" style={{ animationDelay: '200ms' }}>
                         <SuggestedCaptionsDisplay
                             mediaType={mediaType} suggestedCaptions={suggestedCaptions}
                             captionFeedback={captionFeedback} setCaptionFeedback={setCaptionFeedback}
@@ -602,7 +615,7 @@ export default function CaptionWiseClient() {
 
                 {hasRefinedCaptions && (
                   <Suspense fallback={<LoadingFallback />}>
-                    <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+                    <div className="animate-completion-reveal">
                         <RefinedCaptionsDisplay
                             refinedCaptions={refinedCaptions} selectedLanguages={selectedLanguages} 
                             PREDEFINED_LANGUAGES={PREDEFINED_LANGUAGES} CaptionDisplayCardRenderer={CaptionDisplayCardRenderer}
@@ -613,7 +626,7 @@ export default function CaptionWiseClient() {
 
                 {suggestedSongs && (
                   <Suspense fallback={<LoadingFallback />}>
-                    <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
+                    <div className="animate-completion-reveal" style={{ animationDelay: '400ms' }}>
                         <SuggestedSongsDisplay
                             mediaType={mediaType} suggestedSongs={suggestedSongs}
                             songFeedback={songFeedback} setSongFeedback={setSongFeedback}
@@ -628,7 +641,7 @@ export default function CaptionWiseClient() {
 
                 {hasRefinedSongSuggestions && (
                   <Suspense fallback={<LoadingFallback />}>
-                    <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+                    <div className="animate-completion-reveal">
                         <RefinedSongsDisplay
                             refinedSongSuggestions={refinedSongSuggestions} selectedLanguages={selectedSongLanguages}
                             PREDEFINED_LANGUAGES={PREDEFINED_LANGUAGES} SongSuggestionItemRenderer={SongSuggestionItemRenderer}

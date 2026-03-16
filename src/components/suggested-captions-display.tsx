@@ -18,7 +18,7 @@ interface SuggestedCaptionsDisplayProps {
   isRefiningSongs: boolean;
   selectedLanguages: string[]; 
   PREDEFINED_LANGUAGES: LanguageOption[];
-  CaptionDisplayCardRenderer: React.FC<{ caption: string; language: string }>;
+  CaptionDisplayCardRenderer: React.FC<{ caption: string; language: string; index?: number }>;
 }
 
 const QUICK_REFINES = [
@@ -51,7 +51,7 @@ const SuggestedCaptionsDisplay: React.FC<SuggestedCaptionsDisplayProps> = ({
         <CardDescription>Tailored captions for your selected platforms. Listen, copy, or refine them.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
-        {suggestedCaptions && selectedLanguages.map(language => (
+        {suggestedCaptions && selectedLanguages.map((language, langIndex) => (
           suggestedCaptions[language] && suggestedCaptions[language].length > 0 && (
             <div key={language} className="space-y-3">
               <div className="flex items-center gap-2">
@@ -61,7 +61,12 @@ const SuggestedCaptionsDisplay: React.FC<SuggestedCaptionsDisplayProps> = ({
               </div>
               <div className="grid grid-cols-1 gap-3">
                 {suggestedCaptions[language].map((caption, index) => caption && (
-                  <CaptionDisplayCardRenderer key={`suggested-${language}-${index}`} caption={caption} language={language} />
+                  <CaptionDisplayCardRenderer 
+                    key={`suggested-${language}-${index}`} 
+                    caption={caption} 
+                    language={language} 
+                    index={langIndex * 4 + index}
+                  />
                 ))}
               </div>
             </div>
