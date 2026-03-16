@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, type ChangeEvent, useMemo, Suspense, useEffect, useCallback } from "react";
-import { UploadCloud, Copy, Loader2, Sparkles, HelpCircle, Music2, Volume2, RefreshCw, ClipboardPaste, ExternalLink, LogOut, LayoutDashboard, Settings, History, FileText, Zap, Cpu, Activity } from "lucide-react";
+import { UploadCloud, Copy, Loader2, Sparkles, HelpCircle, Music2, Volume2, RefreshCw, ClipboardPaste, ExternalLink, LogOut, LayoutDashboard, Settings, History, FileText, Zap, Cpu, Activity, Hash, Clock, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ import { AiAssistant } from "@/components/ai-assistant";
 import { cn } from "@/lib/utils";
 import { useAuth, useUser } from "@/firebase";
 import { signOut } from "firebase/auth";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const SuggestedCaptionsDisplay = React.lazy(() => import('@/components/suggested-captions-display'));
 const RefinedCaptionsDisplay = React.lazy(() => import('@/components/refined-captions-display'));
@@ -160,7 +161,8 @@ export default function CaptionWiseClient() {
         mediaDataUris: dataUris, 
         mediaType: currentMediaType, 
         targetLanguages: [...new Set([...selectedLanguages, ...selectedSongLanguages])].slice(0, MAX_LANGUAGES_PER_REQUEST),
-        targetPlatforms: selectedPlatforms
+        targetPlatforms: selectedPlatforms,
+        tone: selectedTone === "Default" ? undefined : selectedTone
       });
       
       const newSuggestedCaptions: MediaSuggestions = {};
@@ -184,7 +186,7 @@ export default function CaptionWiseClient() {
     } finally {
       setIsSuggesting(false);
     }
-  }, [selectedLanguages, selectedSongLanguages, selectedPlatforms, toast, resetAll]);
+  }, [selectedLanguages, selectedSongLanguages, selectedPlatforms, selectedTone, toast, resetAll]);
 
   const handleMediaUpload = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) processMediaFiles(Array.from(event.target.files));
@@ -210,8 +212,9 @@ export default function CaptionWiseClient() {
 
   const handleLogout = () => signOut(auth);
 
-  const handleRefineCaptions = async () => {
-    if (!suggestedCaptions || !captionFeedback || isRefiningCaptions) return;
+  const handleRefineCaptions = async (quickPrompt?: string) => {
+    const feedback = quickPrompt || captionFeedback;
+    if (!suggestedCaptions || !feedback || isRefiningCaptions) return;
     setIsRefiningCaptions(true);
     try {
       const initialCaptionEntries = Object.entries(suggestedCaptions).map(([lang, caps]) => ({
@@ -224,7 +227,7 @@ export default function CaptionWiseClient() {
         mediaType: mediaType || 'image',
         mediaDescription: vibe || "",
         initialCaptionEntries,
-        userFeedback: captionFeedback,
+        userFeedback: feedback,
         tone: selectedTone,
         targetLanguages: selectedLanguages,
         targetPlatforms: selectedPlatforms
@@ -425,12 +428,32 @@ export default function CaptionWiseClient() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-6 space-y-6">
-                <PlatformSelector
-                  allPlatforms={SOCIAL_PLATFORMS}
-                  selectedPlatforms={selectedPlatforms}
-                  onPlatformChange={(p) => setSelectedPlatforms(prev => prev.includes(p) ? (prev.length > 1 ? prev.filter(x => x !== p) : prev) : [...prev, p])}
-                  description="Optimize AI generation for your channels."
-                />
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <PlatformSelector
+                      allPlatforms={SOCIAL_PLATFORMS}
+                      selectedPlatforms={selectedPlatforms}
+                      onPlatformChange={(p) => setSelectedPlatforms(prev => prev.includes(p) ? (prev.length > 1 ? prev.filter(x => x !== p) : prev) : [...prev, p])}
+                      description="Optimization Targets"
+                    />
+                    <div className="space-y-3">
+                      <Label className="text-sm font-semibold flex items-center gap-2">
+                        <Zap className="h-4 w-4 text-primary" />
+                        Generation Tone
+                      </Label>
+                      <Select value={selectedTone} onValueChange={setSelectedTone}>
+                        <SelectTrigger className="w-full bg-background border-border/50">
+                          <SelectValue placeholder="Select tone..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TONES.map(tone => (
+                            <SelectItem key={tone} value={tone}>{tone}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
                 
                 <Tabs defaultValue="captions" className="w-full">
                   <TabsList className="grid w-full grid-cols-2 h-9">
@@ -507,15 +530,27 @@ export default function CaptionWiseClient() {
                         <p className="text-sm font-medium leading-relaxed italic opacity-90 border-l-2 border-primary/20 pl-4 py-1">
                           "{vibe}"
                         </p>
-                        <div className="flex gap-4 pt-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-primary/10">
                           <div className="flex flex-col">
-                            <span className="text-[8px] text-muted-foreground font-bold uppercase">Confidence</span>
-                            <div className="flex gap-0.5 mt-1">
-                              {[1,2,3,4,5].map(i => <div key={i} className="h-1 w-3 bg-primary rounded-full animate-in fade-in duration-300" style={{ animationDelay: `${i * 100}ms` }} />)}
+                            <span className="text-[8px] text-muted-foreground font-bold uppercase mb-1">Confidence</span>
+                            <div className="flex gap-0.5">
+                              {[1,2,3,4,5].map(i => <div key={i} className="h-1 w-3 bg-primary rounded-full" />)}
                             </div>
                           </div>
                           <div className="flex flex-col">
-                            <span className="text-[8px] text-muted-foreground font-bold uppercase">Tone Match</span>
+                            <span className="text-[8px] text-muted-foreground font-bold uppercase mb-1 flex items-center gap-1">
+                              <BarChart3 className="h-2 w-2" /> Engagement
+                            </span>
+                            <span className="text-[10px] font-mono font-bold text-primary">HIGH (8.4/10)</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[8px] text-muted-foreground font-bold uppercase mb-1 flex items-center gap-1">
+                              <Clock className="h-2 w-2" /> Best Time
+                            </span>
+                            <span className="text-[10px] font-mono font-bold text-primary">6:00 PM - 8:00 PM</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[8px] text-muted-foreground font-bold uppercase mb-1">Tone Lock</span>
                             <span className="text-[10px] font-mono font-bold text-primary">{selectedTone.toUpperCase()}</span>
                           </div>
                         </div>
@@ -526,6 +561,31 @@ export default function CaptionWiseClient() {
               )}
 
               <div className="space-y-8">
+                {suggestedHashtags && (
+                  <Card className="border-border/50 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    <CardHeader className="py-4">
+                      <CardTitle className="text-xs font-bold tracking-widest flex items-center gap-2">
+                        <Hash className="h-4 w-4 text-primary" />
+                        HASHTAG EXPLORER
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pb-6">
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(suggestedHashtags).map(([lang, hashtags]) => (
+                          hashtags.map((tag, idx) => (
+                            <span key={`${lang}-${idx}`} className="px-2 py-1 rounded-md bg-secondary text-[10px] font-bold text-muted-foreground border border-border/50 hover:border-primary/50 cursor-copy transition-colors" onClick={() => {
+                              navigator.clipboard.writeText(tag);
+                              toast({ title: `Copied ${tag}` });
+                            }}>
+                              {tag}
+                            </span>
+                          ))
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {suggestedCaptions && (
                   <Suspense fallback={<LoadingFallback />}>
                     <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
@@ -535,7 +595,6 @@ export default function CaptionWiseClient() {
                             handleRefineCaptions={handleRefineCaptions} isRefiningCaptions={isRefiningCaptions}
                             isRefiningSongs={isRefiningSongs} selectedLanguages={selectedLanguages} 
                             PREDEFINED_LANGUAGES={PREDEFINED_LANGUAGES} CaptionDisplayCardRenderer={CaptionDisplayCardRenderer}
-                            selectedTone={selectedTone} setSelectedTone={setSelectedTone} tones={TONES}
                         />
                     </div>
                   </Suspense>

@@ -2,13 +2,11 @@
 
 /**
  * @fileOverview Media (image/video/image_collection) caption, song, and hashtag suggestion AI agent.
- * Outputs detailed song metadata (title, artist, description).
+ * Outputs detailed song metadata (title, artist, description) and respects selected tone.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-
-const maxDuration = 120;
 
 const SuggestMediaCaptionsInputSchema = z.object({
   mediaDataUris: z
@@ -21,6 +19,7 @@ const SuggestMediaCaptionsInputSchema = z.object({
   mediaType: z.enum(['image', 'video', 'image_collection']).describe('The type of the media provided.'),
   targetLanguages: z.array(z.string()).min(1).describe('An array of language names.'),
   targetPlatforms: z.array(z.string()).min(1).describe('The target social media platforms.'),
+  tone: z.string().optional().describe('The desired tone for the generated captions.'),
 });
 export type SuggestMediaCaptionsInput = z.infer<typeof SuggestMediaCaptionsInputSchema>;
 
@@ -62,6 +61,10 @@ const prompt = ai.definePrompt({
 
   Target Languages: {{#each targetLanguages}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}.
   
+  {{#if tone}}
+  Requested Tone: **{{{tone}}}**
+  {{/if}}
+
   For EACH language, provide:
   1. EXACTLY four unique captions.
   2. EXACTLY three song suggestions (title, artist, description).
@@ -71,9 +74,6 @@ const prompt = ai.definePrompt({
      - Ensure the song recommendations are native to the specific language culture.
      - Do NOT suggest English songs for non-English languages unless they are specifically a massive hit in that region.
   3. EXACTLY ten hashtags as a list of 10 individual, non-empty strings. 
-     - Do NOT combine multiple hashtags into one string.
-     - Do NOT return empty strings ("").
-     - Ensure every array element contains a meaningful hashtag starting with #.
 
   Media:
   {{#if isImageCollection}}Collection of {{mediaDataUris.length}} images.{{/if}}

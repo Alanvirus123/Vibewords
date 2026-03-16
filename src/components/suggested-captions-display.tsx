@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -6,25 +5,29 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, RefreshCw, Text } from "lucide-react"; 
+import { Loader2, RefreshCw, Text, Zap } from "lucide-react"; 
 import type { MediaSuggestions, LanguageOption } from '@/lib/types';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface SuggestedCaptionsDisplayProps {
   mediaType: "image" | "video" | "image_collection" | null;
   suggestedCaptions: MediaSuggestions | null;
   captionFeedback: string;
   setCaptionFeedback: (value: string) => void;
-  handleRefineCaptions: () => Promise<void>;
+  handleRefineCaptions: (quickPrompt?: string) => Promise<void>;
   isRefiningCaptions: boolean;
   isRefiningSongs: boolean;
   selectedLanguages: string[]; 
   PREDEFINED_LANGUAGES: LanguageOption[];
   CaptionDisplayCardRenderer: React.FC<{ caption: string; language: string }>;
-  selectedTone: string;
-  setSelectedTone: (value: string) => void;
-  tones: string[];
 }
+
+const QUICK_REFINES = [
+  { label: "Shorten", prompt: "Make these much shorter and punchier" },
+  { label: "Add Emojis", prompt: "Incorporate relevant emojis throughout" },
+  { label: "Professional", prompt: "Rewrite for a LinkedIn-ready professional tone" },
+  { label: "Viral Catchy", prompt: "Make them more catchy for viral potential" },
+  { label: "Call to Action", prompt: "Add a strong call-to-action at the end" },
+];
 
 const SuggestedCaptionsDisplay: React.FC<SuggestedCaptionsDisplayProps> = ({
   mediaType,
@@ -37,9 +40,6 @@ const SuggestedCaptionsDisplay: React.FC<SuggestedCaptionsDisplayProps> = ({
   selectedLanguages, 
   PREDEFINED_LANGUAGES,
   CaptionDisplayCardRenderer,
-  selectedTone,
-  setSelectedTone,
-  tones,
 }) => {
   return (
     <Card className="w-full shadow-lg rounded-xl overflow-hidden border-border/50">
@@ -69,8 +69,24 @@ const SuggestedCaptionsDisplay: React.FC<SuggestedCaptionsDisplayProps> = ({
         ))}
       </CardContent>
       <CardFooter className="flex-col items-start gap-4 pt-6 border-t bg-muted/30">
-        <div className="w-full space-y-2">
-            <Label htmlFor="captionFeedback" className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Refine Output:</Label>
+        <div className="w-full space-y-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="captionFeedback" className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Refine Output:</Label>
+              <div className="flex gap-2">
+                {QUICK_REFINES.map(preset => (
+                  <Button 
+                    key={preset.label}
+                    variant="outline" 
+                    size="sm" 
+                    className="h-6 px-2 text-[8px] font-bold uppercase tracking-tighter hover:bg-primary hover:text-primary-foreground transition-colors"
+                    onClick={() => handleRefineCaptions(preset.prompt)}
+                    disabled={isRefiningCaptions || isRefiningSongs}
+                  >
+                    <Zap className="h-2 w-2 mr-1" /> {preset.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
             <Textarea
               id="captionFeedback"
               placeholder="e.g., 'Make it punchier for Instagram', 'Add more emojis'"
@@ -79,26 +95,11 @@ const SuggestedCaptionsDisplay: React.FC<SuggestedCaptionsDisplayProps> = ({
               className="min-h-[80px] bg-background border-border/50 focus:border-primary/50 transition-colors"
             />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-            <div className="space-y-2">
-               <Label htmlFor="tone-selector" className="font-semibold text-[10px] text-muted-foreground uppercase tracking-wider">Tone Override</Label>
-               <Select value={selectedTone} onValueChange={setSelectedTone}>
-                <SelectTrigger id="tone-selector" className="w-full bg-background border-border/50">
-                  <SelectValue placeholder="Select a tone..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {tones.map(tone => (
-                    <SelectItem key={tone} value={tone}>{tone}</SelectItem>
-                  ))}
-                </SelectContent>
-               </Select>
-            </div>
-            <div className="flex items-end">
-                <Button onClick={handleRefineCaptions} disabled={isRefiningCaptions || !captionFeedback || isRefiningSongs} className="w-full h-10 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform active:scale-95">
-                  {isRefiningCaptions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                  {isRefiningCaptions ? "REFINING NODES..." : "REFINE CAPTIONS"}
-                </Button>
-            </div>
+        <div className="w-full flex justify-end">
+            <Button onClick={() => handleRefineCaptions()} disabled={isRefiningCaptions || !captionFeedback || isRefiningSongs} className="w-full sm:w-auto h-10 px-8 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform active:scale-95">
+              {isRefiningCaptions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              {isRefiningCaptions ? "REFINING NODES..." : "REFINE CAPTIONS"}
+            </Button>
         </div>
       </CardFooter>
     </Card>
