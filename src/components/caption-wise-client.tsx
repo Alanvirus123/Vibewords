@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, type ChangeEvent, useMemo, Suspense, useEffect, useCallback } from "react";
-import { UploadCloud, Copy, Loader2, Sparkles, Share2, HelpCircle, Music2, Volume2, RefreshCw, Video, Download, ClipboardPaste, ExternalLink, FileText, LogOut, User, LayoutDashboard, Settings, History } from "lucide-react";
+import { UploadCloud, Copy, Loader2, Sparkles, HelpCircle, Music2, Volume2, RefreshCw, ClipboardPaste, ExternalLink, LogOut, LayoutDashboard, Settings, History, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,14 +12,12 @@ import { refineMediaCaptions, type RefineMediaCaptionsInput } from "@/ai/flows/r
 import { refineSongSuggestions, type RefineSongSuggestionsInput } from "@/ai/flows/refine-song-suggestions";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { analyzeMediaVibe } from "@/ai/flows/analyze-media-vibe";
-import { generateVideo } from "@/ai/flows/generate-video";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { LanguageSelector } from './language-selector';
 import { PlatformSelector } from './platform-selector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { MediaSuggestions, LanguageOption, SocialPlatform, SongSuggestion, SongSuggestionsMap } from '@/lib/types';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AiAssistant } from "@/components/ai-assistant";
 import { cn } from "@/lib/utils";
 import { useAuth, useUser } from "@/firebase";
@@ -110,8 +108,6 @@ export default function CaptionWiseClient() {
   const [isSuggesting, setIsSuggesting] = useState<boolean>(false);
   const [isRefiningCaptions, setIsRefiningCaptions] = useState<boolean>(false);
   const [isRefiningSongs, setIsRefiningSongs] = useState<boolean>(false);
-  const [isGeneratingVideo, setIsGeneratingVideo] = useState<boolean>(false);
-  const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
   
   const [activeAudio, setActiveAudio] = useState<HTMLAudioElement | null>(null);
   const [playingCaption, setPlayingCaption] = useState<string | null>(null);
@@ -137,7 +133,6 @@ export default function CaptionWiseClient() {
     setRefinedSongSuggestions(null);
     setSongFeedback("");
     setVibe(null);
-    setGeneratedVideoUrl(null);
     setMediaFiles(null);
     setMediaSrcs(null);
     setMediaType(null);
@@ -214,23 +209,6 @@ export default function CaptionWiseClient() {
   };
 
   const handleLogout = () => signOut(auth);
-
-  const handleGenerateVideo = async () => {
-    if (!mediaSrcs || mediaSrcs.length === 0 || isGeneratingVideo) return;
-    setIsGeneratingVideo(true);
-    try {
-      const result = await generateVideo({
-        imageDataUri: mediaSrcs[0],
-        prompt: vibe ? `Make the ${vibe} come to life with cinematic motion.` : undefined
-      });
-      setGeneratedVideoUrl(result.videoDataUri);
-      toast({ title: "Video Ready!", description: "Your AI animation has been rendered." });
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Video Generation Error", description: error.message });
-    } finally {
-      setIsGeneratingVideo(false);
-    }
-  };
 
   const handleRefineCaptions = async () => {
     if (!suggestedCaptions || !captionFeedback || isRefiningCaptions) return;
@@ -311,6 +289,9 @@ export default function CaptionWiseClient() {
 
   const CaptionDisplayCardRenderer = ({ caption, language }: { caption: string; language: string }) => {
     const isOverLimit = caption.length > minPlatformLimit;
+    const hashtags = suggestedHashtags?.[language] || [];
+    const fullText = `${caption}\n\n${hashtags.join(' ')}`;
+
     return (
       <div className="p-4 border rounded-xl bg-card hover:border-primary/50 transition-all shadow-sm group">
         <div className="flex justify-between items-start gap-4">
@@ -322,7 +303,16 @@ export default function CaptionWiseClient() {
              <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10" onClick={() => handlePlayAudio(caption)} disabled={playingCaption === caption}>
                 {playingCaption === caption ? <Loader2 className="h-3 w-3 animate-spin" /> : <Volume2 className="h-4 w-4" />}
              </Button>
-             <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10" onClick={() => navigator.clipboard.writeText(caption).then(() => toast({ title: "Copied!" }))}>
+             <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 hover:bg-primary/10" 
+                title="Copy full post (caption + hashtags)"
+                onClick={() => navigator.clipboard.writeText(fullText).then(() => toast({ title: "Full Post Copied!" }))}
+             >
+                <FileText className="h-4 w-4" />
+             </Button>
+             <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10" onClick={() => navigator.clipboard.writeText(caption).then(() => toast({ title: "Caption Copied!" }))}>
                 <Copy className="h-4 w-4" />
              </Button>
           </div>
@@ -515,43 +505,6 @@ export default function CaptionWiseClient() {
                     <p className="text-sm font-medium leading-relaxed italic opacity-80">"{vibe}"</p>
                   </div>
                 </div>
-              )}
-
-              {mediaType === 'image' && mediaSrcs && (
-                 <Card className="glass-card overflow-hidden">
-                    <div className="flex flex-col md:flex-row">
-                        <div className="w-full md:w-1/2 aspect-video bg-black relative">
-                            {generatedVideoUrl ? (
-                                <video src={generatedVideoUrl} controls className="w-full h-full object-contain" autoPlay loop muted />
-                            ) : (
-                                <img src={mediaSrcs[0]} alt="Source" className="w-full h-full object-contain opacity-50 grayscale" />
-                            )}
-                            {isGeneratingVideo && (
-                                <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-3">
-                                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                                    <span className="text-[10px] font-bold text-white tracking-widest animate-pulse">RENDERING CINEMATICS...</span>
-                                </div>
-                            )}
-                        </div>
-                        <div className="w-full md:w-1/2 p-8 flex flex-col justify-center gap-6">
-                            <div className="space-y-2">
-                                <h3 className="text-xl font-bold tracking-tight">MOTION GENERATOR</h3>
-                                <p className="text-xs text-muted-foreground leading-relaxed">Leverage the Veo 2.0 Vision model to transform your static asset into high-fidelity cinematic motion.</p>
-                            </div>
-                            {!generatedVideoUrl ? (
-                                <Button onClick={handleGenerateVideo} disabled={isGeneratingVideo} className="h-12 text-[11px] font-black uppercase tracking-widest shadow-xl shadow-primary/20">
-                                    <Video className="h-4 w-4 mr-3" /> Initiate Neural Animation
-                                </Button>
-                            ) : (
-                                <Button variant="secondary" size="lg" className="text-[11px] font-black uppercase tracking-widest" asChild>
-                                    <a href={generatedVideoUrl} download="vibewords-export.mp4">
-                                        <Download className="h-4 w-4 mr-3" /> Export Digital Asset
-                                    </a>
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-                 </Card>
               )}
 
               <div className="space-y-8">
