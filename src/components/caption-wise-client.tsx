@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, type ChangeEvent, useMemo, Suspense, useEffect, useCallback } from "react";
@@ -363,11 +362,13 @@ export default function CaptionWiseClient() {
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <nav className="h-16 border-b border-border/50 bg-card/50 backdrop-blur-lg flex items-center justify-between px-6 sticky top-0 z-50 animate-in fade-in slide-in-from-top duration-500">
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 group cursor-pointer">
-            <div className="p-1.5 rounded-lg bg-primary text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform duration-300">
+          <div className="flex items-center gap-2 group cursor-pointer overflow-hidden">
+            <div className="p-1.5 rounded-lg bg-primary text-primary-foreground shadow-lg shadow-primary/20 animate-logo-reveal animate-subtle-pulse">
                 <Sparkles className="h-5 w-5" />
             </div>
-            <h1 className="text-lg font-bold tracking-tight text-[hsl(var(--app-title))]">VibeWords</h1>
+            <h1 className="text-lg font-bold tracking-tight text-[hsl(var(--app-title))] animate-tracking-in-expand">
+              VibeWords
+            </h1>
           </div>
         </div>
 

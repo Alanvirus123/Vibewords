@@ -99,19 +99,19 @@ export default function LoginPage() {
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px]" />
 
       <div className="w-full max-w-md space-y-8 z-10">
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-primary/10 mb-4">
+        <div className="text-center space-y-2 overflow-hidden">
+          <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-primary/10 mb-4 animate-logo-reveal animate-subtle-pulse">
             <Sparkles className="h-10 w-10 text-primary" />
           </div>
-          <h1 className="text-4xl font-bold tracking-tight text-foreground">
+          <h1 className="text-4xl font-bold tracking-tight text-foreground animate-tracking-in-expand">
             VibeWords
           </h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-sm animate-in fade-in slide-in-from-bottom-2 duration-1000 delay-500 fill-mode-both">
             AI-powered content engine for modern creators.
           </p>
         </div>
 
-        <Card className="border-border/50 shadow-2xl bg-card/50 backdrop-blur-sm">
+        <Card className="border-border/50 shadow-2xl bg-card/50 backdrop-blur-sm animate-in zoom-in-95 duration-700 delay-300 fill-mode-both">
           <Tabs defaultValue="login" className="w-full">
             <div className="px-6 pt-6">
               <TabsList className="grid w-full grid-cols-2 h-11">
@@ -183,7 +183,7 @@ export default function LoginPage() {
           </Tabs>
         </Card>
         
-        <p className="text-center text-xs text-muted-foreground flex items-center justify-center gap-1">
+        <p className="text-center text-xs text-muted-foreground flex items-center justify-center gap-1 animate-in fade-in duration-1000 delay-1000 fill-mode-both">
           <ShieldCheck className="h-3 w-3" />
           Secure Enterprise Authentication
         </p>
