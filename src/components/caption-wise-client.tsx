@@ -72,10 +72,10 @@ const fileToDataUri = (file: File): Promise<string> => {
 type AppMediaType = 'image' | 'video' | 'image_collection';
 
 const LoadingFallback = () => (
-  <Card className="w-full glass-card">
+  <Card className="w-full glass-card animate-in fade-in zoom-in-95 duration-500">
     <CardContent className="p-12 flex flex-col items-center justify-center">
       <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-      <p className="text-muted-foreground animate-pulse font-mono text-[10px] tracking-widest">SYNCING AI NODES...</p>
+      <p className="text-muted-foreground animate-pulse font-mono text-[10px] tracking-widest uppercase">Syncing AI Nodes...</p>
     </CardContent>
   </Card>
 );
@@ -294,7 +294,7 @@ export default function CaptionWiseClient() {
     const fullText = `${caption}\n\n${hashtags.join(' ')}`;
 
     return (
-      <div className="p-4 border rounded-xl bg-card hover:border-primary/50 transition-all shadow-sm group">
+      <div className="p-4 border rounded-xl bg-card hover:border-primary/50 transition-all shadow-sm group animate-in slide-in-from-bottom-2 duration-500 fill-mode-both">
         <div className="flex justify-between items-start gap-4">
           <div className="flex-grow space-y-2">
             <span className="text-[10px] font-bold text-primary uppercase tracking-widest">{language}</span>
@@ -319,12 +319,12 @@ export default function CaptionWiseClient() {
           </div>
         </div>
         <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between">
-            <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", isOverLimit ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary")}>
+            <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full transition-colors", isOverLimit ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary")}>
                 {caption.length} / {minPlatformLimit} chars
             </span>
             <div className="flex gap-1">
                 {selectedPlatforms.map(p => (
-                    <span key={p} className="text-[9px] font-semibold text-muted-foreground uppercase">{p}</span>
+                    <span key={p} className="text-[9px] font-semibold text-muted-foreground uppercase opacity-60">{p}</span>
                 ))}
             </div>
         </div>
@@ -333,7 +333,7 @@ export default function CaptionWiseClient() {
   };
 
   const SongSuggestionItemRenderer = ({ song, language }: { song: SongSuggestion; language: string }) => (
-    <div className="p-4 border rounded-xl bg-card hover:border-primary/50 transition-all shadow-sm">
+    <div className="p-4 border rounded-xl bg-card hover:border-primary/50 transition-all shadow-sm animate-in slide-in-from-bottom-2 duration-500 fill-mode-both">
       <div className="flex justify-between items-center mb-2">
         <div>
           <span className="text-[10px] font-bold text-primary uppercase tracking-widest">{language}</span>
@@ -361,10 +361,10 @@ export default function CaptionWiseClient() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <nav className="h-16 border-b border-border/50 bg-card/50 backdrop-blur-lg flex items-center justify-between px-6 sticky top-0 z-50">
+      <nav className="h-16 border-b border-border/50 bg-card/50 backdrop-blur-lg flex items-center justify-between px-6 sticky top-0 z-50 animate-in fade-in slide-in-from-top duration-500">
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-primary text-primary-foreground shadow-lg shadow-primary/20">
+          <div className="flex items-center gap-2 group cursor-pointer">
+            <div className="p-1.5 rounded-lg bg-primary text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform duration-300">
                 <Sparkles className="h-5 w-5" />
             </div>
             <h1 className="text-lg font-bold tracking-tight text-[hsl(var(--app-title))]">VibeWords</h1>
@@ -373,7 +373,7 @@ export default function CaptionWiseClient() {
 
         <div className="flex items-center gap-3">
           {user && (
-              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-full border border-border/50 text-[10px] font-bold text-muted-foreground">
+              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-full border border-border/50 text-[10px] font-bold text-muted-foreground animate-in fade-in zoom-in-95 duration-700">
                   <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
                   {user.isAnonymous ? "GUEST MODE" : user.email?.toUpperCase()}
               </div>
@@ -381,9 +381,9 @@ export default function CaptionWiseClient() {
           <ThemeToggle />
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="outline" size="icon" className="rounded-full"><HelpCircle className="h-5 w-5" /></Button>
+              <Button variant="outline" size="icon" className="rounded-full hover:scale-110 transition-transform"><HelpCircle className="h-5 w-5" /></Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-2xl bg-background border-primary/20">
+            <DialogContent className="sm:max-w-2xl bg-background border-primary/20 animate-in zoom-in-95 duration-300">
               <AiAssistant
                 mediaType={mediaType} vibe={vibe} suggestedCaptions={suggestedCaptions}
                 suggestedSongs={suggestedSongs} captionFeedback={captionFeedback}
@@ -391,7 +391,7 @@ export default function CaptionWiseClient() {
               />
             </DialogContent>
           </Dialog>
-          <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-destructive" onClick={handleLogout}>
+          <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-destructive hover:scale-110 transition-transform" onClick={handleLogout}>
             <LogOut className="h-5 w-5" />
           </Button>
         </div>
@@ -399,10 +399,10 @@ export default function CaptionWiseClient() {
 
       <div className="flex-grow flex flex-col container mx-auto max-w-4xl p-6 gap-8">
         <main className="flex-grow space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <Card className="border-2 border-dashed border-primary/20 bg-primary/5 hover:border-primary/50 transition-all cursor-pointer group h-full">
               <label htmlFor="media-upload" className="block p-8 text-center space-y-4 cursor-pointer">
-                <div className="inline-flex p-4 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
+                <div className="inline-flex p-4 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform duration-500">
                   <UploadCloud className="h-8 w-8" />
                 </div>
                 <div>
@@ -410,7 +410,7 @@ export default function CaptionWiseClient() {
                   <p className="text-[10px] text-muted-foreground font-medium uppercase mt-1">Images, Videos, or Collections</p>
                 </div>
                 <Input type="file" id="media-upload" accept="image/*,video/*" multiple onChange={handleMediaUpload} disabled={isSuggesting} className="hidden" />
-                <Button variant="secondary" size="sm" className="w-full text-[10px] font-bold" onClick={handlePasteFromClipboard} disabled={isSuggesting}>
+                <Button variant="secondary" size="sm" className="w-full text-[10px] font-bold group-hover:bg-primary group-hover:text-primary-foreground transition-colors" onClick={handlePasteFromClipboard} disabled={isSuggesting}>
                   <ClipboardPaste className="h-3 w-3 mr-2" /> PASTE FROM CLIPBOARD
                 </Button>
               </label>
@@ -436,7 +436,7 @@ export default function CaptionWiseClient() {
                     <TabsTrigger value="captions" className="text-[10px] font-bold uppercase">Captions</TabsTrigger>
                     <TabsTrigger value="songs" className="text-[10px] font-bold uppercase">Audio</TabsTrigger>
                   </TabsList>
-                  <TabsContent value="captions" className="pt-4 space-y-4">
+                  <TabsContent value="captions" className="pt-4 space-y-4 animate-in fade-in duration-300">
                     <LanguageSelector
                       allLanguages={PREDEFINED_LANGUAGES}
                       selectedLanguages={selectedLanguages}
@@ -444,7 +444,7 @@ export default function CaptionWiseClient() {
                       description="Generation Languages"
                     />
                   </TabsContent>
-                  <TabsContent value="songs" className="pt-4">
+                  <TabsContent value="songs" className="pt-4 animate-in fade-in duration-300">
                      <LanguageSelector
                       allLanguages={PREDEFINED_LANGUAGES}
                       selectedLanguages={selectedSongLanguages}
@@ -458,7 +458,7 @@ export default function CaptionWiseClient() {
           </div>
 
           {mediaSrcs && mediaSrcs.length > 0 && (
-            <Card className="border-border/50 overflow-hidden shadow-lg animate-in fade-in slide-in-from-bottom-4">
+            <Card className="border-border/50 overflow-hidden shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <CardHeader className="py-3 px-4 bg-muted/50 border-b flex flex-row items-center justify-between">
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Active Assets</span>
                     <Button variant="ghost" size="sm" className="h-6 text-[10px] text-destructive hover:bg-destructive/10" onClick={resetAll}>DISCARD</Button>
@@ -466,7 +466,7 @@ export default function CaptionWiseClient() {
                 <CardContent className="p-3">
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
                         {mediaSrcs.map((src, idx) => (
-                            <div key={idx} className="aspect-square rounded-lg overflow-hidden border border-white/10 shadow-inner">
+                            <div key={idx} className="aspect-square rounded-lg overflow-hidden border border-white/10 shadow-inner animate-in zoom-in-90 duration-300" style={{ animationDelay: `${idx * 100}ms` }}>
                                  {mediaType === 'video' ? <video src={src} className="w-full h-full object-cover" /> : <img src={src} alt="Preview" className="w-full h-full object-cover" />}
                             </div>
                         ))}
@@ -476,7 +476,7 @@ export default function CaptionWiseClient() {
           )}
 
           {isSuggesting && (
-            <div className="flex flex-col items-center justify-center py-20 gap-6">
+            <div className="flex flex-col items-center justify-center py-20 gap-6 animate-in fade-in duration-500">
                 <div className="relative">
                     <div className="h-20 w-20 rounded-full border-2 border-primary/20 animate-ping absolute inset-0" />
                     <div className="h-20 w-20 rounded-full border-t-2 border-primary animate-spin" />
@@ -484,7 +484,7 @@ export default function CaptionWiseClient() {
                 </div>
                 <div className="text-center space-y-2">
                     <h2 className="text-xl font-bold tracking-tight uppercase">Processing Media</h2>
-                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Optimizing Neural Nodes for {selectedPlatforms.join(' + ')}</p>
+                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest animate-pulse">Optimizing Neural Nodes for {selectedPlatforms.join(' + ')}</p>
                 </div>
             </div>
           )}
@@ -492,10 +492,10 @@ export default function CaptionWiseClient() {
           {!isSuggesting && (
             <div className="space-y-6">
               {vibe && (
-                <Card className="border-primary/20 bg-primary/5 shadow-sm overflow-hidden border-l-4 border-l-primary">
+                <Card className="border-primary/20 bg-primary/5 shadow-sm overflow-hidden border-l-4 border-l-primary animate-in slide-in-from-left duration-700">
                   <CardContent className="p-6">
                     <div className="flex items-start gap-4">
-                      <div className="p-3 rounded-xl bg-primary/10 text-primary shrink-0">
+                      <div className="p-3 rounded-xl bg-primary/10 text-primary shrink-0 animate-pulse">
                         <Activity className="h-6 w-6" />
                       </div>
                       <div className="space-y-3 flex-grow">
@@ -510,7 +510,7 @@ export default function CaptionWiseClient() {
                           <div className="flex flex-col">
                             <span className="text-[8px] text-muted-foreground font-bold uppercase">Confidence</span>
                             <div className="flex gap-0.5 mt-1">
-                              {[1,2,3,4,5].map(i => <div key={i} className="h-1 w-3 bg-primary rounded-full" />)}
+                              {[1,2,3,4,5].map(i => <div key={i} className="h-1 w-3 bg-primary rounded-full animate-in fade-in duration-300" style={{ animationDelay: `${i * 100}ms` }} />)}
                             </div>
                           </div>
                           <div className="flex flex-col">
@@ -527,45 +527,53 @@ export default function CaptionWiseClient() {
               <div className="space-y-8">
                 {suggestedCaptions && (
                   <Suspense fallback={<LoadingFallback />}>
-                    <SuggestedCaptionsDisplay
-                        mediaType={mediaType} suggestedCaptions={suggestedCaptions}
-                        captionFeedback={captionFeedback} setCaptionFeedback={setCaptionFeedback}
-                        handleRefineCaptions={handleRefineCaptions} isRefiningCaptions={isRefiningCaptions}
-                        isRefiningSongs={isRefiningSongs} selectedLanguages={selectedLanguages} 
-                        PREDEFINED_LANGUAGES={PREDEFINED_LANGUAGES} CaptionDisplayCardRenderer={CaptionDisplayCardRenderer}
-                        selectedTone={selectedTone} setSelectedTone={setSelectedTone} tones={TONES}
-                    />
+                    <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+                        <SuggestedCaptionsDisplay
+                            mediaType={mediaType} suggestedCaptions={suggestedCaptions}
+                            captionFeedback={captionFeedback} setCaptionFeedback={setCaptionFeedback}
+                            handleRefineCaptions={handleRefineCaptions} isRefiningCaptions={isRefiningCaptions}
+                            isRefiningSongs={isRefiningSongs} selectedLanguages={selectedLanguages} 
+                            PREDEFINED_LANGUAGES={PREDEFINED_LANGUAGES} CaptionDisplayCardRenderer={CaptionDisplayCardRenderer}
+                            selectedTone={selectedTone} setSelectedTone={setSelectedTone} tones={TONES}
+                        />
+                    </div>
                   </Suspense>
                 )}
 
                 {hasRefinedCaptions && (
                   <Suspense fallback={<LoadingFallback />}>
-                    <RefinedCaptionsDisplay
-                        refinedCaptions={refinedCaptions} selectedLanguages={selectedLanguages} 
-                        PREDEFINED_LANGUAGES={PREDEFINED_LANGUAGES} CaptionDisplayCardRenderer={CaptionDisplayCardRenderer}
-                    />
+                    <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+                        <RefinedCaptionsDisplay
+                            refinedCaptions={refinedCaptions} selectedLanguages={selectedLanguages} 
+                            PREDEFINED_LANGUAGES={PREDEFINED_LANGUAGES} CaptionDisplayCardRenderer={CaptionDisplayCardRenderer}
+                        />
+                    </div>
                   </Suspense>
                 )}
 
                 {suggestedSongs && (
                   <Suspense fallback={<LoadingFallback />}>
-                    <SuggestedSongsDisplay
-                        mediaType={mediaType} suggestedSongs={suggestedSongs}
-                        songFeedback={songFeedback} setSongFeedback={setSongFeedback}
-                        artistPreference={artistPreference} setArtistPreference={setArtistPreference}
-                        handleRefineSongs={handleRefineSongs} isRefiningCaptions={isRefiningCaptions}
-                        isRefiningSongs={isRefiningSongs} selectedLanguages={selectedSongLanguages} 
-                        PREDEFINED_LANGUAGES={PREDEFINED_LANGUAGES} SongSuggestionItemRenderer={SongSuggestionItemRenderer}
-                    />
+                    <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
+                        <SuggestedSongsDisplay
+                            mediaType={mediaType} suggestedSongs={suggestedSongs}
+                            songFeedback={songFeedback} setSongFeedback={setSongFeedback}
+                            artistPreference={artistPreference} setArtistPreference={setArtistPreference}
+                            handleRefineSongs={handleRefineSongs} isRefiningCaptions={isRefiningCaptions}
+                            isRefiningSongs={isRefiningSongs} selectedLanguages={selectedSongLanguages} 
+                            PREDEFINED_LANGUAGES={PREDEFINED_LANGUAGES} SongSuggestionItemRenderer={SongSuggestionItemRenderer}
+                        />
+                    </div>
                   </Suspense>
                 )}
 
                 {hasRefinedSongSuggestions && (
                   <Suspense fallback={<LoadingFallback />}>
-                    <RefinedSongsDisplay
-                        refinedSongSuggestions={refinedSongSuggestions} selectedLanguages={selectedSongLanguages}
-                        PREDEFINED_LANGUAGES={PREDEFINED_LANGUAGES} SongSuggestionItemRenderer={SongSuggestionItemRenderer}
-                    />
+                    <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+                        <RefinedSongsDisplay
+                            refinedSongSuggestions={refinedSongSuggestions} selectedLanguages={selectedSongLanguages}
+                            PREDEFINED_LANGUAGES={PREDEFINED_LANGUAGES} SongSuggestionItemRenderer={SongSuggestionItemRenderer}
+                        />
+                    </div>
                   </Suspense>
                 )}
               </div>
@@ -574,7 +582,7 @@ export default function CaptionWiseClient() {
         </main>
       </div>
       
-      <footer className="h-14 border-t border-border/50 flex items-center justify-center text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mt-auto">
+      <footer className="h-14 border-t border-border/50 flex items-center justify-center text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mt-auto animate-in fade-in slide-in-from-bottom duration-500">
         VIBEWORDS // ENTERPRISE AI CONTENT SUITE
       </footer>
     </div>

@@ -42,55 +42,64 @@ const SuggestedCaptionsDisplay: React.FC<SuggestedCaptionsDisplayProps> = ({
   tones,
 }) => {
   return (
-    <Card className="w-full shadow-lg rounded-xl">
-      <CardHeader>
+    <Card className="w-full shadow-lg rounded-xl overflow-hidden border-border/50">
+      <CardHeader className="bg-primary/5 border-b border-border/50">
         <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
           <Text className="h-6 w-6 text-primary" />
-          4. AI-Suggested Captions
+          AI-Suggested Captions
         </CardTitle>
-        <CardDescription>Tailored captions for your selected platform. Listen, copy, or refine them.</CardDescription>
+        <CardDescription>Tailored captions for your selected platforms. Listen, copy, or refine them.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6 pt-6">
         {suggestedCaptions && selectedLanguages.map(language => (
           suggestedCaptions[language] && suggestedCaptions[language].length > 0 && (
-            <div key={language} className="space-y-2">
-              <h4 className="font-semibold text-md text-foreground">{language}</h4>
-              {suggestedCaptions[language].map((caption, index) => caption && (
-                <CaptionDisplayCardRenderer key={`suggested-${language}-${index}`} caption={caption} language={language} />
-              ))}
+            <div key={language} className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-px flex-grow bg-border/50" />
+                <h4 className="font-bold text-[10px] text-muted-foreground uppercase tracking-widest px-3">{language}</h4>
+                <div className="h-px flex-grow bg-border/50" />
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                {suggestedCaptions[language].map((caption, index) => caption && (
+                  <CaptionDisplayCardRenderer key={`suggested-${language}-${index}`} caption={caption} language={language} />
+                ))}
+              </div>
             </div>
           )
         ))}
       </CardContent>
-      <CardFooter className="flex-col items-start gap-4 pt-6 border-t">
+      <CardFooter className="flex-col items-start gap-4 pt-6 border-t bg-muted/30">
         <div className="w-full space-y-2">
-            <Label htmlFor="captionFeedback" className="font-semibold text-md">Refine for Your Audience:</Label>
+            <Label htmlFor="captionFeedback" className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">Refine Output:</Label>
             <Textarea
               id="captionFeedback"
               placeholder="e.g., 'Make it punchier for Instagram', 'Add more emojis'"
               value={captionFeedback}
               onChange={(e) => setCaptionFeedback(e.target.value)}
-              className="min-h-[80px]"
+              className="min-h-[80px] bg-background border-border/50 focus:border-primary/50 transition-colors"
             />
         </div>
-        <div className="w-full space-y-2">
-           <Label htmlFor="tone-selector" className="font-semibold text-md">Tone Override</Label>
-           <Select value={selectedTone} onValueChange={setSelectedTone}>
-            <SelectTrigger id="tone-selector" className="w-full">
-              <SelectValue placeholder="Select a tone..." />
-            </SelectTrigger>
-            <SelectContent>
-              {tones.map(tone => (
-                <SelectItem key={tone} value={tone}>{tone}</SelectItem>
-              ))}
-            </SelectContent>
-           </Select>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+            <div className="space-y-2">
+               <Label htmlFor="tone-selector" className="font-semibold text-[10px] text-muted-foreground uppercase tracking-wider">Tone Override</Label>
+               <Select value={selectedTone} onValueChange={setSelectedTone}>
+                <SelectTrigger id="tone-selector" className="w-full bg-background border-border/50">
+                  <SelectValue placeholder="Select a tone..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {tones.map(tone => (
+                    <SelectItem key={tone} value={tone}>{tone}</SelectItem>
+                  ))}
+                </SelectContent>
+               </Select>
+            </div>
+            <div className="flex items-end">
+                <Button onClick={handleRefineCaptions} disabled={isRefiningCaptions || !captionFeedback || isRefiningSongs} className="w-full h-10 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform active:scale-95">
+                  {isRefiningCaptions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  {isRefiningCaptions ? "REFINING NODES..." : "REFINE CAPTIONS"}
+                </Button>
+            </div>
         </div>
-
-        <Button onClick={handleRefineCaptions} disabled={isRefiningCaptions || !captionFeedback || isRefiningSongs} className="w-full sm:w-auto">
-          {isRefiningCaptions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-          {isRefiningCaptions ? "Refining..." : "Refine Captions"}
-        </Button>
       </CardFooter>
     </Card>
   );
