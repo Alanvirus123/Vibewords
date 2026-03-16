@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, type ChangeEvent, useMemo, Suspense, useEffect, useCallback } from "react";
-import { UploadCloud, Copy, Loader2, Sparkles, HelpCircle, Music2, Volume2, RefreshCw, ClipboardPaste, ExternalLink, LogOut, LayoutDashboard, Settings, History, FileText } from "lucide-react";
+import { UploadCloud, Copy, Loader2, Sparkles, HelpCircle, Music2, Volume2, RefreshCw, ClipboardPaste, ExternalLink, LogOut, LayoutDashboard, Settings, History, FileText, Zap, Cpu, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -75,7 +75,7 @@ const LoadingFallback = () => (
   <Card className="w-full glass-card">
     <CardContent className="p-12 flex flex-col items-center justify-center">
       <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-      <p className="text-muted-foreground animate-pulse">Syncing AI nodes...</p>
+      <p className="text-muted-foreground animate-pulse font-mono text-[10px] tracking-widest">SYNCING AI NODES...</p>
     </CardContent>
   </Card>
 );
@@ -480,11 +480,11 @@ export default function CaptionWiseClient() {
                 <div className="relative">
                     <div className="h-20 w-20 rounded-full border-2 border-primary/20 animate-ping absolute inset-0" />
                     <div className="h-20 w-20 rounded-full border-t-2 border-primary animate-spin" />
-                    <Sparkles className="h-10 w-10 text-primary absolute inset-0 m-auto" />
+                    <Cpu className="h-10 w-10 text-primary absolute inset-0 m-auto" />
                 </div>
                 <div className="text-center space-y-2">
                     <h2 className="text-xl font-bold tracking-tight uppercase">Processing Media</h2>
-                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Optimizing for {selectedPlatforms.join(' + ')}</p>
+                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Optimizing Neural Nodes for {selectedPlatforms.join(' + ')}</p>
                 </div>
             </div>
           )}
@@ -492,15 +492,36 @@ export default function CaptionWiseClient() {
           {!isSuggesting && (
             <div className="space-y-6">
               {vibe && (
-                <div className="p-6 rounded-2xl bg-primary/5 border border-primary/20 flex items-start gap-4 shadow-sm">
-                  <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
-                    <History className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">SCENE ANALYSIS</h4>
-                    <p className="text-sm font-medium leading-relaxed italic opacity-80">"{vibe}"</p>
-                  </div>
-                </div>
+                <Card className="border-primary/20 bg-primary/5 shadow-sm overflow-hidden border-l-4 border-l-primary">
+                  <CardContent className="p-6">
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 rounded-xl bg-primary/10 text-primary shrink-0">
+                        <Activity className="h-6 w-6" />
+                      </div>
+                      <div className="space-y-3 flex-grow">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">NEURAL VIBE DIAGNOSTIC</h4>
+                          <span className="text-[9px] font-mono text-primary/60">VIBE_ANALYSIS_SUCCESSFUL // 200 OK</span>
+                        </div>
+                        <p className="text-sm font-medium leading-relaxed italic opacity-90 border-l-2 border-primary/20 pl-4 py-1">
+                          "{vibe}"
+                        </p>
+                        <div className="flex gap-4 pt-2">
+                          <div className="flex flex-col">
+                            <span className="text-[8px] text-muted-foreground font-bold uppercase">Confidence</span>
+                            <div className="flex gap-0.5 mt-1">
+                              {[1,2,3,4,5].map(i => <div key={i} className="h-1 w-3 bg-primary rounded-full" />)}
+                            </div>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[8px] text-muted-foreground font-bold uppercase">Tone Match</span>
+                            <span className="text-[10px] font-mono font-bold text-primary">{selectedTone.toUpperCase()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
 
               <div className="space-y-8">
