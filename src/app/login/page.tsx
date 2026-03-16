@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth, useUser } from "@/firebase";
 import { initiateEmailSignIn, initiateEmailSignUp, initiateAnonymousSignIn } from "@/firebase/non-blocking-login";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, LogIn, UserPlus, Ghost, Sparkles } from "lucide-react";
+import { Loader2, LogIn, UserPlus, Ghost, Sparkles, ShieldCheck } from "lucide-react";
 import { doc, setDoc, getFirestore } from "firebase/firestore";
 import { updateProfile } from "firebase/auth";
 
@@ -41,7 +41,7 @@ export default function LoginPage() {
         toast({ 
           variant: "destructive", 
           title: "Login Failed", 
-          description: error.message || "Invalid credentials. Please check your email and password." 
+          description: error.message || "Invalid credentials." 
         });
         setIsSubmitting(false);
       });
@@ -54,14 +54,9 @@ export default function LoginPage() {
     
     initiateEmailSignUp(auth, email, password)
       .then(async (cred) => {
-        // 1. Update the Auth profile with the display name
         await updateProfile(cred.user, { displayName });
-        
-        // 2. Create the UserProfile document in Firestore
         const db = getFirestore();
         const userRef = doc(db, "users", cred.user.uid);
-        // We don't await this mutation to maintain the non-blocking UX,
-        // but we initiate it immediately.
         setDoc(userRef, {
           id: cred.user.uid,
           displayName: displayName,
@@ -98,73 +93,79 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4 md:p-8">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-[hsl(var(--app-title))] tracking-tight flex items-center justify-center gap-2">
-            <Sparkles className="h-8 w-8" />
+    <div className="flex min-h-screen items-center justify-center bg-background relative overflow-hidden px-4 md:px-8">
+      {/* Background decoration */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px]" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px]" />
+
+      <div className="w-full max-w-md space-y-8 z-10">
+        <div className="text-center space-y-2">
+          <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-primary/10 mb-4">
+            <Sparkles className="h-10 w-10 text-primary" />
+          </div>
+          <h1 className="text-4xl font-bold tracking-tight text-foreground">
             VibeWords
           </h1>
-          <p className="mt-2 text-muted-foreground">Smart captions for your social media vibes.</p>
+          <p className="text-muted-foreground text-sm">
+            AI-powered content engine for modern creators.
+          </p>
         </div>
 
-        <Tabs defaultValue="login" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login">Login</TabsTrigger>
-            <TabsTrigger value="signup">Sign Up</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="login">
-            <Card>
+        <Card className="border-border/50 shadow-2xl bg-card/50 backdrop-blur-sm">
+          <Tabs defaultValue="login" className="w-full">
+            <div className="px-6 pt-6">
+              <TabsList className="grid w-full grid-cols-2 h-11">
+                <TabsTrigger value="login" className="text-sm">Log In</TabsTrigger>
+                <TabsTrigger value="signup" className="text-sm">Sign Up</TabsTrigger>
+              </TabsList>
+            </div>
+            
+            <TabsContent value="login" className="mt-0">
               <form onSubmit={handleSignIn}>
                 <CardHeader>
-                  <CardHeader>
-                    <CardTitle>Welcome Back</CardTitle>
-                    <CardDescription>Enter your credentials to access your workspace.</CardDescription>
-                  </CardHeader>
+                  <CardTitle className="text-xl">Authentication</CardTitle>
+                  <CardDescription>Enter your credentials to access your dashboard.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="login-email">Email</Label>
-                    <Input id="login-email" type="email" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                    <Input id="login-email" type="email" placeholder="name@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="login-password">Password</Label>
                     <Input id="login-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                   </div>
                 </CardContent>
-                <CardFooter className="flex-col gap-3">
-                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                <CardFooter className="flex-col gap-4">
+                  <Button type="submit" className="w-full h-11" disabled={isSubmitting}>
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
-                    Sign In
+                    Continue to Dashboard
                   </Button>
                   <div className="relative w-full">
-                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or continue with</span></div>
+                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or</span></div>
                   </div>
-                  <Button type="button" variant="outline" className="w-full" onClick={handleGuestLogin} disabled={isSubmitting}>
-                    <Ghost className="mr-2 h-4 w-4" /> Guest Mode
+                  <Button type="button" variant="outline" className="w-full h-11" onClick={handleGuestLogin} disabled={isSubmitting}>
+                    <Ghost className="mr-2 h-4 w-4" /> Start as Guest
                   </Button>
                 </CardFooter>
               </form>
-            </Card>
-          </TabsContent>
+            </TabsContent>
 
-          <TabsContent value="signup">
-            <Card>
+            <TabsContent value="signup" className="mt-0">
               <form onSubmit={handleSignUp}>
                 <CardHeader>
-                  <CardTitle>Create Account</CardTitle>
-                  <CardDescription>Join our community of creators today.</CardDescription>
+                  <CardTitle className="text-xl">Create Workspace</CardTitle>
+                  <CardDescription>Get started with your AI content strategy.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name">Display Name</Label>
+                    <Label htmlFor="signup-name">Full Name</Label>
                     <Input id="signup-name" placeholder="John Doe" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input id="signup-email" type="email" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                    <Label htmlFor="signup-email">Work Email</Label>
+                    <Input id="signup-email" type="email" placeholder="name@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>
@@ -172,15 +173,20 @@ export default function LoginPage() {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  <Button type="submit" className="w-full h-11" disabled={isSubmitting}>
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-                    Create Account
+                    Complete Registration
                   </Button>
                 </CardFooter>
               </form>
-            </Card>
-          </TabsContent>
-        </Tabs>
+            </TabsContent>
+          </Tabs>
+        </Card>
+        
+        <p className="text-center text-xs text-muted-foreground flex items-center justify-center gap-1">
+          <ShieldCheck className="h-3 w-3" />
+          Secure Enterprise Authentication
+        </p>
       </div>
     </div>
   );
