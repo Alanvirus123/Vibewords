@@ -41,7 +41,6 @@ const PREDEFINED_LANGUAGES: LanguageOption[] = [
   { value: "Japanese", label: "日本語" },
   { value: "Korean", label: "한국어" },
   { value: "Spanish", label: "Español" },
-  // Truncated for brevity in change block, but keep the core ones
 ].sort((a, b) => a.label.localeCompare(b.label));
 
 const SOCIAL_PLATFORMS: SocialPlatform[] = [
@@ -216,6 +215,100 @@ export default function CaptionWiseClient() {
 
   const handleLogout = () => signOut(auth);
 
+  const handleGenerateVideo = async () => {
+    if (!mediaSrcs || mediaSrcs.length === 0 || isGeneratingVideo) return;
+    setIsGeneratingVideo(true);
+    try {
+      const result = await generateVideo({
+        imageDataUri: mediaSrcs[0],
+        prompt: vibe ? `Make the ${vibe} come to life with cinematic motion.` : undefined
+      });
+      setGeneratedVideoUrl(result.videoDataUri);
+      toast({ title: "Video Ready!", description: "Your AI animation has been rendered." });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Video Generation Error", description: error.message });
+    } finally {
+      setIsGeneratingVideo(false);
+    }
+  };
+
+  const handleRefineCaptions = async () => {
+    if (!suggestedCaptions || !captionFeedback || isRefiningCaptions) return;
+    setIsRefiningCaptions(true);
+    try {
+      const initialCaptionEntries = Object.entries(suggestedCaptions).map(([lang, caps]) => ({
+        language: lang,
+        captions: caps as [string, string, string, string]
+      }));
+
+      const result = await refineMediaCaptions({
+        mediaDataUris: mediaSrcs || [],
+        mediaType: mediaType || 'image',
+        mediaDescription: vibe || "",
+        initialCaptionEntries,
+        userFeedback: captionFeedback,
+        tone: selectedTone,
+        targetLanguages: selectedLanguages,
+        targetPlatforms: selectedPlatforms
+      });
+
+      const newRefinedCaptions: MediaSuggestions = {};
+      result.refinedLanguageEntries.forEach(entry => {
+        newRefinedCaptions[entry.language] = entry.refinedCaptions;
+      });
+      setRefinedCaptions(newRefinedCaptions);
+      toast({ title: "Captions Refined!" });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Refinement Error", description: error.message });
+    } finally {
+      setIsRefiningCaptions(false);
+    }
+  };
+
+  const handleRefineSongs = async () => {
+    if (!suggestedSongs || !songFeedback || isRefiningSongs) return;
+    setIsRefiningSongs(true);
+    try {
+      const initialSongEntries = Object.entries(suggestedSongs).map(([lang, songs]) => ({
+        language: lang,
+        songSuggestions: songs
+      }));
+
+      const result = await refineSongSuggestions({
+        mediaDataUris: mediaSrcs || [],
+        mediaType: mediaType || 'image',
+        mediaDescription: vibe || "",
+        initialSongEntries,
+        userFeedback: songFeedback,
+        artistPreference: artistPreference || undefined,
+        targetLanguages: selectedSongLanguages
+      });
+
+      const newRefinedSongs: SongSuggestionsMap = {};
+      result.refinedLanguageSongEntries.forEach(entry => {
+        newRefinedSongs[entry.language] = entry.refinedSongSuggestions;
+      });
+      setRefinedSongSuggestions(newRefinedSongs);
+      toast({ title: "Audio Vibes Updated!" });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Refinement Error", description: error.message });
+    } finally {
+      setIsRefiningSongs(false);
+    }
+  };
+
+  const handlePlayAudio = async (text: string) => {
+    if (playingCaption === text) { activeAudio?.pause(); setPlayingCaption(null); return; }
+    setPlayingCaption(text);
+    try {
+        const { audioDataUri } = await textToSpeech({ text });
+        const audio = new Audio(audioDataUri);
+        setActiveAudio(audio);
+        audio.play();
+        audio.onended = () => { setPlayingCaption(null); setActiveAudio(null); };
+    } catch (e) { setPlayingCaption(null); }
+  }
+
   const CaptionDisplayCardRenderer = ({ caption, language }: { caption: string; language: string }) => {
     const isOverLimit = caption.length > minPlatformLimit;
     return (
@@ -275,21 +368,8 @@ export default function CaptionWiseClient() {
     </div>
   );
 
-  const handlePlayAudio = async (text: string) => {
-    if (playingCaption === text) { activeAudio?.pause(); setPlayingCaption(null); return; }
-    setPlayingCaption(text);
-    try {
-        const { audioDataUri } = await textToSpeech({ text });
-        const audio = new Audio(audioDataUri);
-        setActiveAudio(audio);
-        audio.play();
-        audio.onended = () => { setPlayingCaption(null); setActiveAudio(null); };
-    } catch (e) { setPlayingCaption(null); }
-  }
-
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-      {/* Top Navigation */}
       <nav className="h-16 border-b border-border/50 bg-card/50 backdrop-blur-lg flex items-center justify-between px-6 sticky top-0 z-50">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
@@ -320,7 +400,7 @@ export default function CaptionWiseClient() {
             <DialogContent className="sm:max-w-2xl bg-background border-primary/20">
               <AiAssistant
                 mediaType={mediaType} vibe={vibe} suggestedCaptions={suggestedCaptions}
-                suggestedSongs={null} captionFeedback={captionFeedback}
+                suggestedSongs={suggestedSongs} captionFeedback={captionFeedback}
                 songFeedback={songFeedback} selectedTone={selectedTone}
               />
             </DialogContent>
@@ -332,7 +412,6 @@ export default function CaptionWiseClient() {
       </nav>
 
       <div className="flex-grow flex flex-col lg:flex-row container mx-auto p-6 gap-8">
-        {/* Left Control Column */}
         <aside className="w-full lg:w-[350px] shrink-0 space-y-6">
           <Card className="border-border/50 shadow-xl overflow-hidden">
             <CardHeader className="bg-primary/5 pb-4">
@@ -365,7 +444,7 @@ export default function CaptionWiseClient() {
                 <TabsContent value="songs" className="pt-4">
                    <LanguageSelector
                     allLanguages={PREDEFINED_LANGUAGES}
-                    selectedSongLanguages={selectedSongLanguages}
+                    selectedLanguages={selectedSongLanguages}
                     onLanguageChange={(l) => setSelectedSongLanguages(prev => prev.includes(l) ? (prev.length > 1 ? prev.filter(x => x !== l) : prev) : [...prev, l])}
                     description="Song Vibe Languages"
                   />
@@ -409,7 +488,6 @@ export default function CaptionWiseClient() {
           )}
         </aside>
 
-        {/* Right Dashboard Area */}
         <main className="flex-grow space-y-6 overflow-y-auto">
           {isSuggesting && (
             <div className="flex flex-col items-center justify-center py-20 gap-6">
