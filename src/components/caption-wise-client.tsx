@@ -304,7 +304,7 @@ export default function CaptionWiseClient() {
 
     return (
       <div 
-        className="p-4 border rounded-xl bg-card hover:border-primary/50 transition-all shadow-sm group animate-completion-reveal fill-mode-both"
+        className="p-4 border rounded-xl bg-card hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all group animate-completion-reveal fill-mode-both"
         style={{ animationDelay: `${(index || 0) * 100}ms` }}
       >
         <div className="flex justify-between items-start gap-4">
@@ -346,7 +346,7 @@ export default function CaptionWiseClient() {
 
   const SongSuggestionItemRenderer = ({ song, language, index }: { song: SongSuggestion; language: string; index?: number }) => (
     <div 
-        className="p-4 border rounded-xl bg-card hover:border-primary/50 transition-all shadow-sm animate-completion-reveal fill-mode-both"
+        className="p-4 border rounded-xl bg-card hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all animate-completion-reveal fill-mode-both"
         style={{ animationDelay: `${(index || 0) * 150}ms` }}
     >
       <div className="flex justify-between items-center mb-2">
@@ -532,7 +532,7 @@ export default function CaptionWiseClient() {
                 <Card className="border-primary/20 bg-primary/5 shadow-sm overflow-hidden border-l-4 border-l-primary animate-in slide-in-from-left duration-700">
                   <CardContent className="p-6">
                     <div className="flex items-start gap-4">
-                      <div className="p-3 rounded-xl bg-primary/10 text-primary shrink-0 animate-pulse">
+                      <div className="p-3 rounded-xl bg-primary/10 text-primary shrink-0 animate-neural-glow">
                         <Activity className="h-6 w-6" />
                       </div>
                       <div className="space-y-3 flex-grow">
