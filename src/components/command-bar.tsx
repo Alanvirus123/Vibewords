@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, Sparkles, History, Copy, Zap, ArrowRight, CornerDownLeft } from "lucide-react";
@@ -83,6 +83,10 @@ export const CommandBar: React.FC<CommandBarProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl p-0 overflow-hidden bg-card/95 backdrop-blur-xl border-primary/20 shadow-2xl">
+        <DialogTitle className="sr-only">Command Menu</DialogTitle>
+        <DialogDescription className="sr-only">
+          Search for commands and navigate through the application.
+        </DialogDescription>
         <div className="flex items-center border-b border-border/50 px-4 py-3">
           <Search className="h-5 w-5 text-muted-foreground mr-3" />
           <Input 
