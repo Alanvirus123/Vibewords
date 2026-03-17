@@ -26,6 +26,7 @@ import { useAuth, useUser, useFirestore, useCollection, addDocumentNonBlocking, 
 import { signOut } from "firebase/auth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { collection, query, orderBy, doc } from "firebase/firestore";
+import { runWithRetry } from "@/lib/ai-retry";
 
 const SuggestedCaptionsDisplay = React.lazy(() => import('@/components/suggested-captions-display'));
 const RefinedCaptionsDisplay = React.lazy(() => import('@/components/refined-captions-display'));
@@ -212,16 +213,18 @@ export default function CaptionWiseClient() {
       const dataUris = await Promise.all(uploadedFiles.map(file => fileToDataUri(file)));
       setMediaSrcs(dataUris);
 
-      const vibeResult = await analyzeMediaVibe({ mediaDataUris: dataUris, mediaType: currentMediaType });
+      // Use retry logic for initial analysis
+      const vibeResult = await runWithRetry(() => analyzeMediaVibe({ mediaDataUris: dataUris, mediaType: currentMediaType }));
       setVibe(vibeResult.vibe);
 
-      const result = await suggestMediaCaptions({ 
+      // Use retry logic for initial suggestion
+      const result = await runWithRetry(() => suggestMediaCaptions({ 
         mediaDataUris: dataUris, 
         mediaType: currentMediaType, 
         targetLanguages: [...new Set([...selectedLanguages, ...selectedSongLanguages])].slice(0, MAX_LANGUAGES_PER_REQUEST),
         targetPlatforms: selectedPlatforms,
         tone: selectedTone === "Default" ? undefined : selectedTone
-      });
+      }));
       
       const newSuggestedCaptions: MediaSuggestions = {};
       const newSuggestedSongs: SongSuggestionsMap = {};
@@ -287,7 +290,8 @@ export default function CaptionWiseClient() {
         captions: caps as [string, string, string, string]
       }));
 
-      const result = await refineMediaCaptions({
+      // Use retry logic for refinement
+      const result = await runWithRetry(() => refineMediaCaptions({
         mediaDataUris: mediaSrcs || [],
         mediaType: mediaType || 'image',
         mediaDescription: vibe || "",
@@ -296,7 +300,7 @@ export default function CaptionWiseClient() {
         tone: selectedTone,
         targetLanguages: selectedLanguages,
         targetPlatforms: selectedPlatforms
-      });
+      }));
 
       const newRefinedCaptions: MediaSuggestions = {};
       result.refinedLanguageEntries.forEach(entry => {
@@ -320,7 +324,8 @@ export default function CaptionWiseClient() {
         songSuggestions: songs
       }));
 
-      const result = await refineSongSuggestions({
+      // Use retry logic for refinement
+      const result = await runWithRetry(() => refineSongSuggestions({
         mediaDataUris: mediaSrcs || [],
         mediaType: mediaType || 'image',
         mediaDescription: vibe || "",
@@ -328,7 +333,7 @@ export default function CaptionWiseClient() {
         userFeedback: songFeedback,
         artistPreference: artistPreference || undefined,
         targetLanguages: selectedSongLanguages
-      });
+      }));
 
       const newRefinedSongs: SongSuggestionsMap = {};
       result.refinedLanguageSongEntries.forEach(entry => {
