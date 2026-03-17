@@ -10,17 +10,9 @@ service cloud.firestore {
      *
      * DATA STRUCTURE
      * - /users/{userId}: The root document for a user's profile.
+     * - /users/{userId}/history/{itemId}: Bookmarked creative assets (captions/songs).
      * - /users/{userId}/images/{imageId}: Images owned by the user.
      * - /users/{userId}/images/{imageId}/captionSuggestions/{suggestionId}: AI/User suggestions for specific images.
-     *
-     * KEY SECURITY DECISIONS
-     * - Path-Based Authorization: By embedding 'userId' in all paths, we eliminate the need for costly 
-     *   get() lookups, making rules faster and more predictable.
-     * - Relational Integrity: On document creation, we enforce that internal 'id' or 'userId' fields 
-     *   match the path parameters to ensure data consistency.
-     * - Immobility of Ownership: Critical relational fields (like userId) are made immutable during updates.
-     * - Prototyping Flexibility: While ownership is strictly enforced, the specific schema of content 
-     *   fields (e.g., themePreference, text) is not validated to allow for rapid frontend iteration.
      */
 
     // --- Helper Functions ---
@@ -44,10 +36,6 @@ service cloud.firestore {
 
     /**
      * @description Rules for the UserProfile entity. Users can only manage their own profile.
-     * @path /users/{userId}
-     * @allow (create) if auth.uid is 'user_123' and path is /users/user_123.
-     * @deny (list) if auth.uid is 'user_123' and trying to list all documents in /users.
-     * @principle Ownership and Self-Creation.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
@@ -57,11 +45,19 @@ service cloud.firestore {
       allow delete: if isExistingOwner(userId);
 
       /**
-       * @description Rules for Images uploaded by users. Access is strictly scoped to the path-owner.
-       * @path /users/{userId}/images/{imageId}
-       * @allow (get) if auth.uid matches the {userId} segment of the path.
-       * @deny (update) if the existing document does not exist or belongs to a different user.
-       * @principle Path-based authorization independence.
+       * @description Rules for the History collection.
+       * @path /users/{userId}/history/{itemId}
+       */
+      match /history/{itemId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update: if isExistingOwner(userId);
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Rules for Images uploaded by users.
        */
       match /images/{imageId} {
         allow get: if isOwner(userId);
@@ -72,10 +68,6 @@ service cloud.firestore {
 
         /**
          * @description Rules for CaptionSuggestions associated with an image.
-         * @path /users/{userId}/images/{imageId}/captionSuggestions/{suggestionId}
-         * @allow (list) if the user owns the parent image path.
-         * @deny (create) if the user tries to create a suggestion in another user's image path.
-         * @principle Deeply nested hierarchical ownership.
          */
         match /captionSuggestions/{suggestionId} {
           allow get: if isOwner(userId);
