@@ -1,8 +1,7 @@
-
 "use client";
 
 import React, { useState, type ChangeEvent, useMemo, Suspense, useEffect, useCallback } from "react";
-import { UploadCloud, Copy, Loader2, Sparkles, HelpCircle, Music2, Volume2, RefreshCw, ClipboardPaste, ExternalLink, LogOut, LayoutDashboard, Settings, History, FileText, Zap, Cpu, Activity, Hash, Clock, BarChart3, Bookmark, Trash2, Calendar } from "lucide-react";
+import { UploadCloud, Copy, Loader2, Sparkles, HelpCircle, Music2, Volume2, RefreshCw, ClipboardPaste, ExternalLink, LogOut, LayoutDashboard, Settings, History, FileText, Zap, Cpu, Activity, Hash, Clock, BarChart3, Bookmark, Trash2, Calendar, Eye, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,6 +19,8 @@ import { PlatformSelector } from './platform-selector';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { MediaSuggestions, LanguageOption, SocialPlatform, SongSuggestion, SongSuggestionsMap } from '@/lib/types';
 import { AiAssistant } from "@/components/ai-assistant";
+import { CommandBar } from "@/components/command-bar";
+import { PlatformLivePreview } from "@/components/platform-live-preview";
 import { cn } from "@/lib/utils";
 import { useAuth, useUser, useFirestore, useCollection, addDocumentNonBlocking, deleteDocumentNonBlocking, useMemoFirebase } from "@/firebase";
 import { signOut } from "firebase/auth";
@@ -88,6 +89,7 @@ export default function CaptionWiseClient() {
   const { user } = useUser();
   const firestore = useFirestore();
   
+  const [activeTab, setActiveTab] = useState<'generate' | 'history'>('generate');
   const [mediaFiles, setMediaFiles] = useState<File[] | null>(null);
   const [mediaSrcs, setMediaSrcs] = useState<string[] | null>(null);
   const [mediaType, setMediaType] = useState<AppMediaType | null>(null);
@@ -115,6 +117,7 @@ export default function CaptionWiseClient() {
   
   const [activeAudio, setActiveAudio] = useState<HTMLAudioElement | null>(null);
   const [playingCaption, setPlayingCaption] = useState<string | null>(null);
+  const [isCommandBarOpen, setIsCommandBarOpen] = useState(false);
 
   // Persistence: History
   const historyQuery = useMemoFirebase(() => {
@@ -139,6 +142,24 @@ export default function CaptionWiseClient() {
     const limits = selectedPlatforms.map(p => PLATFORM_LIMITS[p] || 2200);
     return Math.min(...limits);
   }, [selectedPlatforms]);
+
+  const lastGeneratedCaption = useMemo(() => {
+    if (!suggestedCaptions) return null;
+    const langs = Object.keys(suggestedCaptions);
+    if (langs.length === 0) return null;
+    return suggestedCaptions[langs[0]][0];
+  }, [suggestedCaptions]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsCommandBarOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const resetAll = useCallback(() => {
     setSuggestedCaptions(null);
@@ -353,6 +374,21 @@ export default function CaptionWiseClient() {
              <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10" onClick={() => handlePlayAudio(caption)} disabled={playingCaption === caption}>
                 {playingCaption === caption ? <Loader2 className="h-3 w-3 animate-spin" /> : <Volume2 className="h-4 w-4" />}
              </Button>
+             <Dialog>
+                <DialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10" title="Live Preview">
+                        <Eye className="h-4 w-4" />
+                    </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl p-0 overflow-hidden bg-card">
+                    <PlatformLivePreview 
+                        caption={caption} 
+                        hashtags={hashtags} 
+                        platform={selectedPlatforms[0]} 
+                        limit={PLATFORM_LIMITS[selectedPlatforms[0]] || 2200}
+                    />
+                </DialogContent>
+             </Dialog>
              <Button 
                 variant="ghost" 
                 size="icon" 
@@ -427,6 +463,14 @@ export default function CaptionWiseClient() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
+      <CommandBar 
+        isOpen={isCommandBarOpen} 
+        onClose={() => setIsCommandBarOpen(false)}
+        onNavigate={(tab) => setActiveTab(tab)}
+        onRefine={() => handleRefineCaptions()}
+        lastCaption={lastGeneratedCaption}
+      />
+
       <nav className="h-16 border-b border-border/50 bg-card/50 backdrop-blur-lg flex items-center justify-between px-6 sticky top-0 z-50 animate-in fade-in slide-in-from-top duration-500">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2 group cursor-pointer overflow-hidden">
@@ -446,6 +490,16 @@ export default function CaptionWiseClient() {
                   {user.isAnonymous ? "GUEST MODE" : user.email?.toUpperCase()}
               </div>
           )}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="hidden md:flex items-center gap-2 px-3 h-9 bg-background/50 border-primary/20 text-primary hover:bg-primary/10"
+            onClick={() => setIsCommandBarOpen(true)}
+          >
+            <Terminal className="h-4 w-4" />
+            <span className="text-[10px] font-bold uppercase tracking-widest">Command Shell</span>
+            <kbd className="ml-2 px-1.5 py-0.5 bg-primary/20 rounded border border-primary/30 text-[9px] font-mono">⌘K</kbd>
+          </Button>
           <ThemeToggle />
           <Dialog>
             <DialogTrigger asChild>
@@ -467,7 +521,7 @@ export default function CaptionWiseClient() {
 
       <div className="flex-grow flex flex-col container mx-auto max-w-4xl p-6 gap-8">
         <main className="flex-grow space-y-6">
-          <Tabs defaultValue="generate" className="w-full">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-8 h-12">
               <TabsTrigger value="generate" className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                 <LayoutDashboard className="h-4 w-4" /> Workspace
@@ -763,4 +817,3 @@ export default function CaptionWiseClient() {
     </div>
   );
 }
-
