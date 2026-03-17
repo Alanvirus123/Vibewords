@@ -1,40 +1,27 @@
 rules_version = '2';
-
-/**
- * CAPTIONWISE FIRESTORE SECURITY RULES
- *
- * Core Philosophy:
- * This ruleset implements a strict User-Ownership model. Access control is primarily 
- * driven by the document path, ensuring that users can only access data nested 
- * under their own unique identifier ({userId}). This provides "Authorization 
- * Independence" where security logic is decoupled from complex database queries.
- *
- * Data Structure:
- * The database is organized hierarchically:
- * - /users/{userId}: The root profile for a user.
- * - /users/{userId}/images/{imageId}: Images uploaded by the user.
- * - /users/{userId}/images/{imageId}/aiCaptionSuggestions/{suggestionId}: AI-generated 
- *   content belonging to a specific image.
- * - /users/{userId}/userCaptions/{userCaptionId}: Captions created/saved by the user.
- *
- * Key Security Decisions:
- * 1. Path-Based Authorization: All rules verify that the 'userId' segment of the 
- *    Firestore path matches the 'request.auth.uid'.
- * 2. Relational Integrity: On creation, documents must include a field (like 'userId' 
- *    or 'id') that matches the path to prevent data cross-linking.
- * 3. Immutable Ownership: Once a document is created, fields defining ownership or 
- *    parent relationships are immutable.
- * 4. Prototyping Flexibility: While authorization is strictly enforced, the specific 
- *    schema (fields like 'description' or 'status') is not validated to allow for 
- *    rapid frontend iteration.
- *
- * Denormalization for Authorization:
- * We use path-based ownership. By nesting all user data under /users/{userId}, 
- * we avoid costly get() calls to check permissions on parent or related documents.
- */
-
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    /**
+     * CORE PHILOSOPHY
+     * This ruleset enforces a strict hierarchical user-ownership model designed for Authorization Independence. 
+     * Security is primarily derived from the document path, ensuring that users can only access data 
+     * nested under their own unique identifier.
+     *
+     * DATA STRUCTURE
+     * - /users/{userId}: The root document for a user's profile.
+     * - /users/{userId}/images/{imageId}: Images owned by the user.
+     * - /users/{userId}/images/{imageId}/captionSuggestions/{suggestionId}: AI/User suggestions for specific images.
+     *
+     * KEY SECURITY DECISIONS
+     * - Path-Based Authorization: By embedding 'userId' in all paths, we eliminate the need for costly 
+     *   get() lookups, making rules faster and more predictable.
+     * - Relational Integrity: On document creation, we enforce that internal 'id' or 'userId' fields 
+     *   match the path parameters to ensure data consistency.
+     * - Immobility of Ownership: Critical relational fields (like userId) are made immutable during updates.
+     * - Prototyping Flexibility: While ownership is strictly enforced, the specific schema of content 
+     *   fields (e.g., themePreference, text) is not validated to allow for rapid frontend iteration.
+     */
 
     // --- Helper Functions ---
 
@@ -48,76 +35,55 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /** @description Combines ownership check with a check for document existence. Used for updates and deletes. */
+    /** @description Combines ownership check with a verification that the document exists. Used for updates/deletes. */
     function isExistingOwner(userId) {
-      return resource != null && isOwner(userId);
-    }
-
-    /** @description Helper to access incoming data. */
-    function incomingData() {
-      return request.resource.data;
-    }
-
-    /** @description Helper to access existing data. */
-    function existingData() {
-      return resource.data;
+      return isOwner(userId) && resource != null;
     }
 
     // --- Collection Rules ---
 
     /**
-     * @description Rules for the UserProfile entity.
+     * @description Rules for the UserProfile entity. Users can only manage their own profile.
      * @path /users/{userId}
-     * @allow (create) User with UID 'abc' creates document '/users/abc' with {id: 'abc'}.
-     * @deny (get) User with UID 'abc' attempts to read '/users/xyz'.
-     * @principle Enforces document ownership and validates that the internal ID matches the path.
+     * @allow (create) if auth.uid is 'user_123' and path is /users/user_123.
+     * @deny (list) if auth.uid is 'user_123' and trying to list all documents in /users.
+     * @principle Ownership and Self-Creation.
      */
     match /users/{userId} {
-      allow get, list: if isOwner(userId);
-      allow create: if isOwner(userId) && incomingData().id == userId;
-      allow update: if isExistingOwner(userId) && incomingData().id == existingData().id;
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
 
       /**
-       * @description Rules for the Image entity.
+       * @description Rules for Images uploaded by users. Access is strictly scoped to the path-owner.
        * @path /users/{userId}/images/{imageId}
-       * @allow (list) User with UID 'abc' lists documents in '/users/abc/images/'.
-       * @deny (update) User 'abc' attempts to change the 'userId' field of an image.
-       * @principle Structural segregation ensures only the owner can access their image gallery.
+       * @allow (get) if auth.uid matches the {userId} segment of the path.
+       * @deny (update) if the existing document does not exist or belongs to a different user.
+       * @principle Path-based authorization independence.
        */
       match /images/{imageId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && incomingData().userId == userId;
-        allow update: if isExistingOwner(userId) && incomingData().userId == existingData().userId;
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && request.resource.data.userId == userId;
+        allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
         allow delete: if isExistingOwner(userId);
 
         /**
-         * @description Rules for AICaptionSuggestion entity.
-         * @path /users/{userId}/images/{imageId}/aiCaptionSuggestions/{suggestionId}
-         * @allow (get) User 'abc' reads a suggestion for their own image.
-         * @deny (create) User 'abc' attempts to create a suggestion under user 'xyz's path.
-         * @principle Inherited authorization from the parent user/image path.
+         * @description Rules for CaptionSuggestions associated with an image.
+         * @path /users/{userId}/images/{imageId}/captionSuggestions/{suggestionId}
+         * @allow (list) if the user owns the parent image path.
+         * @deny (create) if the user tries to create a suggestion in another user's image path.
+         * @principle Deeply nested hierarchical ownership.
          */
-        match /aiCaptionSuggestions/{suggestionId} {
-          allow get, list: if isOwner(userId);
-          allow create: if isOwner(userId) && incomingData().imageId == imageId;
-          allow update: if isExistingOwner(userId) && incomingData().imageId == existingData().imageId;
+        match /captionSuggestions/{suggestionId} {
+          allow get: if isOwner(userId);
+          allow list: if isOwner(userId);
+          allow create: if isOwner(userId);
+          allow update: if isExistingOwner(userId);
           allow delete: if isExistingOwner(userId);
         }
-      }
-
-      /**
-       * @description Rules for the UserCaption entity.
-       * @path /users/{userId}/userCaptions/{userCaptionId}
-       * @allow (create) User 'abc' saves a refined caption to their private collection.
-       * @deny (delete) User 'abc' attempts to delete a caption belonging to user 'xyz'.
-       * @principle Path-based ownership provides direct and performant authorization for user-generated content.
-       */
-      match /userCaptions/{userCaptionId} {
-        allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && incomingData().userId == userId;
-        allow update: if isExistingOwner(userId) && incomingData().userId == existingData().userId;
-        allow delete: if isExistingOwner(userId);
       }
     }
   }
