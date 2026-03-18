@@ -1,7 +1,8 @@
+
 "use client";
 
 import React, { useState, type ChangeEvent, useMemo, Suspense, useEffect, useCallback } from "react";
-import { UploadCloud, Copy, Loader2, Sparkles, HelpCircle, Music2, Volume2, RefreshCw, ClipboardPaste, ExternalLink, LogOut, LayoutDashboard, Settings, History, FileText, Zap, Cpu, Activity, Hash, Clock, BarChart3, Bookmark, Trash2, Calendar, Eye, Terminal } from "lucide-react";
+import { UploadCloud, Copy, Loader2, Sparkles, HelpCircle, Music2, Volume2, RefreshCw, ClipboardPaste, ExternalLink, LogOut, LayoutDashboard, Settings, History, FileText, Zap, Cpu, Activity, Hash, Clock, BarChart3, Bookmark, Trash2, Calendar, Eye, Terminal, Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import { refineMediaCaptions, type RefineMediaCaptionsInput } from "@/ai/flows/r
 import { refineSongSuggestions, type RefineSongSuggestionsInput } from "@/ai/flows/refine-song-suggestions";
 import { textToSpeech } from "@/ai/flows/text-to-speech";
 import { analyzeMediaVibe } from "@/ai/flows/analyze-media-vibe";
+import { generateVideo } from "@/ai/flows/generate-video";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { LanguageSelector } from './language-selector';
@@ -27,6 +29,7 @@ import { signOut } from "firebase/auth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { collection, query, orderBy, doc } from "firebase/firestore";
 import { runWithRetry } from "@/lib/ai-retry";
+import { Progress } from "@/components/ui/progress";
 
 const SuggestedCaptionsDisplay = React.lazy(() => import('@/components/suggested-captions-display'));
 const RefinedCaptionsDisplay = React.lazy(() => import('@/components/refined-captions-display'));
@@ -115,6 +118,7 @@ export default function CaptionWiseClient() {
   const [isSuggesting, setIsSuggesting] = useState<boolean>(false);
   const [isRefiningCaptions, setIsRefiningCaptions] = useState<boolean>(false);
   const [isRefiningSongs, setIsRefiningSongs] = useState<boolean>(false);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState<boolean>(false);
   
   const [activeAudio, setActiveAudio] = useState<HTMLAudioElement | null>(null);
   const [playingCaption, setPlayingCaption] = useState<string | null>(null);
@@ -173,6 +177,7 @@ export default function CaptionWiseClient() {
     setMediaFiles(null);
     setMediaSrcs(null);
     setMediaType(null);
+    setIsGeneratingVideo(false);
   }, []);
 
   const handleSaveToHistory = async (content: string, type: 'caption' | 'song', metadata?: any) => {
@@ -279,6 +284,26 @@ export default function CaptionWiseClient() {
   };
 
   const handleLogout = () => signOut(auth);
+
+  const handleGenerateVideo = async () => {
+    if (!mediaSrcs || mediaSrcs.length === 0 || isGeneratingVideo) return;
+    setIsGeneratingVideo(true);
+    toast({ title: "Initiating Cinematic Morph", description: "Our Veo nodes are rendering your video (~60s).", className: "bg-primary text-primary-foreground" });
+    try {
+      const result = await runWithRetry(() => generateVideo({ 
+        imageDataUri: mediaSrcs[0], 
+        prompt: "Animate this photo with cinematic movement, shallow depth of field, and natural lighting transitions" 
+      }), 2);
+      
+      setMediaSrcs([result.videoDataUri]);
+      setMediaType('video');
+      toast({ title: "Video Rendered Successfully!", className: "bg-green-500 text-white" });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Veo Error", description: error.message });
+    } finally {
+      setIsGeneratingVideo(false);
+    }
+  };
 
   const handleRefineCaptions = async (quickPrompt?: string) => {
     const feedback = quickPrompt || captionFeedback;
@@ -594,6 +619,7 @@ export default function CaptionWiseClient() {
                         allLanguages={PREDEFINED_LANGUAGES}
                         selectedLanguages={selectedLanguages}
                         onLanguageChange={(l) => setSelectedLanguages(prev => prev.includes(l) ? (prev.length > 1 ? prev.filter(x => x !== l) : prev) : [...prev, l])}
+                        onBulkSelect={setSelectedLanguages}
                         description="Generation Languages"
                       />
                     </div>
@@ -604,14 +630,37 @@ export default function CaptionWiseClient() {
               {mediaSrcs && mediaSrcs.length > 0 && (
                 <Card className="border-border/50 overflow-hidden shadow-lg">
                     <CardHeader className="py-3 px-4 bg-muted/50 border-b flex flex-row items-center justify-between">
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Active Assets</span>
+                        <div className="flex items-center gap-4">
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Active Assets</span>
+                            {mediaType === 'image' && (
+                                <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="h-6 text-[9px] font-bold bg-primary text-primary-foreground border-none hover:bg-primary/90"
+                                    onClick={handleGenerateVideo}
+                                    disabled={isGeneratingVideo}
+                                >
+                                    {isGeneratingVideo ? <Loader2 className="h-2 w-2 animate-spin mr-1" /> : <Film className="h-2 w-2 mr-1" />}
+                                    CINEMATIC ANIMATION (VEO)
+                                </Button>
+                            )}
+                        </div>
                         <Button variant="ghost" size="sm" className="h-6 text-[10px] text-destructive hover:bg-destructive/10" onClick={resetAll}>DISCARD</Button>
                     </CardHeader>
                     <CardContent className="p-3">
                         <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
                             {mediaSrcs.map((src, idx) => (
-                                <div key={idx} className="aspect-square rounded-lg overflow-hidden border border-white/10 shadow-inner">
-                                     {mediaType === 'video' ? <video src={src} className="w-full h-full object-cover" /> : <img src={src} alt="Preview" className="w-full h-full object-cover" />}
+                                <div key={idx} className="aspect-square rounded-lg overflow-hidden border border-white/10 shadow-inner group relative">
+                                     {mediaType === 'video' ? (
+                                        <video src={src} className="w-full h-full object-cover" autoPlay loop muted playsInline />
+                                     ) : (
+                                        <img src={src} alt="Preview" className="w-full h-full object-cover" />
+                                     )}
+                                     {isGeneratingVideo && (
+                                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                                            <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                                        </div>
+                                     )}
                                 </div>
                             ))}
                         </div>
@@ -651,17 +700,17 @@ export default function CaptionWiseClient() {
                               "{vibe}"
                             </p>
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-primary/10">
-                              <div className="flex flex-col">
-                                <span className="text-[8px] text-muted-foreground font-bold uppercase mb-1 flex items-center gap-1">
-                                  <BarChart3 className="h-2 w-2" /> Engagement Score
+                              <div className="flex flex-col space-y-2">
+                                <span className="text-[8px] text-muted-foreground font-bold uppercase flex items-center gap-1">
+                                  <BarChart3 className="h-2 w-2" /> Engagement 8.4
                                 </span>
-                                <span className="text-[10px] font-mono font-bold text-primary">8.4 / 10.0</span>
+                                <Progress value={84} className="h-1" />
                               </div>
                               <div className="flex flex-col">
                                 <span className="text-[8px] text-muted-foreground font-bold uppercase mb-1 flex items-center gap-1">
                                   <Clock className="h-2 w-2" /> Best Time
                                 </span>
-                                <span className="text-[10px] font-mono font-bold text-primary">6:00 PM - 8:00 PM</span>
+                                <span className="text-[10px] font-mono font-bold text-primary">6-8 PM</span>
                               </div>
                               <div className="flex flex-col">
                                 <span className="text-[8px] text-muted-foreground font-bold uppercase mb-1 flex items-center gap-1">
@@ -671,7 +720,7 @@ export default function CaptionWiseClient() {
                               </div>
                               <div className="flex flex-col">
                                 <span className="text-[8px] text-muted-foreground font-bold uppercase mb-1 flex items-center gap-1">
-                                  <Zap className="h-2 w-2" /> Tone Priority
+                                  <Zap className="h-2 w-2" /> Priority
                                 </span>
                                 <span className="text-[10px] font-mono font-bold text-primary">{selectedTone.toUpperCase()}</span>
                               </div>
