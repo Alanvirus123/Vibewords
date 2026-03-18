@@ -124,7 +124,7 @@ export default function LoginPage() {
               <form onSubmit={handleSignIn}>
                 <CardHeader>
                   <CardTitle className="text-xl">Authentication</CardTitle>
-                  <CardDescription>Enter your credentials to access your dashboard.</CardDescription>
+                  <CardDescription>Enter your credentials to access your Vibespace.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -139,7 +139,7 @@ export default function LoginPage() {
                 <CardFooter className="flex-col gap-4">
                   <Button type="submit" className="w-full h-11" disabled={isSubmitting}>
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogIn className="mr-2 h-4 w-4" />}
-                    Continue to Dashboard
+                    Continue to Vibespace
                   </Button>
                   <div className="relative w-full">
                     <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
@@ -155,7 +155,7 @@ export default function LoginPage() {
             <TabsContent value="signup" className="mt-0">
               <form onSubmit={handleSignUp}>
                 <CardHeader>
-                  <CardTitle className="text-xl">Create Workspace</CardTitle>
+                  <CardTitle className="text-xl">Create Vibespace</CardTitle>
                   <CardDescription>Get started with your AI content strategy.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">

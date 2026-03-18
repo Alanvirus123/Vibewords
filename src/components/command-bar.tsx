@@ -27,8 +27,8 @@ export const CommandBar: React.FC<CommandBarProps> = ({
 
   const ACTIONS = [
     { 
-      id: 'goto-workspace', 
-      label: 'Go to Workspace', 
+      id: 'goto-vibespace', 
+      label: 'Go to Vibespace', 
       icon: Sparkles, 
       category: 'Navigation',
       onSelect: () => onNavigate('generate')
@@ -94,7 +94,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
             placeholder="Type a command or search..." 
             className="border-none shadow-none focus-visible:ring-0 text-lg h-10 bg-transparent px-0"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
           <div className="flex items-center gap-1.5 ml-4">
             <kbd className="px-2 py-1 bg-muted rounded border border-border text-[10px] font-mono text-muted-foreground shadow-sm">ESC</kbd>

@@ -529,7 +529,7 @@ export default function CaptionWiseClient() {
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-8 h-12">
               <TabsTrigger value="generate" className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                <LayoutDashboard className="h-4 w-4" /> Workspace
+                <LayoutDashboard className="h-4 w-4" /> Vibespace
               </TabsTrigger>
               <TabsTrigger value="history" className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                 <History className="h-4 w-4" /> Neural Vault
