@@ -34,7 +34,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "HistoryItem",
       "type": "object",
-      "description": "Represents a bookmarked creative asset (caption or song) saved by the user in their Neural Vault.",
+      "description": "Represents a bookmarked creative asset (caption or song) saved by the user in The Stash.",
       "properties": {
         "id": { "type": "string" },
         "content": { "type": "string" },
@@ -166,6 +166,6 @@
         }
       }
     ],
-    "reasoning": "Updated to include the HistoryItem entity for the Neural Vault feature, following path-based ownership."
+    "reasoning": "Updated to include the HistoryItem entity for The Stash feature, following path-based ownership."
   }
 }

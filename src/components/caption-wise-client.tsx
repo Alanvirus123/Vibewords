@@ -184,7 +184,7 @@ export default function CaptionWiseClient() {
         metadata: metadata || {},
         savedAt: new Date().toISOString()
       });
-      toast({ title: "Archived to History Vault", className: "bg-primary text-primary-foreground" });
+      toast({ title: "Saved to The Stash", className: "bg-primary text-primary-foreground" });
     } catch (e) {
       toast({ variant: "destructive", title: "Persistence Error" });
     }
@@ -398,7 +398,7 @@ export default function CaptionWiseClient() {
                 variant="ghost" 
                 size="icon" 
                 className="h-8 w-8 hover:bg-primary/10" 
-                title="Save to History"
+                title="Save to The Stash"
                 onClick={() => handleSaveToHistory(caption, 'caption', { language, platforms: selectedPlatforms })}
              >
                 <Bookmark className="h-4 w-4" />
@@ -532,7 +532,7 @@ export default function CaptionWiseClient() {
                 <LayoutDashboard className="h-4 w-4" /> Vibespace
               </TabsTrigger>
               <TabsTrigger value="history" className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                <History className="h-4 w-4" /> Neural Vault
+                <History className="h-4 w-4" /> The Stash
               </TabsTrigger>
             </TabsList>
 
@@ -768,7 +768,7 @@ export default function CaptionWiseClient() {
                 <CardHeader>
                   <CardTitle className="text-xl font-bold flex items-center gap-2">
                     <Bookmark className="h-6 w-6 text-primary" />
-                    Neural Vault History
+                    The Stash History
                   </CardTitle>
                   <CardDescription>All your bookmarked creative assets in one persistent cloud location.</CardDescription>
                 </CardHeader>
