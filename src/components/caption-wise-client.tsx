@@ -120,7 +120,7 @@ export default function CaptionWiseClient() {
   const [playingCaption, setPlayingCaption] = useState<string | null>(null);
   const [isCommandBarOpen, setIsCommandBarOpen] = useState(false);
 
-  // Persistence: History
+  // Persistence: History (The Stash)
   const historyQuery = useMemoFirebase(() => {
     if (!user) return null;
     return query(
@@ -194,7 +194,7 @@ export default function CaptionWiseClient() {
     if (!user) return;
     try {
       deleteDocumentNonBlocking(doc(firestore, "users", user.uid, "history", id));
-      toast({ title: "Item Removed" });
+      toast({ title: "Item Removed from Stash" });
     } catch (e) {}
   };
 

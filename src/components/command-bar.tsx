@@ -85,7 +85,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
       <DialogContent className="max-w-2xl p-0 overflow-hidden bg-card/95 backdrop-blur-xl border-primary/20 shadow-2xl">
         <DialogTitle className="sr-only">Command Menu</DialogTitle>
         <DialogDescription className="sr-only">
-          Search for commands and navigate through the application.
+          Search for commands and navigate through the Vibespace application.
         </DialogDescription>
         <div className="flex items-center border-b border-border/50 px-4 py-3">
           <Search className="h-5 w-5 text-muted-foreground mr-3" />
@@ -94,7 +94,7 @@ export const CommandBar: React.FC<CommandBarProps> = ({
             placeholder="Type a command or search..." 
             className="border-none shadow-none focus-visible:ring-0 text-lg h-10 bg-transparent px-0"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
           <div className="flex items-center gap-1.5 ml-4">
             <kbd className="px-2 py-1 bg-muted rounded border border-border text-[10px] font-mono text-muted-foreground shadow-sm">ESC</kbd>
